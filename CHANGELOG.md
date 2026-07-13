@@ -18,3 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Integration tests that require the platform monorepo harness remain `//go:build ignore` (run from `aion`).
 - Module path changed: use `github.com/iome-sh/iomesh-client-sdk-go` for all new consumers.
+
+## [0.1.2] — 2026-07-13
+
+### Fixed
+
+- CI: gofmt, go 1.23/1.24 matrix, govulncheck on library packages with stable toolchain.
