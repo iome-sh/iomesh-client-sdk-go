@@ -39,8 +39,8 @@ type MemoryEnvelope struct {
 const (
 	memoryEnvelopeIngest = "memory_ingest"
 	memoryEnvelopeRecall = "memory_recall"
-	streamMemoryIngest     = "MEMORY_INGEST"
-	streamMemoryRPC        = "MEMORY_RPC"
+	streamMemoryIngest   = "MEMORY_INGEST"
+	streamMemoryRPC      = "MEMORY_RPC"
 )
 
 // RegisterMemoryProduct registers a memory DataProduct via POST /v5/registry/memory-products.
