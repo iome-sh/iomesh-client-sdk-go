@@ -82,5 +82,6 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
-          version: v1.64.8
+          # Action v7+ requires golangci-lint v2 (v1 pins are rejected).
+          version: v2.12.2
           args: --timeout=5m
