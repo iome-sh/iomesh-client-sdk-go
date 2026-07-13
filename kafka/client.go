@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 )
 
-// Client speaks the Aion Kafka protocol subset for tests and pilots.
+// Client speaks the I/O Mesh Kafka protocol subset for tests and pilots.
 type Client struct {
 	addr string
 	seq  atomic.Int32
