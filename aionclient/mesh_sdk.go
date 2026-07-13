@@ -13,7 +13,7 @@ type MeshSDKConfig struct {
 	Tenant    string
 }
 
-// MeshSDK is a unified facade over pkg/aionclient HTTP and Kafka protocol produce.
+// MeshSDK is a unified facade over the mesh HTTP client and Kafka protocol produce.
 type MeshSDK struct {
 	http  *Client
 	kafka *KafkaClient

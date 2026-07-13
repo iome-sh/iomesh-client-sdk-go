@@ -4,7 +4,7 @@
 
 - [ ] `go test ./...` and `go test -race ./...` green  
 - [ ] CHANGELOG.md updated under `## [Unreleased]` → version section  
-- [ ] No accidental monorepo `replace` directives in `go.mod`  
+- [ ] No accidental local `replace` directives in `go.mod`  
 - [ ] Maintainer rights on `iome-sh/iomesh-client-sdk-go`  
 
 ## Steps

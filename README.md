@@ -10,11 +10,11 @@ Official **Go client SDK** for the [I/O Mesh](https://iome.sh) broker and connec
 |------------|---------|
 | HTTP publish / pull subscribe / streams / KV / memory | [`aionclient`](./aionclient) |
 | Partner webhook HMAC + observation envelopes | [`connectorsdk`](./connectorsdk) |
-| Aion Kafka protocol (Produce subset) | [`kafka`](./kafka) · via `aionclient.KafkaClient` |
+| Kafka protocol (Produce subset) | [`kafka`](./kafka) · via `aionclient.KafkaClient` |
 | Shared envelope + CUID helpers | [`envelope`](./envelope) · [`cuid`](./cuid) |
 
 > **Module path:** `github.com/iome-sh/iomesh-client-sdk-go`  
-> **Package name `aionclient`:** stable API name for the mesh HTTP client (historical “Aion” core). Prefer this module over the deprecated monorepo path `mesh-client-sdk-go`.
+> **Package `aionclient`:** stable Go import path for the mesh HTTP client API (name retained for compatibility).
 
 ## Requirements
 
@@ -24,7 +24,7 @@ Official **Go client SDK** for the [I/O Mesh](https://iome.sh) broker and connec
 ## Install
 
 ```bash
-go get github.com/iome-sh/iomesh-client-sdk-go@v0.1.0
+go get github.com/iome-sh/iomesh-client-sdk-go@latest
 ```
 
 ## Quick start — connect and publish
@@ -84,7 +84,7 @@ See [`examples/connector-sdk-template/`](examples/connector-sdk-template/) for a
 kc := aionclient.NewKafkaClient("127.0.0.1:9423")
 defer kc.Close()
 
-offset, err := kc.Produce(ctx, "aion.finance.events", 0, []byte("key"), []byte(`{"event_id":"evt-1"}`))
+offset, err := kc.Produce(ctx, "mesh.finance.events", 0, []byte("key"), []byte(`{"event_id":"evt-1"}`))
 ```
 
 ## Security
@@ -108,16 +108,16 @@ go test -race ./...
 golangci-lint run ./...   # if installed
 ```
 
-Integration tests that require a live broker or monorepo harness are tagged `//go:build ignore` and run from the I/O Mesh platform monorepo.
+This repository is **pure client code** — no private platform dependencies. Unit tests use `httptest` and local helpers. Live broker integration belongs in your environment or private test harnesses, not in this public tree.
 
 ## Related
 
-| Repo | Role |
+| Link | Role |
 |------|------|
-| [`iome-sh/aion`](https://github.com/iome-sh/aion) | Platform / broker (private) |
-| [`iome-sh/iomesh`](https://github.com/iome-sh/iomesh) | Marketing site |
+| [iome.sh](https://iome.sh) | Product & documentation |
+| [`iome-sh/iomesh`](https://github.com/iome-sh/iomesh) | Public marketing site |
 | *Upcoming* | `iomesh-client-sdk-ts`, `iomesh-client-sdk-python`, … |
 
 ## License
 
-[MIT](LICENSE) © 2026 iome.sh
+[MIT](LICENSE) © 2026 [IOMesh Technology Ltd.](https://iome.sh)

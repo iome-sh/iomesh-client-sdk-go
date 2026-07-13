@@ -1,4 +1,5 @@
-// Package aionclient is the Go SDK for Aion, wrapping the HTTP /v1 API.
+// Package aionclient is the Go HTTP client for the I/O Mesh broker (/v1 API).
+// The package name is retained for API compatibility.
 package aionclient
 
 import (
