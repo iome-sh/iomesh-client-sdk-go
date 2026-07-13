@@ -236,7 +236,7 @@ func DecodeMessage(data []byte) (Message, error) {
 		return Message{}, fmt.Errorf("trailing message bytes")
 	}
 
-	crcData := data[4:len(data)]
+	crcData := data[4:]
 	if crc32.Checksum(crcData, crc32CTable) != storedCRC {
 		return Message{}, fmt.Errorf("crc mismatch")
 	}
