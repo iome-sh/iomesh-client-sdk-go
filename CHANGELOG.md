@@ -9,10 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Public docs: remove private platform repo links; copyright **IOMesh Technology Ltd.**
-- Drop ignored integration tests that referenced private platform packages (keep pure-client unit tests).
+- **Primary package:** [`iomeshclient`](./iomeshclient) (public product naming).
+- **Wire headers:** `X-IOMesh-Tenant`, `X-IOMesh-Org` (and related `X-IOMesh-*`).
+- Kafka client id: `iomesh-kafka-client`.
+- Examples: `IOMESH_*` env vars only.
+- Docs: public naming policy for packages, env, and headers.
+
+### Removed
+
+- Package `aionclient` (no compatibility shim; use `iomeshclient`).
+- Legacy `X-Aion-*` wire header names and `AION_*` example env aliases.
 
 ## [0.1.2] — 2026-07-13
+
+### Changed
+
+- Public docs: remove private platform repo links; copyright **IOMesh Technology Ltd.**
+- Drop ignored integration tests that referenced private platform packages (keep pure-client unit tests).
 
 ### Fixed
 
@@ -23,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial public release of the I/O Mesh Go client SDK.
-- Packages: `aionclient`, `connectorsdk`, `kafka`, `envelope`, `cuid`.
+- Packages: `aionclient` (later renamed to `iomeshclient`), `connectorsdk`, `kafka`, `envelope`, `cuid`.
 - CI (test, race, vet, govulncheck, golangci-lint), Dependabot, SECURITY.md, CONTRIBUTING.
 
 ### Notes

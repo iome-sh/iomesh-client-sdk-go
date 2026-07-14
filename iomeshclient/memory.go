@@ -1,4 +1,4 @@
-package aionclient
+package iomeshclient
 
 import (
 	"context"
@@ -47,13 +47,13 @@ const (
 // A 409 conflict is treated as success (idempotent re-register).
 func (c *Client) RegisterMemoryProduct(ctx context.Context, cfg MemoryProductConfig) error {
 	if cfg.ProductID == "" {
-		return errors.New("aionclient: product_id required")
+		return errors.New("iomeshclient: product_id required")
 	}
 	if cfg.TenantID == "" {
-		return errors.New("aionclient: tenant_id required")
+		return errors.New("iomeshclient: tenant_id required")
 	}
 	if cfg.PalaceRoot == "" {
-		return errors.New("aionclient: palace_root required")
+		return errors.New("iomeshclient: palace_root required")
 	}
 
 	var resp MemoryProductConfig
@@ -71,7 +71,7 @@ func (c *Client) RegisterMemoryProduct(ctx context.Context, cfg MemoryProductCon
 func (c *Client) ListMemoryProducts(ctx context.Context, tenantID string) ([]MemoryProductConfig, error) {
 	tenantID = strings.TrimSpace(tenantID)
 	if tenantID == "" {
-		return nil, errors.New("aionclient: tenant_id required")
+		return nil, errors.New("iomeshclient: tenant_id required")
 	}
 
 	path := fmt.Sprintf("/v5/registry/memory-products?tenant_id=%s", url.QueryEscape(tenantID))
@@ -89,13 +89,13 @@ func (c *Client) ListMemoryProducts(ctx context.Context, tenantID string) ([]Mem
 func (c *Client) PublishMemoryIngest(ctx context.Context, tenantID string, env MemoryEnvelope) (*PubAck, error) {
 	tenantID = strings.TrimSpace(tenantID)
 	if tenantID == "" {
-		return nil, errors.New("aionclient: tenant_id required")
+		return nil, errors.New("iomeshclient: tenant_id required")
 	}
 	if strings.TrimSpace(env.Type) == "" {
 		env.Type = memoryEnvelopeIngest
 	}
 	if strings.TrimSpace(env.Content) == "" {
-		return nil, errors.New("aionclient: content required for memory ingest")
+		return nil, errors.New("iomeshclient: content required for memory ingest")
 	}
 
 	payload, err := json.Marshal(env)
@@ -110,10 +110,10 @@ func (c *Client) PublishMemoryIngest(ctx context.Context, tenantID string, env M
 func (c *Client) RequestMemoryRecall(ctx context.Context, tenantID, query string, limit int) (*PubAck, error) {
 	tenantID = strings.TrimSpace(tenantID)
 	if tenantID == "" {
-		return nil, errors.New("aionclient: tenant_id required")
+		return nil, errors.New("iomeshclient: tenant_id required")
 	}
 	if strings.TrimSpace(query) == "" {
-		return nil, errors.New("aionclient: query required")
+		return nil, errors.New("iomeshclient: query required")
 	}
 
 	body := map[string]any{

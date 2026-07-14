@@ -1,4 +1,4 @@
-package aionclient_test
+package iomeshclient_test
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/iome-sh/iomesh-client-sdk-go/aionclient"
+	"github.com/iome-sh/iomesh-client-sdk-go/iomeshclient"
 )
 
 func TestPublishPartitionRequestJSON(t *testing.T) {
@@ -35,14 +35,14 @@ func TestPublishPartitionRequestJSON(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	nc, err := aionclient.Connect(aionclient.Options{URL: srv.URL})
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
 	if err != nil {
 		t.Fatalf("Connect() error: %v", err)
 	}
 
 	ack, err := nc.Publish(context.Background(), "MOCK", "events.created", []byte("payload"),
-		aionclient.WithPartitionKey("tenant-b"),
-		aionclient.WithPartition(1),
+		iomeshclient.WithPartitionKey("tenant-b"),
+		iomeshclient.WithPartition(1),
 	)
 	if err != nil {
 		t.Fatalf("Publish() error: %v", err)
@@ -78,12 +78,12 @@ func TestPublishPartitionKeyOnlyOmitsExplicitPartition(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	nc, err := aionclient.Connect(aionclient.Options{URL: srv.URL})
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
 	if err != nil {
 		t.Fatalf("Connect() error: %v", err)
 	}
 
-	if _, err := nc.Publish(context.Background(), "MOCK", "events.created", []byte("x"), aionclient.WithPartitionKey("k")); err != nil {
+	if _, err := nc.Publish(context.Background(), "MOCK", "events.created", []byte("x"), iomeshclient.WithPartitionKey("k")); err != nil {
 		t.Fatalf("Publish() error: %v", err)
 	}
 	if _, ok := captured["partition"]; ok {

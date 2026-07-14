@@ -1,4 +1,4 @@
-package aionclient_test
+package iomeshclient_test
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/iome-sh/iomesh-client-sdk-go/aionclient"
+	"github.com/iome-sh/iomesh-client-sdk-go/iomeshclient"
 )
 
 func TestConnectSetsTenantAndBearerHeaders(t *testing.T) {
@@ -16,17 +16,17 @@ func TestConnectSetsTenantAndBearerHeaders(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
-		gotTenant = r.Header.Get("X-Aion-Tenant")
+		gotTenant = r.Header.Get("X-IOMesh-Tenant")
 		gotAuth = r.Header.Get("Authorization")
 		mu.Unlock()
 		w.WriteHeader(http.StatusNoContent)
 	}))
 	t.Cleanup(srv.Close)
 
-	nc, err := aionclient.Connect(
-		aionclient.Options{URL: srv.URL},
-		aionclient.WithTenant("dept.research"),
-		aionclient.WithBearerToken("test-token"),
+	nc, err := iomeshclient.Connect(
+		iomeshclient.Options{URL: srv.URL},
+		iomeshclient.WithTenant("dept.research"),
+		iomeshclient.WithBearerToken("test-token"),
 	)
 	if err != nil {
 		t.Fatalf("Connect() error: %v", err)
@@ -39,7 +39,7 @@ func TestConnectSetsTenantAndBearerHeaders(t *testing.T) {
 	mu.Lock()
 	defer mu.Unlock()
 	if gotTenant != "dept.research" {
-		t.Fatalf("X-Aion-Tenant = %q, want dept.research", gotTenant)
+		t.Fatalf("X-IOMesh-Tenant = %q, want dept.research", gotTenant)
 	}
 	if gotAuth != "Bearer test-token" {
 		t.Fatalf("Authorization = %q, want Bearer test-token", gotAuth)
@@ -52,14 +52,14 @@ func TestConnectOmitsHeadersWhenUnset(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
-		gotTenant = r.Header.Get("X-Aion-Tenant")
+		gotTenant = r.Header.Get("X-IOMesh-Tenant")
 		gotAuth = r.Header.Get("Authorization")
 		mu.Unlock()
 		w.WriteHeader(http.StatusNoContent)
 	}))
 	t.Cleanup(srv.Close)
 
-	nc, err := aionclient.Connect(aionclient.Options{URL: srv.URL})
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
 	if err != nil {
 		t.Fatalf("Connect() error: %v", err)
 	}
@@ -71,7 +71,7 @@ func TestConnectOmitsHeadersWhenUnset(t *testing.T) {
 	mu.Lock()
 	defer mu.Unlock()
 	if gotTenant != "" {
-		t.Fatalf("X-Aion-Tenant = %q, want empty", gotTenant)
+		t.Fatalf("X-IOMesh-Tenant = %q, want empty", gotTenant)
 	}
 	if gotAuth != "" {
 		t.Fatalf("Authorization = %q, want empty", gotAuth)

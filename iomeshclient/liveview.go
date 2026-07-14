@@ -1,4 +1,4 @@
-package aionclient
+package iomeshclient
 
 import (
 	"context"
@@ -53,16 +53,16 @@ type LiveView struct {
 // A 409 conflict is treated as success (idempotent re-register).
 func (c *Client) RegisterProcessor(ctx context.Context, cfg ProcessorConfig) error {
 	if cfg.ID == "" {
-		return errors.New("aionclient: processor id required")
+		return errors.New("iomeshclient: processor id required")
 	}
 	if cfg.SourceStream == "" {
-		return errors.New("aionclient: source_stream required")
+		return errors.New("iomeshclient: source_stream required")
 	}
 	if cfg.Tenant == "" {
-		return errors.New("aionclient: tenant required")
+		return errors.New("iomeshclient: tenant required")
 	}
 	if cfg.Type == "" {
-		return errors.New("aionclient: type required")
+		return errors.New("iomeshclient: type required")
 	}
 
 	var resp ProcessorConfig
@@ -80,7 +80,7 @@ func (c *Client) RegisterProcessor(ctx context.Context, cfg ProcessorConfig) err
 func (c *Client) ListLiveViews(ctx context.Context, tenantID string) ([]LiveView, error) {
 	tenantID = strings.TrimSpace(tenantID)
 	if tenantID == "" {
-		return nil, errors.New("aionclient: tenant_id required")
+		return nil, errors.New("iomeshclient: tenant_id required")
 	}
 
 	path := fmt.Sprintf("/v3/registry/liveviews?tenant_id=%s", url.QueryEscape(tenantID))

@@ -1,19 +1,19 @@
-// Connector SDK template (v13 P5) — minimal third-party webhook adapter that
-// verifies HMAC, normalizes an observation envelope, and POSTs to Aion broker
-// connector ingress using connectorsdk.
+// Connector SDK template — minimal third-party webhook adapter that
+// verifies HMAC, normalizes an observation envelope, and POSTs to an
+// I/O Mesh broker connector ingress using connectorsdk.
 //
 // Prerequisites:
 //   - CONNECTOR_SDK_SECRET set (same value used to sign the sample payload)
-//   - Optional: Aion broker (e.g. make foundation-compose). Unknown connector
+//   - Optional: I/O Mesh broker (local foundation). Unknown connector
 //     ids return 404 from the broker — normalization still runs locally.
 //
 // Run:
 //
 //	CONNECTOR_SDK_SECRET=dev-connector-sdk-secret \
-//	AION_URL=http://127.0.0.1:8422 \
-//	AION_ORG=acme-org \
-//	AION_TENANT=dept.engineering \
-//	AION_DEPARTMENT=engineering \
+//	IOMESH_URL=http://127.0.0.1:8422 \
+//	IOMESH_ORG=acme-org \
+//	IOMESH_TENANT=dept.engineering \
+//	IOMESH_DEPARTMENT=engineering \
 //	CONNECTOR_ID=acme-crm \
 //	go run ./examples/connector-sdk-template
 package main
@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	tenantHeader = "X-Aion-Tenant"
+	tenantHeader = "X-IOMesh-Tenant"
 
 	eventType  = "contact.created"
 	deliveryID = "acme-crm-delivery-001"
@@ -53,11 +53,11 @@ func run() error {
 		return fmt.Errorf("CONNECTOR_SDK_SECRET required")
 	}
 
-	baseURL := strings.TrimRight(envOr("AION_URL", "http://127.0.0.1:8422"), "/")
-	department := envOr("AION_DEPARTMENT", "engineering")
+	baseURL := strings.TrimRight(envOr("IOMESH_URL", "http://127.0.0.1:8422"), "/")
+	department := envOr("IOMESH_DEPARTMENT", "engineering")
 	connectorID := envOr("CONNECTOR_ID", "acme-crm")
-	org := envOr("AION_ORG", "acme-org")
-	tenant := envOr("AION_TENANT", "dept."+department)
+	org := envOr("IOMESH_ORG", "acme-org")
+	tenant := envOr("IOMESH_TENANT", "dept."+department)
 
 	eventBody := []byte(`{
 "event":"contact.created",
@@ -74,7 +74,7 @@ func run() error {
 	}
 	log.Printf("verify OK signature=%s", sig)
 
-	// 2) Normalize to Aion observation envelope.
+	// 2) Normalize to I/O Mesh observation envelope.
 	normalizedPayload, err := connectorsdk.NormalizeEnvelope(
 		connectorID,
 		department,
@@ -98,8 +98,8 @@ func run() error {
 
 	eventsURL := fmt.Sprintf("%s/v10/connectors/%s/events?department=%s", baseURL, connectorID, department)
 	ingressHeaders := map[string]string{
-		"X-Aion-Org": org,
-		tenantHeader: tenant,
+		"X-IOMesh-Org": org,
+		tenantHeader:   tenant,
 	}
 	for k, v := range connectorsdk.PublishHeaders(connectorID, department, externalID, connectorID) {
 		ingressHeaders[k] = v

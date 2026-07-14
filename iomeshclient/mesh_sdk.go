@@ -1,4 +1,4 @@
-package aionclient
+package iomeshclient
 
 import (
 	"context"
@@ -23,7 +23,7 @@ type MeshSDK struct {
 func NewMeshSDK(cfg MeshSDKConfig, opts ...ConnectOpt) (*MeshSDK, error) {
 	brokerURL := strings.TrimSpace(cfg.BrokerURL)
 	if brokerURL == "" {
-		return nil, errors.New("aionclient: BrokerURL required")
+		return nil, errors.New("iomeshclient: BrokerURL required")
 	}
 
 	connectOpts := append([]ConnectOpt(nil), opts...)
@@ -47,7 +47,7 @@ func NewMeshSDK(cfg MeshSDKConfig, opts ...ConnectOpt) (*MeshSDK, error) {
 // Pub publishes an ephemeral fire-and-forget message via POST /v1/pub.
 func (m *MeshSDK) Pub(ctx context.Context, subject string, payload []byte, headers map[string]string) error {
 	if m == nil || m.http == nil {
-		return errors.New("aionclient: mesh sdk http client not configured")
+		return errors.New("iomeshclient: mesh sdk http client not configured")
 	}
 	return m.http.Pub(ctx, subject, payload, headers)
 }
@@ -57,7 +57,7 @@ func (m *MeshSDK) Publish(
 	ctx context.Context, stream, subject string, payload []byte, opts ...PublishOpt,
 ) (*PubAck, error) {
 	if m == nil || m.http == nil {
-		return nil, errors.New("aionclient: mesh sdk http client not configured")
+		return nil, errors.New("iomeshclient: mesh sdk http client not configured")
 	}
 	return m.http.Publish(ctx, stream, subject, payload, opts...)
 }
@@ -65,7 +65,7 @@ func (m *MeshSDK) Publish(
 // EnsureStream creates the stream if it does not already exist.
 func (m *MeshSDK) EnsureStream(ctx context.Context, cfg StreamConfig) error {
 	if m == nil || m.http == nil {
-		return errors.New("aionclient: mesh sdk http client not configured")
+		return errors.New("iomeshclient: mesh sdk http client not configured")
 	}
 	return m.http.EnsureStream(ctx, cfg)
 }
@@ -75,7 +75,7 @@ func (m *MeshSDK) KafkaProduce(
 	ctx context.Context, topic string, partition int32, key, value []byte,
 ) (int64, error) {
 	if m == nil || m.kafka == nil {
-		return 0, errors.New("aionclient: KafkaAddr not configured")
+		return 0, errors.New("iomeshclient: KafkaAddr not configured")
 	}
 	return m.kafka.Produce(ctx, topic, partition, key, value)
 }

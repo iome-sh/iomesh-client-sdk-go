@@ -1,4 +1,4 @@
-package aionclient
+package iomeshclient
 
 import (
 	"context"

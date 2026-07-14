@@ -1,4 +1,4 @@
-package aionclient
+package iomeshclient
 
 import (
 	"context"
@@ -24,22 +24,22 @@ type IcebergCatalogRef struct {
 // A 409 conflict is treated as success (idempotent re-register).
 func (c *Client) RegisterIcebergRef(ctx context.Context, ref IcebergCatalogRef) error {
 	if ref.ID == "" {
-		return errors.New("aionclient: iceberg ref id required")
+		return errors.New("iomeshclient: iceberg ref id required")
 	}
 	if ref.TenantID == "" {
-		return errors.New("aionclient: tenant_id required")
+		return errors.New("iomeshclient: tenant_id required")
 	}
 	if ref.Namespace == "" {
-		return errors.New("aionclient: namespace required")
+		return errors.New("iomeshclient: namespace required")
 	}
 	if ref.TableName == "" {
-		return errors.New("aionclient: table_name required")
+		return errors.New("iomeshclient: table_name required")
 	}
 	if ref.S3Prefix == "" {
-		return errors.New("aionclient: s3_prefix required")
+		return errors.New("iomeshclient: s3_prefix required")
 	}
 	if ref.SchemaJSON == "" {
-		return errors.New("aionclient: schema_json required")
+		return errors.New("iomeshclient: schema_json required")
 	}
 
 	var resp IcebergCatalogRef
@@ -57,7 +57,7 @@ func (c *Client) RegisterIcebergRef(ctx context.Context, ref IcebergCatalogRef) 
 func (c *Client) ListIcebergRefs(ctx context.Context, tenantID string) ([]IcebergCatalogRef, error) {
 	tenantID = strings.TrimSpace(tenantID)
 	if tenantID == "" {
-		return nil, errors.New("aionclient: tenant_id required")
+		return nil, errors.New("iomeshclient: tenant_id required")
 	}
 
 	path := fmt.Sprintf("/v4/registry/iceberg?tenant_id=%s", url.QueryEscape(tenantID))

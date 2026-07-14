@@ -1,6 +1,7 @@
-// Package aionclient is the Go HTTP client for the I/O Mesh broker (/v1 API).
-// The package name is retained for API compatibility.
-package aionclient
+// Package iomeshclient is the Go HTTP client for the I/O Mesh broker (/v1 API).
+//
+// Wire headers: X-IOMesh-Tenant, X-IOMesh-Org (and related X-IOMesh-* ingress headers).
+package iomeshclient
 
 import (
 	"bytes"
@@ -15,7 +16,7 @@ import (
 	"time"
 )
 
-// Options configures the Aion HTTP client.
+// Options configures the I/O Mesh HTTP client.
 type Options struct {
 	URL            string
 	HTTPClient     *http.Client
@@ -23,11 +24,11 @@ type Options struct {
 }
 
 const (
-	tenantHeader = "X-Aion-Tenant"
-	orgHeader    = "X-Aion-Org"
+	tenantHeader = "X-IOMesh-Tenant"
+	orgHeader    = "X-IOMesh-Org"
 )
 
-// Client talks to an Aion broker over HTTP.
+// Client talks to an I/O Mesh broker over HTTP.
 type Client struct {
 	baseURL     string
 	http        *http.Client
@@ -46,7 +47,7 @@ type connectOpts struct {
 // ConnectOpt configures optional client connection settings.
 type ConnectOpt func(*connectOpts)
 
-// WithTenant sets X-Aion-Tenant on all HTTP requests.
+// WithTenant sets X-IOMesh-Tenant on all HTTP requests.
 func WithTenant(tenant string) ConnectOpt {
 	return func(o *connectOpts) {
 		o.tenant = strings.TrimSpace(tenant)
@@ -60,7 +61,7 @@ func WithBearerToken(token string) ConnectOpt {
 	}
 }
 
-// WithOrg sets X-Aion-Org on all HTTP requests (PlanGate metering attribution).
+// WithOrg sets X-IOMesh-Org on all HTTP requests (PlanGate metering attribution).
 func WithOrg(orgID string) ConnectOpt {
 	return func(o *connectOpts) {
 		o.org = strings.TrimSpace(orgID)
@@ -79,7 +80,7 @@ func applyConnectOpts(opts []ConnectOpt) connectOpts {
 func Connect(base Options, opts ...ConnectOpt) (*Client, error) {
 	url := strings.TrimSpace(base.URL)
 	if url == "" {
-		return nil, errors.New("aionclient: URL required")
+		return nil, errors.New("iomeshclient: URL required")
 	}
 	url = strings.TrimRight(url, "/")
 
@@ -154,7 +155,7 @@ type PullSubscribeConfig struct {
 // PullSubscribe registers (or reuses) a durable consumer and returns a subscription handle.
 func (c *Client) PullSubscribe(ctx context.Context, cfg PullSubscribeConfig) (*Subscription, error) {
 	if cfg.Stream == "" || cfg.Consumer == "" {
-		return nil, errors.New("aionclient: stream and consumer required")
+		return nil, errors.New("iomeshclient: stream and consumer required")
 	}
 
 	req := createConsumerRequest{
@@ -188,7 +189,7 @@ type Subscription struct {
 // Fetch pulls up to batch messages.
 func (s *Subscription) Fetch(batch int, opts ...FetchOpt) ([]*Msg, error) {
 	if batch <= 0 {
-		return nil, errors.New("aionclient: batch must be > 0")
+		return nil, errors.New("iomeshclient: batch must be > 0")
 	}
 
 	fo := fetchOptions{maxWait: 5 * time.Second}
@@ -210,7 +211,7 @@ func (s *Subscription) Fetch(batch int, opts ...FetchOpt) ([]*Msg, error) {
 	for i, m := range resp.Messages {
 		payload, err := base64.StdEncoding.DecodeString(m.Payload)
 		if err != nil {
-			return nil, fmt.Errorf("aionclient: decode payload seq %d: %w", m.Seq, err)
+			return nil, fmt.Errorf("iomeshclient: decode payload seq %d: %w", m.Seq, err)
 		}
 		msgs[i] = &Msg{
 			sub:       s,
@@ -228,7 +229,7 @@ func (s *Subscription) Fetch(batch int, opts ...FetchOpt) ([]*Msg, error) {
 // Ack acknowledges one or more message sequences.
 func (s *Subscription) Ack(seqs ...uint64) error {
 	if len(seqs) == 0 {
-		return errors.New("aionclient: seqs required")
+		return errors.New("iomeshclient: seqs required")
 	}
 	req := ackRequest{Seqs: seqs}
 	path := fmt.Sprintf("/v1/streams/%s/consumers/%s/ack", s.stream, s.consumer)
@@ -238,7 +239,7 @@ func (s *Subscription) Ack(seqs ...uint64) error {
 // Nack negatively acknowledges sequences (optional PoC hook).
 func (s *Subscription) Nack(seqs ...uint64) error {
 	if len(seqs) == 0 {
-		return errors.New("aionclient: seqs required")
+		return errors.New("iomeshclient: seqs required")
 	}
 	req := ackRequest{Seqs: seqs}
 	path := fmt.Sprintf("/v1/streams/%s/consumers/%s/nack", s.stream, s.consumer)
@@ -381,7 +382,7 @@ type APIError struct {
 }
 
 func (e *APIError) Error() string {
-	return fmt.Sprintf("aionclient: HTTP %d: %s", e.StatusCode, e.Body)
+	return fmt.Sprintf("iomeshclient: HTTP %d: %s", e.StatusCode, e.Body)
 }
 
 func (c *Client) doJSON(ctx context.Context, method, path string, reqBody any, respBody any) error {

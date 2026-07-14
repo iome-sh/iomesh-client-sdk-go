@@ -39,7 +39,7 @@ Out of scope:
 
 - Pin module versions (`go get …@vX.Y.Z` + committed `go.sum`)  
 - Rotate broker tokens and connector secrets regularly  
-- Treat `X-Aion-Tenant` / org headers as authorization boundary — enforce server-side  
+- Treat `X-IOMesh-Tenant` / org headers as authorization boundary — enforce server-side  
 - Run `go mod verify` in CI  
 
 ## Supply chain
