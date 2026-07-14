@@ -114,8 +114,7 @@ This repository is **pure client code** — no private platform dependencies. Un
 
 | Link | Role |
 |------|------|
-| [iome.sh](https://iome.sh) | Product & documentation |
-| [`iome-sh/iomesh`](https://github.com/iome-sh/iomesh) | Public marketing site |
+| [iome.sh](https://iome.sh) | Product / marketing site & documentation |
 | *Upcoming* | `iomesh-client-sdk-ts`, `iomesh-client-sdk-python`, … |
 
 ## License
