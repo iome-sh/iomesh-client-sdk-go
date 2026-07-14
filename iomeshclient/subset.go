@@ -1,4 +1,4 @@
-package aionclient
+package iomeshclient
 
 import (
 	"context"
@@ -18,16 +18,16 @@ type SubsetConfig struct {
 // CreateSubset registers a subset stream via POST /v2/subsets.
 func (c *Client) CreateSubset(ctx context.Context, cfg SubsetConfig) error {
 	if cfg.ID == "" {
-		return errors.New("aionclient: subset id required")
+		return errors.New("iomeshclient: subset id required")
 	}
 	if cfg.SourceStream == "" {
-		return errors.New("aionclient: source_stream required")
+		return errors.New("iomeshclient: source_stream required")
 	}
 	if cfg.SubjectFilter == "" {
-		return errors.New("aionclient: subject_filter required")
+		return errors.New("iomeshclient: subject_filter required")
 	}
 	if cfg.Tenant == "" {
-		return errors.New("aionclient: tenant required")
+		return errors.New("iomeshclient: tenant required")
 	}
 	return c.doJSON(ctx, http.MethodPost, "/v2/subsets", cfg, new(struct{}))
 }

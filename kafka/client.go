@@ -70,7 +70,7 @@ func (c *Client) Produce(ctx context.Context, topic string, partition int32, key
 	_ = WriteInt16(&body, 1)
 	corr := c.seq.Add(1)
 	_ = WriteInt32(&body, corr)
-	_ = WriteString(&body, "aion-kafka-client")
+	_ = WriteString(&body, "iomesh-kafka-client")
 	_ = WriteInt16(&body, 1)
 	_ = WriteInt32(&body, 5000)
 	_ = WriteInt32(&body, 1)

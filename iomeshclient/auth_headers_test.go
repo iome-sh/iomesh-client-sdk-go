@@ -1,4 +1,4 @@
-package aionclient_test
+package iomeshclient_test
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/iome-sh/iomesh-client-sdk-go/aionclient"
+	"github.com/iome-sh/iomesh-client-sdk-go/iomeshclient"
 )
 
 func TestConnectSetsTenantAndBearerHeaders(t *testing.T) {
@@ -23,10 +23,10 @@ func TestConnectSetsTenantAndBearerHeaders(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	nc, err := aionclient.Connect(
-		aionclient.Options{URL: srv.URL},
-		aionclient.WithTenant("dept.research"),
-		aionclient.WithBearerToken("test-token"),
+	nc, err := iomeshclient.Connect(
+		iomeshclient.Options{URL: srv.URL},
+		iomeshclient.WithTenant("dept.research"),
+		iomeshclient.WithBearerToken("test-token"),
 	)
 	if err != nil {
 		t.Fatalf("Connect() error: %v", err)
@@ -59,7 +59,7 @@ func TestConnectOmitsHeadersWhenUnset(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	nc, err := aionclient.Connect(aionclient.Options{URL: srv.URL})
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
 	if err != nil {
 		t.Fatalf("Connect() error: %v", err)
 	}

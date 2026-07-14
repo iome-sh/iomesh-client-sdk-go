@@ -1,4 +1,4 @@
-package aionclient_test
+package iomeshclient_test
 
 import (
 	"context"
@@ -8,17 +8,17 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/iome-sh/iomesh-client-sdk-go/aionclient"
+	"github.com/iome-sh/iomesh-client-sdk-go/iomeshclient"
 )
 
 func TestRegisterMemoryProductAndPublishIngest(t *testing.T) {
 	var mu sync.Mutex
-	var created []aionclient.MemoryProductConfig
+	var created []iomeshclient.MemoryProductConfig
 	var published []map[string]any
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /v5/registry/memory-products", func(w http.ResponseWriter, r *http.Request) {
-		var cfg aionclient.MemoryProductConfig
+		var cfg iomeshclient.MemoryProductConfig
 		_ = json.NewDecoder(r.Body).Decode(&cfg)
 		mu.Lock()
 		created = append(created, cfg)
@@ -42,21 +42,21 @@ func TestRegisterMemoryProductAndPublishIngest(t *testing.T) {
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
-	nc, err := aionclient.Connect(aionclient.Options{URL: ts.URL}, aionclient.WithTenant("dept.research"))
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: ts.URL}, iomeshclient.WithTenant("dept.research"))
 	if err != nil {
 		t.Fatalf("Connect: %v", err)
 	}
 
 	ctx := context.Background()
-	if err := nc.RegisterMemoryProduct(ctx, aionclient.MemoryProductConfig{
+	if err := nc.RegisterMemoryProduct(ctx, iomeshclient.MemoryProductConfig{
 		ProductID:  "research.memory",
 		TenantID:   "dept.research",
-		PalaceRoot: "aion-memory/dept.research/palace",
+		PalaceRoot: "iomesh-memory/dept.research/palace",
 	}); err != nil {
 		t.Fatalf("RegisterMemoryProduct: %v", err)
 	}
 
-	if _, err := nc.PublishMemoryIngest(ctx, "dept.research", aionclient.MemoryEnvelope{
+	if _, err := nc.PublishMemoryIngest(ctx, "dept.research", iomeshclient.MemoryEnvelope{
 		Role:    "assistant",
 		Content: "sdk ingest smoke",
 	}); err != nil {

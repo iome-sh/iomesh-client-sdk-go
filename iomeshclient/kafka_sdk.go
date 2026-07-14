@@ -1,4 +1,4 @@
-package aionclient
+package iomeshclient
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	kafkaproto "github.com/iome-sh/iomesh-client-sdk-go/kafka"
 )
 
-// KafkaClient speaks the Aion Kafka protocol subset (Produce) for mesh integrations.
+// KafkaClient speaks the I/O Mesh Kafka protocol subset (Produce) for mesh integrations.
 type KafkaClient struct {
 	inner *kafkaproto.Client
 }
@@ -23,7 +23,7 @@ func (c *KafkaClient) Produce(
 	ctx context.Context, topic string, partition int32, key, value []byte,
 ) (int64, error) {
 	if c == nil || c.inner == nil {
-		return 0, errors.New("aionclient: kafka client not configured")
+		return 0, errors.New("iomeshclient: kafka client not configured")
 	}
 	return c.inner.Produce(ctx, topic, partition, key, value)
 }

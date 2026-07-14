@@ -1,4 +1,4 @@
-package aionclient
+package iomeshclient
 
 import (
 	"context"
@@ -27,10 +27,10 @@ type StreamConfig struct {
 // CreateStream registers a stream via POST /v1/streams. A 409 conflict is treated as success.
 func (c *Client) CreateStream(ctx context.Context, cfg StreamConfig) error {
 	if cfg.Name == "" {
-		return errors.New("aionclient: stream name required")
+		return errors.New("iomeshclient: stream name required")
 	}
 	if len(cfg.Subjects) == 0 {
-		return errors.New("aionclient: subjects required")
+		return errors.New("iomeshclient: subjects required")
 	}
 
 	var resp struct{}
@@ -52,7 +52,7 @@ func (c *Client) EnsureStream(ctx context.Context, cfg StreamConfig) error {
 // Pub publishes an ephemeral fire-and-forget message via POST /v1/pub.
 func (c *Client) Pub(ctx context.Context, subject string, payload []byte, headers map[string]string) error {
 	if subject == "" {
-		return errors.New("aionclient: subject required")
+		return errors.New("iomeshclient: subject required")
 	}
 
 	req := ephemeralPubRequest{

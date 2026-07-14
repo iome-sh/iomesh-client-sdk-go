@@ -9,10 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Public docs: remove private platform repo links; copyright **IOMesh Technology Ltd.**
-- Drop ignored integration tests that referenced private platform packages (keep pure-client unit tests).
+- **Public naming:** primary HTTP client package is [`iomeshclient`](./iomeshclient) (not internal codename).
+- Kafka client id string: `iomesh-kafka-client`.
+- Examples: prefer `IOMESH_*` env vars (`AION_*` temporary fallback only).
+- Docs: public SDK naming policy (`iomesh` / `IOMESH_*`); wire headers `X-Aion-*` remain broker protocol.
+
+### Deprecated
+
+- Package [`aionclient`](./aionclient) — thin re-export of `iomeshclient` for import compatibility. Prefer `iomeshclient`.
+
+### Notes
+
+- Wire headers `X-Aion-Tenant` / `X-Aion-Org` are unchanged (broker contract).
 
 ## [0.1.2] — 2026-07-13
+
+### Changed
+
+- Public docs: remove private platform repo links; copyright **IOMesh Technology Ltd.**
+- Drop ignored integration tests that referenced private platform packages (keep pure-client unit tests).
 
 ### Fixed
 

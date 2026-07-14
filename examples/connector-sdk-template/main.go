@@ -1,21 +1,24 @@
-// Connector SDK template (v13 P5) — minimal third-party webhook adapter that
-// verifies HMAC, normalizes an observation envelope, and POSTs to Aion broker
-// connector ingress using connectorsdk.
+// Connector SDK template — minimal third-party webhook adapter that
+// verifies HMAC, normalizes an observation envelope, and POSTs to an
+// I/O Mesh broker connector ingress using connectorsdk.
 //
 // Prerequisites:
 //   - CONNECTOR_SDK_SECRET set (same value used to sign the sample payload)
-//   - Optional: Aion broker (e.g. make foundation-compose). Unknown connector
+//   - Optional: I/O Mesh broker (local foundation). Unknown connector
 //     ids return 404 from the broker — normalization still runs locally.
 //
 // Run:
 //
 //	CONNECTOR_SDK_SECRET=dev-connector-sdk-secret \
-//	AION_URL=http://127.0.0.1:8422 \
-//	AION_ORG=acme-org \
-//	AION_TENANT=dept.engineering \
-//	AION_DEPARTMENT=engineering \
+//	IOMESH_URL=http://127.0.0.1:8422 \
+//	IOMESH_ORG=acme-org \
+//	IOMESH_TENANT=dept.engineering \
+//	IOMESH_DEPARTMENT=engineering \
 //	CONNECTOR_ID=acme-crm \
 //	go run ./examples/connector-sdk-template
+//
+// Env names use the public IOMESH_* prefix. Wire headers remain X-Aion-*
+// (broker protocol). Deprecated AION_* env aliases are still read as fallback.
 package main
 
 import (
@@ -34,6 +37,7 @@ import (
 )
 
 const (
+	// tenantHeader is the broker wire header (stable mesh protocol name).
 	tenantHeader = "X-Aion-Tenant"
 
 	eventType  = "contact.created"
@@ -53,11 +57,11 @@ func run() error {
 		return fmt.Errorf("CONNECTOR_SDK_SECRET required")
 	}
 
-	baseURL := strings.TrimRight(envOr("AION_URL", "http://127.0.0.1:8422"), "/")
-	department := envOr("AION_DEPARTMENT", "engineering")
+	baseURL := strings.TrimRight(envPublic("IOMESH_URL", "AION_URL", "http://127.0.0.1:8422"), "/")
+	department := envPublic("IOMESH_DEPARTMENT", "AION_DEPARTMENT", "engineering")
 	connectorID := envOr("CONNECTOR_ID", "acme-crm")
-	org := envOr("AION_ORG", "acme-org")
-	tenant := envOr("AION_TENANT", "dept."+department)
+	org := envPublic("IOMESH_ORG", "AION_ORG", "acme-org")
+	tenant := envPublic("IOMESH_TENANT", "AION_TENANT", "dept."+department)
 
 	eventBody := []byte(`{
 "event":"contact.created",
@@ -74,7 +78,7 @@ func run() error {
 	}
 	log.Printf("verify OK signature=%s", sig)
 
-	// 2) Normalize to Aion observation envelope.
+	// 2) Normalize to I/O Mesh observation envelope.
 	normalizedPayload, err := connectorsdk.NormalizeEnvelope(
 		connectorID,
 		department,
@@ -153,6 +157,17 @@ func signedPOST(ctx context.Context, client *http.Client, url, secret, eventType
 
 func envOr(key, fallback string) string {
 	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
+		return v
+	}
+	return fallback
+}
+
+// envPublic prefers the public IOMESH_* name, then deprecated AION_* alias, then default.
+func envPublic(primary, legacy, fallback string) string {
+	if v := strings.TrimSpace(os.Getenv(primary)); v != "" {
+		return v
+	}
+	if v := strings.TrimSpace(os.Getenv(legacy)); v != "" {
 		return v
 	}
 	return fallback

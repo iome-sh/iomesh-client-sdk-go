@@ -8,13 +8,16 @@ Official **Go client SDK** for the [I/O Mesh](https://iome.sh) broker and connec
 
 | Capability | Package |
 |------------|---------|
-| HTTP publish / pull subscribe / streams / KV / memory | [`aionclient`](./aionclient) |
+| HTTP publish / pull subscribe / streams / KV / memory | [`iomeshclient`](./iomeshclient) |
 | Partner webhook HMAC + observation envelopes | [`connectorsdk`](./connectorsdk) |
-| Kafka protocol (Produce subset) | [`kafka`](./kafka) · via `aionclient.KafkaClient` |
+| Kafka protocol (Produce subset) | [`kafka`](./kafka) · via `iomeshclient.KafkaClient` |
 | Shared envelope + CUID helpers | [`envelope`](./envelope) · [`cuid`](./cuid) |
+| Deprecated import alias | [`aionclient`](./aionclient) → re-exports `iomeshclient` |
 
 > **Module path:** `github.com/iome-sh/iomesh-client-sdk-go`  
-> **Package `aionclient`:** stable Go import path for the mesh HTTP client API (name retained for compatibility).
+> **Public package:** `iomeshclient` (use this).  
+> **Public env prefix:** `IOMESH_*` (examples; `AION_*` is a temporary fallback only).  
+> **Wire headers:** `X-Aion-Tenant` / `X-Aion-Org` remain the broker protocol names (not product branding).
 
 ## Requirements
 
@@ -36,21 +39,21 @@ import (
 	"context"
 	"log"
 
-	"github.com/iome-sh/iomesh-client-sdk-go/aionclient"
+	"github.com/iome-sh/iomesh-client-sdk-go/iomeshclient"
 )
 
 func main() {
-	nc, err := aionclient.Connect(
-		aionclient.Options{URL: "http://127.0.0.1:8422"},
-		aionclient.WithTenant("dept.engineering"),
-		aionclient.WithOrg("acme-org"),
+	nc, err := iomeshclient.Connect(
+		iomeshclient.Options{URL: "http://127.0.0.1:8422"},
+		iomeshclient.WithTenant("dept.engineering"),
+		iomeshclient.WithOrg("acme-org"),
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	ctx := context.Background()
-	if err := nc.CreateStream(ctx, aionclient.StreamConfig{
+	if err := nc.CreateStream(ctx, iomeshclient.StreamConfig{
 		Name:     "EVENTS",
 		Subjects: []string{"dept.engineering.events.>"},
 	}); err != nil {
@@ -76,12 +79,12 @@ payload, err := connectorsdk.NormalizeEnvelope(
 )
 ```
 
-See [`examples/connector-sdk-template/`](examples/connector-sdk-template/) for a full webhook adapter.
+See [`examples/connector-sdk-template/`](examples/connector-sdk-template/) for a full webhook adapter (`IOMESH_URL`, `IOMESH_ORG`, …).
 
 ## Kafka Produce
 
 ```go
-kc := aionclient.NewKafkaClient("127.0.0.1:9423")
+kc := iomeshclient.NewKafkaClient("127.0.0.1:9423")
 defer kc.Close()
 
 offset, err := kc.Produce(ctx, "mesh.finance.events", 0, []byte("key"), []byte(`{"event_id":"evt-1"}`))
@@ -109,6 +112,8 @@ golangci-lint run ./...   # if installed
 ```
 
 This repository is **pure client code** — no private platform dependencies. Unit tests use `httptest` and local helpers. Live broker integration belongs in your environment or private test harnesses, not in this public tree.
+
+**Naming policy (public SDKs):** product-facing identifiers use `iomesh` / `IOMESH_*`. Internal monorepo codename `aion` / `AION_*` must not appear in new public API surface. Broker wire headers that already shipped as `X-Aion-*` stay for protocol stability until a coordinated dual-header cutover.
 
 ## Related
 
