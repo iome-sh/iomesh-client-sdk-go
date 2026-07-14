@@ -1,7 +1,6 @@
 // Package iomeshclient is the Go HTTP client for the I/O Mesh broker (/v1 API).
 //
-// Wire headers remain X-Aion-Tenant / X-Aion-Org for broker protocol compatibility
-// (stable mesh ingress names). Public env vars and package names use IOMESH_/iomesh.
+// Wire headers: X-IOMesh-Tenant, X-IOMesh-Org (and related X-IOMesh-* ingress headers).
 package iomeshclient
 
 import (
@@ -25,8 +24,8 @@ type Options struct {
 }
 
 const (
-	tenantHeader = "X-Aion-Tenant"
-	orgHeader    = "X-Aion-Org"
+	tenantHeader = "X-IOMesh-Tenant"
+	orgHeader    = "X-IOMesh-Org"
 )
 
 // Client talks to an I/O Mesh broker over HTTP.
@@ -48,7 +47,7 @@ type connectOpts struct {
 // ConnectOpt configures optional client connection settings.
 type ConnectOpt func(*connectOpts)
 
-// WithTenant sets X-Aion-Tenant on all HTTP requests.
+// WithTenant sets X-IOMesh-Tenant on all HTTP requests.
 func WithTenant(tenant string) ConnectOpt {
 	return func(o *connectOpts) {
 		o.tenant = strings.TrimSpace(tenant)
@@ -62,7 +61,7 @@ func WithBearerToken(token string) ConnectOpt {
 	}
 }
 
-// WithOrg sets X-Aion-Org on all HTTP requests (PlanGate metering attribution).
+// WithOrg sets X-IOMesh-Org on all HTTP requests (PlanGate metering attribution).
 func WithOrg(orgID string) ConnectOpt {
 	return func(o *connectOpts) {
 		o.org = strings.TrimSpace(orgID)

@@ -16,7 +16,7 @@ func TestConnectSetsTenantAndBearerHeaders(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
-		gotTenant = r.Header.Get("X-Aion-Tenant")
+		gotTenant = r.Header.Get("X-IOMesh-Tenant")
 		gotAuth = r.Header.Get("Authorization")
 		mu.Unlock()
 		w.WriteHeader(http.StatusNoContent)
@@ -39,7 +39,7 @@ func TestConnectSetsTenantAndBearerHeaders(t *testing.T) {
 	mu.Lock()
 	defer mu.Unlock()
 	if gotTenant != "dept.research" {
-		t.Fatalf("X-Aion-Tenant = %q, want dept.research", gotTenant)
+		t.Fatalf("X-IOMesh-Tenant = %q, want dept.research", gotTenant)
 	}
 	if gotAuth != "Bearer test-token" {
 		t.Fatalf("Authorization = %q, want Bearer test-token", gotAuth)
@@ -52,7 +52,7 @@ func TestConnectOmitsHeadersWhenUnset(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
-		gotTenant = r.Header.Get("X-Aion-Tenant")
+		gotTenant = r.Header.Get("X-IOMesh-Tenant")
 		gotAuth = r.Header.Get("Authorization")
 		mu.Unlock()
 		w.WriteHeader(http.StatusNoContent)
@@ -71,7 +71,7 @@ func TestConnectOmitsHeadersWhenUnset(t *testing.T) {
 	mu.Lock()
 	defer mu.Unlock()
 	if gotTenant != "" {
-		t.Fatalf("X-Aion-Tenant = %q, want empty", gotTenant)
+		t.Fatalf("X-IOMesh-Tenant = %q, want empty", gotTenant)
 	}
 	if gotAuth != "" {
 		t.Fatalf("Authorization = %q, want empty", gotAuth)

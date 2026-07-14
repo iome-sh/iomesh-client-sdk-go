@@ -12,12 +12,11 @@ Official **Go client SDK** for the [I/O Mesh](https://iome.sh) broker and connec
 | Partner webhook HMAC + observation envelopes | [`connectorsdk`](./connectorsdk) |
 | Kafka protocol (Produce subset) | [`kafka`](./kafka) · via `iomeshclient.KafkaClient` |
 | Shared envelope + CUID helpers | [`envelope`](./envelope) · [`cuid`](./cuid) |
-| Deprecated import alias | [`aionclient`](./aionclient) → re-exports `iomeshclient` |
 
 > **Module path:** `github.com/iome-sh/iomesh-client-sdk-go`  
-> **Public package:** `iomeshclient` (use this).  
-> **Public env prefix:** `IOMESH_*` (examples; `AION_*` is a temporary fallback only).  
-> **Wire headers:** `X-Aion-Tenant` / `X-Aion-Org` remain the broker protocol names (not product branding).
+> **Package:** `iomeshclient`  
+> **Env prefix:** `IOMESH_*`  
+> **Wire headers:** `X-IOMesh-Tenant`, `X-IOMesh-Org`, …
 
 ## Requirements
 
@@ -96,6 +95,7 @@ offset, err := kc.Produce(ctx, "mesh.finance.events", 0, []byte("key"), []byte(`
 - Do **not** commit API tokens, broker URLs with credentials, or customer payloads into issues/PRs.
 - Prefer short-lived bearer tokens (`WithBearerToken`) and tenant-scoped headers (`WithTenant` / `WithOrg`).
 - Connector HMAC secrets must stay server-side; never embed partner secrets in mobile or browser clients.
+- Treat `X-IOMesh-Tenant` / `X-IOMesh-Org` as authorization boundary — enforce server-side.
 
 ## Versioning & support
 
@@ -113,7 +113,7 @@ golangci-lint run ./...   # if installed
 
 This repository is **pure client code** — no private platform dependencies. Unit tests use `httptest` and local helpers. Live broker integration belongs in your environment or private test harnesses, not in this public tree.
 
-**Naming policy (public SDKs):** product-facing identifiers use `iomesh` / `IOMESH_*`. Internal monorepo codename `aion` / `AION_*` must not appear in new public API surface. Broker wire headers that already shipped as `X-Aion-*` stay for protocol stability until a coordinated dual-header cutover.
+**Public naming:** packages, env vars, and wire headers use `iomesh` / `IOMESH_*` / `X-IOMesh-*`. Internal monorepo codenames are not part of this SDK.
 
 ## Related
 

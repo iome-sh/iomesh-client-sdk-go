@@ -9,18 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Public naming:** primary HTTP client package is [`iomeshclient`](./iomeshclient) (not internal codename).
-- Kafka client id string: `iomesh-kafka-client`.
-- Examples: prefer `IOMESH_*` env vars (`AION_*` temporary fallback only).
-- Docs: public SDK naming policy (`iomesh` / `IOMESH_*`); wire headers `X-Aion-*` remain broker protocol.
+- **Primary package:** [`iomeshclient`](./iomeshclient) (public product naming).
+- **Wire headers:** `X-IOMesh-Tenant`, `X-IOMesh-Org` (and related `X-IOMesh-*`).
+- Kafka client id: `iomesh-kafka-client`.
+- Examples: `IOMESH_*` env vars only.
+- Docs: public naming policy for packages, env, and headers.
 
-### Deprecated
+### Removed
 
-- Package [`aionclient`](./aionclient) — thin re-export of `iomeshclient` for import compatibility. Prefer `iomeshclient`.
-
-### Notes
-
-- Wire headers `X-Aion-Tenant` / `X-Aion-Org` are unchanged (broker contract).
+- Package `aionclient` (no compatibility shim; use `iomeshclient`).
+- Legacy `X-Aion-*` wire header names and `AION_*` example env aliases.
 
 ## [0.1.2] — 2026-07-13
 
@@ -38,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial public release of the I/O Mesh Go client SDK.
-- Packages: `aionclient`, `connectorsdk`, `kafka`, `envelope`, `cuid`.
+- Packages: `aionclient` (later renamed to `iomeshclient`), `connectorsdk`, `kafka`, `envelope`, `cuid`.
 - CI (test, race, vet, govulncheck, golangci-lint), Dependabot, SECURITY.md, CONTRIBUTING.
 
 ### Notes

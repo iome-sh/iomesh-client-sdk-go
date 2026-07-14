@@ -16,9 +16,6 @@
 //	IOMESH_DEPARTMENT=engineering \
 //	CONNECTOR_ID=acme-crm \
 //	go run ./examples/connector-sdk-template
-//
-// Env names use the public IOMESH_* prefix. Wire headers remain X-Aion-*
-// (broker protocol). Deprecated AION_* env aliases are still read as fallback.
 package main
 
 import (
@@ -37,8 +34,7 @@ import (
 )
 
 const (
-	// tenantHeader is the broker wire header (stable mesh protocol name).
-	tenantHeader = "X-Aion-Tenant"
+	tenantHeader = "X-IOMesh-Tenant"
 
 	eventType  = "contact.created"
 	deliveryID = "acme-crm-delivery-001"
@@ -57,11 +53,11 @@ func run() error {
 		return fmt.Errorf("CONNECTOR_SDK_SECRET required")
 	}
 
-	baseURL := strings.TrimRight(envPublic("IOMESH_URL", "AION_URL", "http://127.0.0.1:8422"), "/")
-	department := envPublic("IOMESH_DEPARTMENT", "AION_DEPARTMENT", "engineering")
+	baseURL := strings.TrimRight(envOr("IOMESH_URL", "http://127.0.0.1:8422"), "/")
+	department := envOr("IOMESH_DEPARTMENT", "engineering")
 	connectorID := envOr("CONNECTOR_ID", "acme-crm")
-	org := envPublic("IOMESH_ORG", "AION_ORG", "acme-org")
-	tenant := envPublic("IOMESH_TENANT", "AION_TENANT", "dept."+department)
+	org := envOr("IOMESH_ORG", "acme-org")
+	tenant := envOr("IOMESH_TENANT", "dept."+department)
 
 	eventBody := []byte(`{
 "event":"contact.created",
@@ -102,8 +98,8 @@ func run() error {
 
 	eventsURL := fmt.Sprintf("%s/v10/connectors/%s/events?department=%s", baseURL, connectorID, department)
 	ingressHeaders := map[string]string{
-		"X-Aion-Org": org,
-		tenantHeader: tenant,
+		"X-IOMesh-Org": org,
+		tenantHeader:   tenant,
 	}
 	for k, v := range connectorsdk.PublishHeaders(connectorID, department, externalID, connectorID) {
 		ingressHeaders[k] = v
@@ -157,17 +153,6 @@ func signedPOST(ctx context.Context, client *http.Client, url, secret, eventType
 
 func envOr(key, fallback string) string {
 	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
-		return v
-	}
-	return fallback
-}
-
-// envPublic prefers the public IOMESH_* name, then deprecated AION_* alias, then default.
-func envPublic(primary, legacy, fallback string) string {
-	if v := strings.TrimSpace(os.Getenv(primary)); v != "" {
-		return v
-	}
-	if v := strings.TrimSpace(os.Getenv(legacy)); v != "" {
 		return v
 	}
 	return fallback
