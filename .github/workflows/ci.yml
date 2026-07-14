@@ -65,7 +65,7 @@ jobs:
       - name: Install govulncheck
         run: go install golang.org/x/vuln/cmd/govulncheck@latest
       - name: Run govulncheck (library packages only)
-        run: govulncheck ./aionclient/... ./connectorsdk/... ./kafka/... ./cuid/... ./envelope/...
+        run: govulncheck ./iomeshclient/... ./connectorsdk/... ./kafka/... ./cuid/... ./envelope/...
 
   lint:
     name: golangci-lint
