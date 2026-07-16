@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Open-source process pack: SUPPORT, NOTICE, issue/PR templates, OPEN_SOURCE_AUDIT.
 - `Connect` rejects non-`http(s)` broker URLs and URL-embedded userinfo (use `WithBearerToken`).
+- **M3** temporal fields on `MemoryEnvelope` (`event_time`, `session_seq`, `entity_refs`, …) + `MemoryEntityRef` (backward-compatible omitempty).
+- **M2** sync HTTP memory APIs: `RetrieveMemory` (`POST /v5/memory/retrieve`) and `IngestMemoryTurn` (`POST /v5/memory/ingest`). `RequestMemoryRecall` / `PublishMemoryIngest` remain async stream paths.
 
 ### Changed
 
