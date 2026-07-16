@@ -205,14 +205,14 @@ func TestRetrieveMemorySuccess(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"memories": []map[string]any{
 				{
-					"id":         "mem-1",
-					"summary":    "lease rotation",
-					"full":       "lease rotation due Q3",
-					"score":      0.91,
-					"confidence": 0.8,
-					"timestamp":  "2026-07-13T12:00:00Z",
-					"turn_id":    "turn-1",
-					"event_time": "2026-07-13T12:00:00Z",
+					"id":          "mem-1",
+					"summary":     "lease rotation",
+					"full":        "lease rotation due Q3",
+					"score":       0.91,
+					"confidence":  0.8,
+					"timestamp":   "2026-07-13T12:00:00Z",
+					"turn_id":     "turn-1",
+					"event_time":  "2026-07-13T12:00:00Z",
 					"session_seq": 3,
 				},
 			},
