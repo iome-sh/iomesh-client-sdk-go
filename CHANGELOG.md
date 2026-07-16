@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - SECURITY.md: GitHub private advisory path + residual risk table.
+- Org branding: README footer Maintained-by line + NOTICE website; GitHub About homepage → [iome.sh](https://iome.sh).
 
 ### Previously (naming cleanup, shipped in v0.2.0)
 

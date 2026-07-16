@@ -6,6 +6,8 @@
 
 Official **Go client SDK** for the [I/O Mesh](https://iome.sh) broker and connector platform.
 
+Official open-source tooling from [IOMesh](https://iome.sh) (**IOMesh Technology Ltd.**).
+
 | Capability | Package |
 |------------|---------|
 | HTTP publish / pull subscribe / streams / KV / memory | [`iomeshclient`](./iomeshclient) |
@@ -130,3 +132,5 @@ Process docs: [CONTRIBUTING](CONTRIBUTING.md) · [SUPPORT](SUPPORT.md) · [RELEA
 ## License
 
 [MIT](LICENSE) © 2026 [IOMesh Technology Ltd.](https://iome.sh) — see also [NOTICE](NOTICE).
+
+**Maintained by** [IOMesh Technology Ltd.](https://iome.sh) · Product: [iome.sh](https://iome.sh) · Support: [SUPPORT.md](SUPPORT.md)
