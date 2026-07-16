@@ -91,17 +91,20 @@ offset, err := kc.Produce(ctx, "mesh.finance.events", 0, []byte("key"), []byte(`
 
 ## Security
 
-- Report vulnerabilities privately: see [SECURITY.md](SECURITY.md).
+- Report vulnerabilities **privately**: [SECURITY.md](SECURITY.md) (GitHub Security Advisory or security@iome.sh).  
+  Do **not** open public issues for exploits.
 - Do **not** commit API tokens, broker URLs with credentials, or customer payloads into issues/PRs.
 - Prefer short-lived bearer tokens (`WithBearerToken`) and tenant-scoped headers (`WithTenant` / `WithOrg`).
+- Broker URLs must be absolute **`http`/`https`** (no `file://`, no embedded userinfo).
 - Connector HMAC secrets must stay server-side; never embed partner secrets in mobile or browser clients.
-- Treat `X-IOMesh-Tenant` / `X-IOMesh-Org` as authorization boundary — enforce server-side.
+- Treat `X-IOMesh-Tenant` / `X-IOMesh-Org` as an authorization boundary — **enforce server-side**.
 
 ## Versioning & support
 
 - Semantic versioning (`vMAJOR.MINOR.PATCH`).
 - Breaking changes only in major versions; see [CHANGELOG.md](CHANGELOG.md) and [RELEASING.md](RELEASING.md).
 - Supported Go versions: last two stable releases (CI matrix).
+- Help channels: [SUPPORT.md](SUPPORT.md).
 
 ## Development
 
@@ -115,6 +118,8 @@ This repository is **pure client code** — no private platform dependencies. Un
 
 **Public naming:** packages, env vars, and wire headers use `iomesh` / `IOMESH_*` / `X-IOMesh-*`. Internal monorepo codenames are not part of this SDK.
 
+Process docs: [CONTRIBUTING](CONTRIBUTING.md) · [SUPPORT](SUPPORT.md) · [RELEASING](RELEASING.md) · [docs/OPEN_SOURCE_AUDIT.md](docs/OPEN_SOURCE_AUDIT.md).
+
 ## Related
 
 | Link | Role |
@@ -124,4 +129,4 @@ This repository is **pure client code** — no private platform dependencies. Un
 
 ## License
 
-[MIT](LICENSE) © 2026 [IOMesh Technology Ltd.](https://iome.sh)
+[MIT](LICENSE) © 2026 [IOMesh Technology Ltd.](https://iome.sh) — see also [NOTICE](NOTICE).

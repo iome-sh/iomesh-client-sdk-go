@@ -7,18 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Open-source process pack: SUPPORT, NOTICE, issue/PR templates, OPEN_SOURCE_AUDIT.
+- `Connect` rejects non-`http(s)` broker URLs and URL-embedded userinfo (use `WithBearerToken`).
+
 ### Changed
+
+- SECURITY.md: GitHub private advisory path + residual risk table.
+
+### Previously (naming cleanup, shipped in v0.2.0)
 
 - **Primary package:** [`iomeshclient`](./iomeshclient) (public product naming).
 - **Wire headers:** `X-IOMesh-Tenant`, `X-IOMesh-Org` (and related `X-IOMesh-*`).
 - Kafka client id: `iomesh-kafka-client`.
 - Examples: `IOMESH_*` env vars only.
 - Docs: public naming policy for packages, env, and headers.
-
-### Removed
-
-- Package `aionclient` (no compatibility shim; use `iomeshclient`).
-- Legacy `X-Aion-*` wire header names and `AION_*` example env aliases.
+- Removed package `aionclient` and legacy `X-Aion-*` / `AION_*` aliases.
 
 ## [0.1.2] — 2026-07-13
 

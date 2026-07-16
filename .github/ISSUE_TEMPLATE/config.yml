@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/iome-sh/iomesh-client-sdk-go/security/advisories/new
+    about: Report security issues privately (do not open a public issue).
+  - name: Product documentation
+    url: https://iome.sh
+    about: I/O Mesh product site and platform docs.
