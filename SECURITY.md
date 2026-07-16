@@ -4,14 +4,20 @@
 
 | Version | Supported |
 |---------|-----------|
-| `v0.1.x` | ✅ |
-| `< v0.1` | ❌ |
+| `v0.2.x` (latest minor on `main`) | ✅ security fixes |
+| `v0.1.x` | best-effort until EOL notice |
+| pre-release / untagged | best-effort |
 
 ## Reporting a vulnerability
 
 **Please do not open public GitHub issues for security vulnerabilities.**
 
-Email **security@iome.sh** (or the security contact listed at [iome.sh](https://iome.sh)) with:
+Preferred channels (in order):
+
+1. **GitHub Security Advisory** (private) — Security → Advisories → Report a vulnerability  
+2. Email **security@iome.sh** (or the security contact listed at [iome.sh](https://iome.sh))
+
+Include:
 
 1. Description of the issue and impact  
 2. Steps to reproduce (PoC if available)  
@@ -28,6 +34,7 @@ In scope for this repository:
 - Connector HMAC verification helpers  
 - Unsafe deserialization or injection via SDK helpers  
 - Supply-chain issues in release artifacts (tags, `go.sum`)  
+- Broker URL parsing / scheme handling  
 
 Out of scope:
 
@@ -39,11 +46,22 @@ Out of scope:
 
 - Pin module versions (`go get …@vX.Y.Z` + committed `go.sum`)  
 - Rotate broker tokens and connector secrets regularly  
-- Treat `X-IOMesh-Tenant` / org headers as authorization boundary — enforce server-side  
+- Use **HTTPS** broker URLs in production  
+- Prefer `WithBearerToken` — never put credentials in the broker URL  
+- Treat `X-IOMesh-Tenant` / org headers as an authorization boundary — **enforce server-side**  
+- Keep HMAC secrets server-side only (never in mobile/browser clients)  
 - Run `go mod verify` in CI  
 
 ## Supply chain
 
 - Releases are Git tags on `main` (`v*`)  
-- CI runs tests on every PR and on `main`  
-- Dependabot (or equivalent) updates Go modules and GitHub Actions  
+- CI runs tests, race, vet, govulncheck, and golangci-lint on every PR and on `main`  
+- Dependabot updates Go modules and GitHub Actions  
+
+## Residual risks (honest)
+
+| Risk | Residual |
+|------|----------|
+| Misconfigured broker trust | Client will talk to any `http(s)` host you pass; validate endpoints in your app |
+| Tenant header spoofing | Headers are not crypto auth — broker must authorize |
+| Long-lived bearer tokens | Caller responsibility to refresh/rotate |

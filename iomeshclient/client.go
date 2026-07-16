@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -77,12 +78,16 @@ func applyConnectOpts(opts []ConnectOpt) connectOpts {
 }
 
 // Connect returns a client for the broker at base.URL. No network I/O is performed.
+// URL must be absolute http or https (file:// and other schemes are rejected).
 func Connect(base Options, opts ...ConnectOpt) (*Client, error) {
-	url := strings.TrimSpace(base.URL)
-	if url == "" {
+	raw := strings.TrimSpace(base.URL)
+	if raw == "" {
 		return nil, errors.New("iomeshclient: URL required")
 	}
-	url = strings.TrimRight(url, "/")
+	raw = strings.TrimRight(raw, "/")
+	if err := validateBrokerURL(raw); err != nil {
+		return nil, err
+	}
 
 	httpClient := base.HTTPClient
 	if httpClient == nil {
@@ -97,13 +102,33 @@ func Connect(base Options, opts ...ConnectOpt) (*Client, error) {
 	co := applyConnectOpts(opts)
 
 	return &Client{
-		baseURL:     url,
+		baseURL:     raw,
 		http:        httpClient,
 		timeout:     timeout,
 		tenant:      co.tenant,
 		org:         co.org,
 		bearerToken: co.bearerToken,
 	}, nil
+}
+
+// validateBrokerURL enforces absolute http(s) endpoints for the mesh broker.
+// Loopback http is allowed for local development.
+func validateBrokerURL(raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("iomeshclient: invalid URL: %w", err)
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("iomeshclient: unsupported URL scheme %q (want http or https)", u.Scheme)
+	}
+	if u.Host == "" {
+		return errors.New("iomeshclient: URL host required")
+	}
+	// Reject embedded credentials in the URL (prefer WithBearerToken).
+	if u.User != nil {
+		return errors.New("iomeshclient: URL must not contain userinfo; use WithBearerToken")
+	}
+	return nil
 }
 
 // PubAck is the response from a successful publish.

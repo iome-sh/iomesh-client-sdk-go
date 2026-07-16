@@ -72,7 +72,7 @@ func run() error {
 	if err := connectorsdk.VerifyHMAC(secret, string(eventBody), sig, connectorsdk.VerifyOptions{}); err != nil {
 		return fmt.Errorf("verify inbound webhook: %w", err)
 	}
-	log.Printf("verify OK signature=%s", sig)
+	log.Printf("verify OK (signature redacted; len=%d)", len(sig))
 
 	// 2) Normalize to I/O Mesh observation envelope.
 	normalizedPayload, err := connectorsdk.NormalizeEnvelope(

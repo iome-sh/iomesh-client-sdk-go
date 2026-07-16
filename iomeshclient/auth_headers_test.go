@@ -46,6 +46,29 @@ func TestConnectSetsTenantAndBearerHeaders(t *testing.T) {
 	}
 }
 
+func TestConnectRejectsUnsafeURLs(t *testing.T) {
+	cases := []string{
+		"",
+		"file:///etc/passwd",
+		"ftp://example.com",
+		"//no-scheme.example",
+		"http://user:pass@127.0.0.1:8422",
+		"not a url",
+	}
+	for _, u := range cases {
+		_, err := iomeshclient.Connect(iomeshclient.Options{URL: u})
+		if err == nil {
+			t.Fatalf("Connect(%q) expected error", u)
+		}
+	}
+	// Valid schemes
+	for _, u := range []string{"http://127.0.0.1:8422", "https://mesh.example.com"} {
+		if _, err := iomeshclient.Connect(iomeshclient.Options{URL: u}); err != nil {
+			t.Fatalf("Connect(%q) unexpected error: %v", u, err)
+		}
+	}
+}
+
 func TestConnectOmitsHeadersWhenUnset(t *testing.T) {
 	var mu sync.Mutex
 	var gotTenant, gotAuth string

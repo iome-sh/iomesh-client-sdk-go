@@ -1,0 +1,13 @@
+iomesh-client-sdk-go
+Copyright 2026 IOMesh Technology Ltd.
+
+This product is licensed under the MIT License — see LICENSE.
+
+Third-party acknowledgements
+---------------------------
+
+- Go module dependencies are declared in go.mod / go.sum and retain their
+  respective licenses (run `go list -m all`).
+- Primary third-party dependency: github.com/nrednav/cuid2 (and its transitive
+  requirements under golang.org/x/…).
+- Contributor Covenant (Code of Conduct) text adapted under CC BY 4.0.
