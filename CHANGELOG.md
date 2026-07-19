@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.0] — 2026-07-19
+
+Minor release: Subscription FetchContext, AckContext, NackContext.
+
 ### Added
 
 - **`Subscription.FetchContext` / `AckContext` / `NackContext`** — context-aware pull subscription ops so callers need not use `context.Background()`. Existing `Fetch` / `Ack` / `Nack` remain as thin wrappers that pass `context.Background()`
@@ -235,7 +239,8 @@ Minor release: I/O Mesh platform / iomesh-tui memory + multi-tenant header parit
 - Docs: public naming policy for packages, env, and headers.
 - Removed package `aionclient` and legacy `X-Aion-*` / `AION_*` aliases.
 
-[Unreleased]: https://github.com/iome-sh/iomesh-client-sdk-go/compare/v0.22.0...HEAD
+[Unreleased]: https://github.com/iome-sh/iomesh-client-sdk-go/compare/v0.23.0...HEAD
+[0.23.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.23.0
 [0.22.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.22.0
 [0.21.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.21.0
 [0.20.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.20.0
