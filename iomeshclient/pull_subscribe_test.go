@@ -12,6 +12,193 @@ import (
 	"github.com/iome-sh/iomesh-client-sdk-go/iomeshclient"
 )
 
+func TestCreateConsumer_201FullInfo(t *testing.T) {
+	var gotMethod, gotPath string
+	var gotBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod = r.Method
+		gotPath = r.URL.Path
+		if r.Method != http.MethodPost || r.URL.Path != "/v1/streams/EVENTS/consumers" {
+			http.NotFound(w, r)
+			return
+		}
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"stream":         "EVENTS",
+			"name":           "worker-1",
+			"ack_floor":      42,
+			"pending_count":  3,
+			"filter_subject": "dept.events.>",
+		})
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := nc.CreateConsumer(context.Background(), iomeshclient.CreateConsumerConfig{
+		Stream:        "EVENTS",
+		Name:          "worker-1",
+		FilterSubject: "dept.events.>",
+		MaxDeliver:    5,
+		AckWaitSec:    30,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotMethod != http.MethodPost || gotPath != "/v1/streams/EVENTS/consumers" {
+		t.Fatalf("method=%q path=%q", gotMethod, gotPath)
+	}
+	if gotBody["name"] != "worker-1" {
+		t.Fatalf("request body=%v", gotBody)
+	}
+	if gotBody["filter_subject"] != "dept.events.>" {
+		t.Fatalf("filter in body=%v", gotBody)
+	}
+	if gotBody["max_deliver"] != float64(5) {
+		t.Fatalf("max_deliver in body=%v", gotBody)
+	}
+	if gotBody["ack_wait_sec"] != float64(30) {
+		t.Fatalf("ack_wait_sec in body=%v", gotBody)
+	}
+	if info == nil {
+		t.Fatal("info is nil")
+	}
+	if info.Stream != "EVENTS" || info.Name != "worker-1" {
+		t.Fatalf("info stream/name=%+v", info)
+	}
+	if info.AckFloor != 42 {
+		t.Fatalf("ack_floor=%d", info.AckFloor)
+	}
+	if info.PendingCount != 3 {
+		t.Fatalf("pending_count=%d", info.PendingCount)
+	}
+	if info.FilterSubject != "dept.events.>" {
+		t.Fatalf("filter_subject=%q", info.FilterSubject)
+	}
+}
+
+func TestCreateConsumer_409NameOnly(t *testing.T) {
+	var posts int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/streams/EVENTS/consumers" {
+			posts++
+			w.WriteHeader(http.StatusConflict)
+			_, _ = w.Write([]byte(`{"error":"consumer already exists"}`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := nc.CreateConsumer(context.Background(), iomeshclient.CreateConsumerConfig{
+		Stream: "EVENTS",
+		Name:   "worker-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if posts != 1 {
+		t.Fatalf("posts=%d", posts)
+	}
+	if info == nil {
+		t.Fatal("info is nil")
+	}
+	if info.Stream != "EVENTS" || info.Name != "worker-1" {
+		t.Fatalf("expected Stream/Name only, got %+v", info)
+	}
+	if info.AckFloor != 0 || info.PendingCount != 0 || info.FilterSubject != "" {
+		t.Fatalf("expected name-only on 409, got %+v", info)
+	}
+}
+
+func TestCreateConsumer_Validation(t *testing.T) {
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: "http://127.0.0.1:9"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = nc.CreateConsumer(context.Background(), iomeshclient.CreateConsumerConfig{})
+	if err == nil || !strings.Contains(err.Error(), "stream and name required") {
+		t.Fatalf("empty cfg err=%v", err)
+	}
+	_, err = nc.CreateConsumer(context.Background(), iomeshclient.CreateConsumerConfig{Stream: "S"})
+	if err == nil || !strings.Contains(err.Error(), "stream and name required") {
+		t.Fatalf("missing name err=%v", err)
+	}
+	_, err = nc.CreateConsumer(context.Background(), iomeshclient.CreateConsumerConfig{Name: "c"})
+	if err == nil || !strings.Contains(err.Error(), "stream and name required") {
+		t.Fatalf("missing stream err=%v", err)
+	}
+	var c *iomeshclient.Client
+	_, err = c.CreateConsumer(context.Background(), iomeshclient.CreateConsumerConfig{Stream: "S", Name: "c"})
+	if err == nil || !strings.Contains(err.Error(), "nil client") {
+		t.Fatalf("nil client err=%v", err)
+	}
+}
+
+func TestEnsureConsumer_409NameOnly(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/streams/EVENTS/consumers" {
+			w.WriteHeader(http.StatusConflict)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := nc.EnsureConsumer(context.Background(), iomeshclient.CreateConsumerConfig{
+		Stream: "EVENTS",
+		Name:   "worker-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info == nil || info.Stream != "EVENTS" || info.Name != "worker-1" {
+		t.Fatalf("info=%+v", info)
+	}
+}
+
+func TestCreateConsumer_PathEscape(t *testing.T) {
+	var gotPath string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.EscapedPath()
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"stream": "a/b",
+			"name":   "c",
+		})
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := nc.CreateConsumer(context.Background(), iomeshclient.CreateConsumerConfig{
+		Stream: "a/b",
+		Name:   "c",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotPath != "/v1/streams/a%2Fb/consumers" {
+		t.Fatalf("path=%q want escaped stream", gotPath)
+	}
+	if info.Stream != "a/b" || info.Name != "c" {
+		t.Fatalf("info=%+v", info)
+	}
+}
+
 func TestPullSubscribe_201SetsConsumerInfo(t *testing.T) {
 	var gotMethod, gotPath string
 	var gotBody map[string]any
@@ -71,7 +258,7 @@ func TestPullSubscribe_201SetsConsumerInfo(t *testing.T) {
 	}
 }
 
-func TestPullSubscribe_409ZeroInfo(t *testing.T) {
+func TestPullSubscribe_409NameOnlyInfo(t *testing.T) {
 	var posts int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost && r.URL.Path == "/v1/streams/EVENTS/consumers" {
@@ -99,9 +286,12 @@ func TestPullSubscribe_409ZeroInfo(t *testing.T) {
 		t.Fatalf("posts=%d", posts)
 	}
 	info := sub.ConsumerInfo()
-	// 409 path leaves zero-value ConsumerInfo
-	if info.Stream != "" || info.Name != "" || info.AckFloor != 0 || info.PendingCount != 0 || info.FilterSubject != "" {
-		t.Fatalf("expected zero info on 409, got %+v", info)
+	// 409 path: Stream/Name only (via CreateConsumer)
+	if info.Stream != "EVENTS" || info.Name != "worker-1" {
+		t.Fatalf("expected Stream/Name on 409, got %+v", info)
+	}
+	if info.AckFloor != 0 || info.PendingCount != 0 || info.FilterSubject != "" {
+		t.Fatalf("expected name-only on 409, got %+v", info)
 	}
 }
 

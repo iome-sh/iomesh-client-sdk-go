@@ -19,7 +19,7 @@ Official open-source tooling from [IOMesh](https://iome.sh) (**IOMesh Technology
 > **Package:** `iomeshclient`  
 > **Env prefix:** `IOMESH_*`  
 > **Wire headers:** `X-IOMesh-Tenant`, `X-IOMesh-Org`, `X-IOMesh-Workspace`, …  
-> **Status:** public OSS **v0.20.x** (pre-1.0). Memory M2/M3 + multi-tenant headers + dual-write/metering + Health/Ready/WaitReady + catalog plane + EvaluatePolicy + QueryContext + ConnectionStatus + ListStreams/GetStream/DeleteStream/ListStreamMessages + CreateStream/EnsureStream `*StreamInfo` + FormatStreams/FormatStreamDetail + PullSubscribe `ConsumerInfo` + FormatConsumerInfo + KV CreateBucket/EnsureBucket `*BucketInfo` + Put `*PutResult` + FormatBucketInfo/FormatKVEntry/FormatKVKeys/FormatPutResult aligned with [iomesh-tui](https://github.com/iome-sh/iomesh-tui).  
+> **Status:** public OSS **v0.20.x** (pre-1.0). Memory M2/M3 + multi-tenant headers + dual-write/metering + Health/Ready/WaitReady + catalog plane + EvaluatePolicy + QueryContext + ConnectionStatus + ListStreams/GetStream/DeleteStream/ListStreamMessages + CreateStream/EnsureStream `*StreamInfo` + FormatStreams/FormatStreamDetail + CreateConsumer/EnsureConsumer `*ConsumerInfo` + PullSubscribe + FormatConsumerInfo + KV CreateBucket/EnsureBucket `*BucketInfo` + Put `*PutResult` + FormatBucketInfo/FormatKVEntry/FormatKVKeys/FormatPutResult aligned with [iomesh-tui](https://github.com/iome-sh/iomesh-tui).  
 > **User-Agent:** `iomesh-client-sdk-go/<Version>` (override with `WithUserAgent`).
 
 ## Requirements
@@ -107,7 +107,8 @@ offset, err := kc.Produce(ctx, "mesh.finance.events", 0, []byte("key"), []byte(`
 | `GetStream` | `GET /v1/streams/{name}` | Single `StreamInfo`; 404 → `*APIError` |
 | `DeleteStream` | `DELETE /v1/streams/{name}` | 204 success; 404 → `*APIError`; destructive — not used in dogfood by default |
 | `ListStreamMessages` | `GET /v1/streams/{name}/messages` | Stream replay/read-range; `from_seq`/`to_seq`/`limit`; payload base64→`[]byte`; non-2xx → `*APIError` |
-| `Publish` / `PullSubscribe` | stream publish / consumer | `PullSubscribe` returns `*Subscription` with `ConsumerInfo()` (201 body; 409 → zero info); stream/consumer path segments escaped |
+| `CreateConsumer` / `EnsureConsumer` | `POST /v1/streams/{stream}/consumers` | Returns `*ConsumerInfo`; 409 conflict → success with Stream/Name only. EnsureConsumer is an idempotent alias |
+| `Publish` / `PullSubscribe` | stream publish / consumer | `PullSubscribe` uses `CreateConsumer` then returns `*Subscription` with `ConsumerInfo()`; stream/consumer path segments escaped |
 | `Pub` | `POST /v1/pub` | Ephemeral fire-and-forget |
 
 ```go
@@ -140,14 +141,23 @@ if err != nil {
 }
 // msgs[i].Seq, Subject, Payload ([]byte), Headers, Timestamp, …
 
-// PullSubscribe: durable consumer (201 → ConsumerInfo; 409 reuse → zero info)
+// CreateConsumer / EnsureConsumer: durable pull consumer (201 → full info; 409 → Stream/Name only)
+info, err := nc.EnsureConsumer(ctx, iomeshclient.CreateConsumerConfig{
+	Stream: "EVENTS", Name: "worker-1", FilterSubject: "dept.events.>",
+})
+if err != nil {
+	log.Fatal(err)
+}
+fmt.Print(iomeshclient.FormatConsumerInfo(*info)) // operator detail
+
+// PullSubscribe: CreateConsumer + subscription handle for Fetch/Ack/Nack
 sub, err := nc.PullSubscribe(ctx, iomeshclient.PullSubscribeConfig{
 	Stream: "EVENTS", Consumer: "worker-1", Filter: "dept.events.>",
 })
 if err != nil {
 	log.Fatal(err)
 }
-fmt.Print(iomeshclient.FormatConsumerInfo(sub.ConsumerInfo())) // operator detail
+fmt.Print(iomeshclient.FormatConsumerInfo(sub.ConsumerInfo()))
 // batch, err := sub.Fetch(10); batch[i].Ack() / Nack()
 ```
 
