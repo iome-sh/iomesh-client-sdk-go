@@ -19,7 +19,7 @@ Official open-source tooling from [IOMesh](https://iome.sh) (**IOMesh Technology
 > **Package:** `iomeshclient`  
 > **Env prefix:** `IOMESH_*`  
 > **Wire headers:** `X-IOMesh-Tenant`, `X-IOMesh-Org`, `X-IOMesh-Workspace`, …  
-> **Status:** public OSS **v0.10.x** (pre-1.0). Memory M2/M3 + multi-tenant headers + dual-write/metering + Health/Ready/WaitReady + catalog plane + EvaluatePolicy + QueryContext aligned with [iomesh-tui](https://github.com/iome-sh/iomesh-tui).  
+> **Status:** public OSS **v0.11.x** (pre-1.0). Memory M2/M3 + multi-tenant headers + dual-write/metering + Health/Ready/WaitReady + catalog plane + EvaluatePolicy + QueryContext + ConnectionStatus aligned with [iomesh-tui](https://github.com/iome-sh/iomesh-tui).  
 > **User-Agent:** `iomesh-client-sdk-go/<Version>` (override with `WithUserAgent`).
 
 ## Requirements
@@ -146,8 +146,8 @@ go run ./examples/memory-metering-dogfood
 ## Diagnostics
 
 ```go
-fmt.Println(iomeshclient.Version) // e.g. "0.10.0"
-// All requests send: User-Agent: iomesh-client-sdk-go/0.10.0
+fmt.Println(iomeshclient.Version) // e.g. "0.11.0"
+// All requests send: User-Agent: iomesh-client-sdk-go/0.11.0
 // Override: iomeshclient.WithUserAgent("my-service/1.2.3")
 
 if err := nc.Health(ctx); err != nil { /* broker down */ }
