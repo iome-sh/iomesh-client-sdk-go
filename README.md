@@ -94,6 +94,31 @@ defer kc.Close()
 offset, err := kc.Produce(ctx, "mesh.finance.events", 0, []byte("key"), []byte(`{"event_id":"evt-1"}`))
 ```
 
+## Streams
+
+| API | Path | Notes |
+|-----|------|--------|
+| `CreateStream` / `EnsureStream` | `POST /v1/streams` | 409 conflict treated as success |
+| `ListStreams` | `GET /v1/streams` | Explicit discovery; non-2xx → `*APIError` (not fail-open empty) |
+| `GetStream` | `GET /v1/streams/{name}` | Single `StreamInfo`; 404 → `*APIError` |
+| `Publish` / `PullSubscribe` | stream publish / consumer | See Quick start |
+| `Pub` | `POST /v1/pub` | Ephemeral fire-and-forget |
+
+```go
+// List all streams (callers handle errors — not fail-open)
+streams, err := nc.ListStreams(ctx)
+if err != nil {
+	log.Fatal(err) // *iomeshclient.APIError on non-2xx
+}
+// streams[i].Name, Subjects, Messages, FirstSeq, LastSeq, CreatedAt, …
+
+info, err := nc.GetStream(ctx, "EVENTS")
+if err != nil {
+	log.Fatal(err)
+}
+log.Printf("stream=%s last_seq=%d messages=%d", info.Name, info.LastSeq, info.Messages)
+```
+
 ## Memory (async streams + sync sidecar)
 
 | API | Path | Notes |
