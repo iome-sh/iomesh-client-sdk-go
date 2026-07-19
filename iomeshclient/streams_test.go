@@ -416,6 +416,193 @@ func TestDeleteStream_NilClient(t *testing.T) {
 	}
 }
 
+func TestListStreamMessages_OK(t *testing.T) {
+	var gotPath, gotQuery, gotUA, gotTenant string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotQuery = r.URL.RawQuery
+		gotUA = r.Header.Get("User-Agent")
+		gotTenant = r.Header.Get("X-IOMesh-Tenant")
+		if r.Method != http.MethodGet || r.URL.Path != "/v1/streams/EVENTS/messages" {
+			http.NotFound(w, r)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"messages": []map[string]any{
+				{
+					"stream":    "EVENTS",
+					"seq":       1,
+					"subject":   "dept.events.created",
+					"partition": 0,
+					"payload":   "aGVsbG8=", // base64 "hello"
+					"headers":   map[string]string{"k": "v"},
+					"timestamp": time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC),
+				},
+				{
+					"stream":    "EVENTS",
+					"seq":       2,
+					"subject":   "dept.events.updated",
+					"partition": 1,
+					"payload":   "not-valid-base64!!!", // soft decode → raw bytes
+					"headers":   map[string]string{},
+					"timestamp": time.Date(2026, 7, 1, 12, 1, 0, 0, time.UTC),
+				},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(
+		iomeshclient.Options{URL: srv.URL},
+		iomeshclient.WithTenant("demo.tenant"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	msgs, err := nc.ListStreamMessages(context.Background(), "EVENTS", iomeshclient.ListStreamMessagesOptions{
+		FromSeq: 1,
+		ToSeq:   10,
+		Limit:   50,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotPath != "/v1/streams/EVENTS/messages" {
+		t.Fatalf("path=%q", gotPath)
+	}
+	if !strings.Contains(gotQuery, "from_seq=1") || !strings.Contains(gotQuery, "to_seq=10") || !strings.Contains(gotQuery, "limit=50") {
+		t.Fatalf("query=%q", gotQuery)
+	}
+	if !strings.HasPrefix(gotUA, "iomesh-client-sdk-go/") {
+		t.Fatalf("User-Agent=%q", gotUA)
+	}
+	if gotTenant != "demo.tenant" {
+		t.Fatalf("tenant=%q", gotTenant)
+	}
+	if len(msgs) != 2 {
+		t.Fatalf("len=%d msgs=%+v", len(msgs), msgs)
+	}
+	if msgs[0].Seq != 1 || msgs[0].Subject != "dept.events.created" || string(msgs[0].Payload) != "hello" {
+		t.Fatalf("msg0=%+v payload=%q", msgs[0], msgs[0].Payload)
+	}
+	if msgs[0].Headers["k"] != "v" {
+		t.Fatalf("headers=%v", msgs[0].Headers)
+	}
+	if string(msgs[1].Payload) != "not-valid-base64!!!" {
+		t.Fatalf("soft b64 fallback: %q", msgs[1].Payload)
+	}
+	if msgs[1].Partition != 1 {
+		t.Fatalf("partition=%d", msgs[1].Partition)
+	}
+}
+
+func TestListStreamMessages_DefaultsAndCap(t *testing.T) {
+	var gotQuery string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotQuery = r.URL.RawQuery
+		_ = json.NewEncoder(w).Encode(map[string]any{"messages": []any{}})
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Zero opts → from_seq=1, to_seq=0, limit=100
+	if _, err := nc.ListStreamMessages(context.Background(), "EVENTS", iomeshclient.ListStreamMessagesOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(gotQuery, "from_seq=1") || !strings.Contains(gotQuery, "to_seq=0") || !strings.Contains(gotQuery, "limit=100") {
+		t.Fatalf("default query=%q", gotQuery)
+	}
+
+	// Limit > 1000 capped
+	if _, err := nc.ListStreamMessages(context.Background(), "EVENTS", iomeshclient.ListStreamMessagesOptions{Limit: 5000}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(gotQuery, "limit=1000") {
+		t.Fatalf("capped query=%q", gotQuery)
+	}
+}
+
+func TestListStreamMessages_EmptyList(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"messages": []any{}})
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	msgs, err := nc.ListStreamMessages(context.Background(), "EMPTY", iomeshclient.ListStreamMessagesOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if msgs == nil || len(msgs) != 0 {
+		t.Fatalf("msgs=%+v (want empty non-nil)", msgs)
+	}
+}
+
+func TestListStreamMessages_403APIError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"error":"replay not allowed"}`))
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = nc.ListStreamMessages(context.Background(), "EVENTS", iomeshclient.ListStreamMessagesOptions{})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	var apiErr *iomeshclient.APIError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusForbidden {
+		t.Fatalf("err=%v (want APIError 403)", err)
+	}
+}
+
+func TestListStreamMessages_Validation(t *testing.T) {
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: "http://127.0.0.1:9"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = nc.ListStreamMessages(context.Background(), "  ", iomeshclient.ListStreamMessagesOptions{})
+	if err == nil || !strings.Contains(err.Error(), "stream name required") {
+		t.Fatalf("empty stream err=%v", err)
+	}
+
+	var c *iomeshclient.Client
+	_, err = c.ListStreamMessages(context.Background(), "EVENTS", iomeshclient.ListStreamMessagesOptions{})
+	if err == nil || !strings.Contains(err.Error(), "nil client") {
+		t.Fatalf("nil client err=%v", err)
+	}
+}
+
+func TestListStreamMessages_PathEscape(t *testing.T) {
+	var gotPath string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.EscapedPath()
+		_ = json.NewEncoder(w).Encode(map[string]any{"messages": []any{}})
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := nc.ListStreamMessages(context.Background(), "a/b", iomeshclient.ListStreamMessagesOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	// url.PathEscape("a/b") => "a%2Fb"
+	if gotPath != "/v1/streams/a%2Fb/messages" {
+		t.Fatalf("path=%q want escaped slash", gotPath)
+	}
+}
+
 func TestFormatStreams_Empty(t *testing.T) {
 	out := iomeshclient.FormatStreams(nil)
 	if !strings.Contains(out, "count=0") || !strings.Contains(out, "(no streams)") {

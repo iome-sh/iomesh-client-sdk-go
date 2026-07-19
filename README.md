@@ -106,6 +106,7 @@ offset, err := kc.Produce(ctx, "mesh.finance.events", 0, []byte("key"), []byte(`
 | `ListStreams` | `GET /v1/streams` | Explicit discovery; non-2xx → `*APIError` (not fail-open empty) |
 | `GetStream` | `GET /v1/streams/{name}` | Single `StreamInfo`; 404 → `*APIError` |
 | `DeleteStream` | `DELETE /v1/streams/{name}` | 204 success; 404 → `*APIError`; destructive — not used in dogfood by default |
+| `ListStreamMessages` | `GET /v1/streams/{name}/messages` | Stream replay/read-range; `from_seq`/`to_seq`/`limit`; payload base64→`[]byte`; non-2xx → `*APIError` |
 | `Publish` / `PullSubscribe` | stream publish / consumer | See Quick start |
 | `Pub` | `POST /v1/pub` | Ephemeral fire-and-forget |
 
@@ -128,6 +129,16 @@ fmt.Print(iomeshclient.FormatStreamDetail(*info)) // multi-line detail
 if err := nc.DeleteStream(ctx, "TEMP_STREAM"); err != nil {
 	log.Fatal(err) // *iomeshclient.APIError on 404 / non-2xx
 }
+
+// Replay/read-range (defaults: from_seq=1, to_seq=0 last, limit=100 max 1000)
+msgs, err := nc.ListStreamMessages(ctx, "EVENTS", iomeshclient.ListStreamMessagesOptions{
+	FromSeq: 1,
+	Limit:   50,
+})
+if err != nil {
+	log.Fatal(err)
+}
+// msgs[i].Seq, Subject, Payload ([]byte), Headers, Timestamp, …
 ```
 
 ## Memory (async streams + sync sidecar)

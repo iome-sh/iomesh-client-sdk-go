@@ -12,6 +12,7 @@
 //	IOMESH_POLICY_MODE    optional off|advisory|enforce (default off); when advisory/enforce,
 //	                       probes EvaluatePolicy for tool.run_shell (warn-only, never exits)
 //	IOMESH_WAIT_READY     set to 1 to poll WaitReady before continuing (default: single Ready)
+//	IOMESH_STREAM         optional stream name; when set, ListStreamMessages (last N) warn-only
 //
 // Usage:
 //
@@ -98,6 +99,17 @@ func main() {
 		log.Printf("WARN ListStreams: %v", err)
 	} else {
 		fmt.Printf("PASS ListStreams count=%d\n", len(streams))
+	}
+	// 0s2) Optional stream message replay (warn-only when IOMESH_STREAM set)
+	if streamName := strings.TrimSpace(os.Getenv("IOMESH_STREAM")); streamName != "" {
+		msgs, err := mesh.ListStreamMessages(ctx, streamName, iomeshclient.ListStreamMessagesOptions{
+			Limit: 10,
+		})
+		if err != nil {
+			log.Printf("WARN ListStreamMessages stream=%s: %v", streamName, err)
+		} else {
+			fmt.Printf("PASS ListStreamMessages stream=%s count=%d\n", streamName, len(msgs))
+		}
 	}
 
 	// 0a) Catalog plane (fail-open; warn-only)
