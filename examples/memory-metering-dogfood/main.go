@@ -9,11 +9,14 @@
 //	IOMESH_API_KEY        optional Bearer
 //	IOMESH_MEMORY_ENDPOINT optional memory sidecar base for sync retrieve
 //	                       (when unset, uses IOMESH_URL — broker-only often 404s retrieve)
+//	IOMESH_POLICY_MODE    optional off|advisory|enforce (default off); when advisory/enforce,
+//	                       probes EvaluatePolicy for tool.run_shell (warn-only, never exits)
 //
 // Usage:
 //
 //	export IOMESH_URL=http://127.0.0.1:8422
 //	export IOMESH_MEMORY_ENDPOINT=http://127.0.0.1:8765
+//	export IOMESH_POLICY_MODE=advisory   # optional
 //	go run ./examples/memory-metering-dogfood
 package main
 
@@ -22,6 +25,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/iome-sh/iomesh-client-sdk-go/iomeshclient"
@@ -74,6 +78,17 @@ func main() {
 		log.Printf("WARN Ready: %v (optional on some brokers)", err)
 	} else {
 		fmt.Println("PASS Ready GET /ready|/readyz")
+	}
+
+	// 0b) Optional policy evaluate (fail-open; warn-only)
+	policyMode := strings.ToLower(strings.TrimSpace(os.Getenv("IOMESH_POLICY_MODE")))
+	if policyMode == "advisory" || policyMode == "enforce" {
+		dec := mesh.EvaluatePolicy(ctx, iomeshclient.PolicyInput{
+			Tool: "run_shell",
+			Mode: iomeshclient.PolicyMode(policyMode),
+		})
+		log.Printf("policy: %s", dec.Summary())
+		fmt.Printf("PASS EvaluatePolicy mode=%s source=%s allow=%v\n", dec.Mode, dec.Source, dec.Allow)
 	}
 
 	// 1) Dual-write: async MEMORY_INGEST + optional sync Palace ingest (fail-open)

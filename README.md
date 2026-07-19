@@ -152,6 +152,19 @@ fmt.Println(iomeshclient.Version) // e.g. "0.7.0"
 
 if err := nc.Health(ctx); err != nil { /* broker down */ }
 if err := nc.Ready(ctx); err != nil { /* optional readiness path missing */ }
+
+// Optional remote policy (POST /v1/policy/evaluate). Mode is per-call.
+// Transport / 404 / non-OK are fail-open (Allow=true) so agent DX is not blocked
+// when the broker is down or the endpoint is not deployed yet.
+// Enforce only blocks via ShouldBlockTool when mesh explicitly denies (Source=mesh).
+dec := nc.EvaluatePolicy(ctx, iomeshclient.PolicyInput{
+	Tool: "run_shell",
+	Mode: iomeshclient.PolicyEnforce, // or PolicyAdvisory; empty/off skips network
+})
+if dec.ShouldBlockTool() {
+	// mesh deny under enforce
+}
+_ = dec.Summary() // e.g. "allow source=mesh mode=enforce"
 ```
 
 ## Security
