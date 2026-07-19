@@ -115,6 +115,25 @@ hits, err := nc.RetrieveMemory(ctx, iomeshclient.MemoryRetrieveRequest{
 
 The agent harness ([iomesh-tui](https://github.com/iome-sh/iomesh-tui)) mirrors these surfaces without depending on this module (lean public HTTP).
 
+## Metering (dept streams)
+
+```go
+// Remote multi-tenant usage event for platform dashboards
+ack, err := nc.EmitLLMCall(ctx, iomeshclient.LLMCallEvent{
+	Tenant: "dept.research", SessionID: "sess-1",
+	Model: "deepseek-v4-flash", TotalTokens: 120, EstUSD: 0.002,
+})
+// Wire: POST /v1/streams/dept/publish subject=dept.agent.llm_call
+```
+
+Stage smoke (mesh + optional memory sidecar):
+
+```bash
+export IOMESH_URL=http://127.0.0.1:8422
+export IOMESH_MEMORY_ENDPOINT=http://127.0.0.1:8765  # warm plane
+go run ./examples/memory-metering-dogfood
+```
+
 ## Security
 
 - Report vulnerabilities **privately**: [SECURITY.md](SECURITY.md) (GitHub Security Advisory or security@iome.sh).  
