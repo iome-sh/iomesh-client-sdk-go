@@ -99,6 +99,14 @@ func main() {
 		fmt.Printf("PASS ListCatalog source=%s products=%d detail=%s\n", cat.Source, len(cat.Products), cat.Detail)
 	}
 
+	// 0a2) Context plane snippet (fail-open; warn-only)
+	snip := mesh.ContextSnippet(ctx, ".", "sdk dogfood")
+	if snip != "" {
+		fmt.Println("PASS context", len(snip))
+	} else {
+		log.Printf("WARN context empty (fail-open)")
+	}
+
 	// 0b) Optional policy evaluate (fail-open; warn-only)
 	policyMode := strings.ToLower(strings.TrimSpace(os.Getenv("IOMESH_POLICY_MODE")))
 	if policyMode == "advisory" || policyMode == "enforce" {
