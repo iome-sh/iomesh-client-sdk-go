@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`QueryContext` / `ContextSnippet`** — fail-open context plane (`POST /v1/context/query`); `LineageRef` / `ContextResult` / `QueryContextRequest`; `FormatContextSnippet` with `<iomesh-lineage>` (max 12 refs); agent `ContextSnippet` defaults `IncludeLineage=true` (iomesh-tui parity, s292)
+
 ## [0.9.0] — 2026-07-19
 
 Minor release: ListCatalog/GetCatalogProduct + WaitReady. Compatible with `v0.8.x`.

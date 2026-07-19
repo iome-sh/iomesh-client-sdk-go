@@ -171,6 +171,16 @@ if dec.ShouldBlockTool() {
 	// mesh deny under enforce
 }
 _ = dec.Summary() // e.g. "allow source=mesh mode=enforce"
+
+// Context plane (POST /v1/context/query). Fail-open: nil client / transport / non-OK → empty.
+// ContextSnippet always requests include_lineage for agent prompt injection.
+snip := nc.ContextSnippet(ctx, ".", "incidents last hour")
+// or:
+res := nc.QueryContext(ctx, iomeshclient.QueryContextRequest{
+	Workspace: ".", Query: "incidents", IncludeLineage: true,
+})
+_ = iomeshclient.FormatContextSnippet(res) // text + optional <iomesh-lineage> (max 12 refs)
+_ = snip
 ```
 
 ## Catalog (data products)
