@@ -24,11 +24,11 @@ func TestListStreams_OKArrayAndUserAgent(t *testing.T) {
 		}
 		_ = json.NewEncoder(w).Encode([]map[string]any{
 			{
-				"name":      "EVENTS",
-				"subjects":  []string{"dept.events.>"},
-				"messages":  3,
-				"first_seq": 1,
-				"last_seq":  3,
+				"name":       "EVENTS",
+				"subjects":   []string{"dept.events.>"},
+				"messages":   3,
+				"first_seq":  1,
+				"last_seq":   3,
 				"created_at": time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC),
 			},
 		})
