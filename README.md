@@ -57,11 +57,15 @@ func main() {
 	}
 
 	ctx := context.Background()
-	if err := nc.CreateStream(ctx, iomeshclient.StreamConfig{
+	info, err := nc.CreateStream(ctx, iomeshclient.StreamConfig{
 		Name:     "EVENTS",
 		Subjects: []string{"dept.engineering.events.>"},
-	}); err != nil {
+	})
+	if err != nil {
 		log.Fatal(err)
+	}
+	if info != nil {
+		log.Printf("stream=%s subjects=%v", info.Name, info.Subjects)
 	}
 
 	ack, err := nc.Publish(ctx, "EVENTS", "dept.engineering.events.demo", []byte(`{"hello":"mesh"}`))
@@ -98,7 +102,7 @@ offset, err := kc.Produce(ctx, "mesh.finance.events", 0, []byte("key"), []byte(`
 
 | API | Path | Notes |
 |-----|------|--------|
-| `CreateStream` / `EnsureStream` | `POST /v1/streams` | 409 conflict treated as success |
+| `CreateStream` / `EnsureStream` | `POST /v1/streams` | Returns `*StreamInfo`; 409 conflict → success + best-effort GET (nil info OK) |
 | `ListStreams` | `GET /v1/streams` | Explicit discovery; non-2xx → `*APIError` (not fail-open empty) |
 | `GetStream` | `GET /v1/streams/{name}` | Single `StreamInfo`; 404 → `*APIError` |
 | `DeleteStream` | `DELETE /v1/streams/{name}` | 204 success; 404 → `*APIError`; destructive — not used in dogfood by default |

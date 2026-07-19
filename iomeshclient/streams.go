@@ -44,31 +44,43 @@ type StreamInfo struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
-// CreateStream registers a stream via POST /v1/streams. A 409 conflict is treated as success.
-func (c *Client) CreateStream(ctx context.Context, cfg StreamConfig) error {
+// CreateStream registers a stream via POST /v1/streams.
+// On 201, decodes StreamInfo from the response body (aion streamResponse).
+// On 409 conflict, treats as success and best-effort GETs the stream
+// (may return nil info if get fails).
+func (c *Client) CreateStream(ctx context.Context, cfg StreamConfig) (*StreamInfo, error) {
 	if c == nil {
-		return errors.New("iomeshclient: nil client")
+		return nil, errors.New("iomeshclient: nil client")
 	}
 	if cfg.Name == "" {
-		return errors.New("iomeshclient: stream name required")
+		return nil, errors.New("iomeshclient: stream name required")
 	}
 	if len(cfg.Subjects) == 0 {
-		return errors.New("iomeshclient: subjects required")
+		return nil, errors.New("iomeshclient: subjects required")
 	}
 
-	var resp struct{}
-	if err := c.doJSON(ctx, http.MethodPost, "/v1/streams", cfg, &resp); err != nil {
-		var apiErr *APIError
-		if errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusConflict {
-			return nil
+	var info StreamInfo
+	err := c.doJSON(ctx, http.MethodPost, "/v1/streams", cfg, &info)
+	if err == nil {
+		if info.Name == "" {
+			info.Name = cfg.Name // defensive when broker omits name
 		}
-		return err
+		return &info, nil
 	}
-	return nil
+	var apiErr *APIError
+	if errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusConflict {
+		got, gerr := c.GetStream(ctx, cfg.Name)
+		if gerr == nil {
+			return got, nil
+		}
+		return nil, nil // conflict success without metadata
+	}
+	return nil, err
 }
 
 // EnsureStream creates the stream if it does not already exist.
-func (c *Client) EnsureStream(ctx context.Context, cfg StreamConfig) error {
+// Same semantics as CreateStream (including 409 → success, optional StreamInfo).
+func (c *Client) EnsureStream(ctx context.Context, cfg StreamConfig) (*StreamInfo, error) {
 	return c.CreateStream(ctx, cfg)
 }
 

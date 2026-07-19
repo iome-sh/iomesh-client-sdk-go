@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`CreateStream` / `EnsureStream`** — now return `(*StreamInfo, error)` instead of `error` only. On 201, decodes stream metadata from the response body; on 409 conflict, best-effort `GetStream` (returns info if found, else `(nil, nil)` success without metadata). Same for `MeshSDK.EnsureStream`. **Breaking for pre-1.0 callers** that assigned a single return value — update to two return values (s300)
+
 ## [0.13.0] — 2026-07-19
 
 Minor release: DeleteStream. Compatible with `v0.12.x`.
