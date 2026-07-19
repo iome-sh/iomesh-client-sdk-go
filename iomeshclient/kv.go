@@ -28,6 +28,13 @@ type BucketInfo struct {
 	TTLSeconds *int64 `json:"ttl_seconds,omitempty"`
 }
 
+// PutResult is the outcome of Put.
+type PutResult struct {
+	Bucket   string `json:"bucket"`
+	Key      string `json:"key"`
+	Revision uint64 `json:"revision"`
+}
+
 // CreateBucketConfig optionally tunes a new KV bucket.
 type CreateBucketConfig struct {
 	MaxBytes   *int64 `json:"max_bytes,omitempty"`
@@ -80,16 +87,39 @@ func kvKeyPath(bucket, key string) string {
 	return fmt.Sprintf("/v1/kv/%s/%s", url.PathEscape(bucket), url.PathEscape(key))
 }
 
-// Put writes a key in bucket using JSON base64 encoding expected by the HTTP API.
-func (c *Client) Put(ctx context.Context, bucket, key string, value []byte) (uint64, error) {
+// Put writes a key. Returns PutResult with revision from broker.
+// Empty bucket/key → error. nil client → error.
+//
+// Pre-1.0 signature change: previously returned (uint64, error). Callers that
+// assigned the revision only must update to (*PutResult, error).
+func (c *Client) Put(ctx context.Context, bucket, key string, value []byte) (*PutResult, error) {
+	if c == nil {
+		return nil, errors.New("iomeshclient: nil client")
+	}
+	bucket = strings.TrimSpace(bucket)
+	key = strings.TrimSpace(key)
+	if bucket == "" {
+		return nil, errors.New("iomeshclient: bucket required")
+	}
+	if key == "" {
+		return nil, errors.New("iomeshclient: key required")
+	}
+
 	body := putKVRequest{Value: base64.StdEncoding.EncodeToString(value)}
 	path := kvKeyPath(bucket, key)
 
-	var resp putKVResponse
-	if err := c.doJSON(ctx, http.MethodPut, path, body, &resp); err != nil {
-		return 0, err
+	var result PutResult
+	if err := c.doJSON(ctx, http.MethodPut, path, body, &result); err != nil {
+		return nil, err
 	}
-	return resp.Revision, nil
+	// Defensive fill when broker omits identity fields.
+	if result.Bucket == "" {
+		result.Bucket = bucket
+	}
+	if result.Key == "" {
+		result.Key = key
+	}
+	return &result, nil
 }
 
 // Get returns the current value for key in bucket.
@@ -131,12 +161,6 @@ type createBucketRequest struct {
 
 type putKVRequest struct {
 	Value string `json:"value"`
-}
-
-type putKVResponse struct {
-	Bucket   string `json:"bucket"`
-	Key      string `json:"key"`
-	Revision uint64 `json:"revision"`
 }
 
 type listKeysResponse struct {

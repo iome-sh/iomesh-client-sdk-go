@@ -145,6 +145,121 @@ func TestCreateBucket_201OmitsName(t *testing.T) {
 	}
 }
 
+func TestPut_200Revision(t *testing.T) {
+	var gotMethod, gotPath string
+	var gotBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod = r.Method
+		gotPath = r.URL.Path
+		if r.Method != http.MethodPut || r.URL.Path != "/v1/kv/agent-state/worker-1.checkpoint" {
+			http.NotFound(w, r)
+			return
+		}
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"bucket":   "agent-state",
+			"key":      "worker-1.checkpoint",
+			"revision": 7,
+		})
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := nc.Put(context.Background(), "agent-state", "worker-1.checkpoint", []byte("seq=42"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotMethod != http.MethodPut || gotPath != "/v1/kv/agent-state/worker-1.checkpoint" {
+		t.Fatalf("method=%q path=%q", gotMethod, gotPath)
+	}
+	if gotBody["value"] == nil || gotBody["value"] == "" {
+		t.Fatalf("request body missing value: %v", gotBody)
+	}
+	if res == nil {
+		t.Fatal("nil PutResult")
+	}
+	if res.Bucket != "agent-state" || res.Key != "worker-1.checkpoint" || res.Revision != 7 {
+		t.Fatalf("result=%+v", res)
+	}
+}
+
+func TestPut_200OmitsBucketKey(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"revision": 3,
+		})
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := nc.Put(context.Background(), "agent-state", "worker-1.checkpoint", []byte("x"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res == nil || res.Bucket != "agent-state" || res.Key != "worker-1.checkpoint" || res.Revision != 3 {
+		t.Fatalf("expected defensive fill, got %+v", res)
+	}
+}
+
+func TestPut_Validation(t *testing.T) {
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: "http://127.0.0.1:9"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = nc.Put(context.Background(), "", "k", nil)
+	if err == nil || !strings.Contains(err.Error(), "bucket required") {
+		t.Fatalf("empty bucket err=%v", err)
+	}
+
+	_, err = nc.Put(context.Background(), "   ", "k", nil)
+	if err == nil || !strings.Contains(err.Error(), "bucket required") {
+		t.Fatalf("whitespace bucket err=%v", err)
+	}
+
+	_, err = nc.Put(context.Background(), "b", "", nil)
+	if err == nil || !strings.Contains(err.Error(), "key required") {
+		t.Fatalf("empty key err=%v", err)
+	}
+
+	_, err = nc.Put(context.Background(), "b", "   ", nil)
+	if err == nil || !strings.Contains(err.Error(), "key required") {
+		t.Fatalf("whitespace key err=%v", err)
+	}
+
+	var c *iomeshclient.Client
+	_, err = c.Put(context.Background(), "b", "k", nil)
+	if err == nil || !strings.Contains(err.Error(), "nil client") {
+		t.Fatalf("nil client err=%v", err)
+	}
+}
+
+func TestFormatPutResult_Fields(t *testing.T) {
+	out := iomeshclient.FormatPutResult(iomeshclient.PutResult{
+		Bucket:   "agent-state",
+		Key:      "worker-1.checkpoint",
+		Revision: 7,
+	})
+	for _, want := range []string{
+		"iomesh kv put",
+		"bucket:     agent-state",
+		"key:        worker-1.checkpoint",
+		"revision:   7",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing %q in:\n%s", want, out)
+		}
+	}
+}
+
 func TestFormatKVEntry_Fields(t *testing.T) {
 	out := iomeshclient.FormatKVEntry(iomeshclient.KVEntry{
 		Bucket:    "agent-state",
