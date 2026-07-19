@@ -18,7 +18,8 @@ Official open-source tooling from [IOMesh](https://iome.sh) (**IOMesh Technology
 > **Module path:** `github.com/iome-sh/iomesh-client-sdk-go`  
 > **Package:** `iomeshclient`  
 > **Env prefix:** `IOMESH_*`  
-> **Wire headers:** `X-IOMesh-Tenant`, `X-IOMesh-Org`, …
+> **Wire headers:** `X-IOMesh-Tenant`, `X-IOMesh-Org`, `X-IOMesh-Workspace`, …  
+> **Status:** public OSS **v0.3.x** (pre-1.0). Memory M2/M3 + multi-tenant headers aligned with [iomesh-tui](https://github.com/iome-sh/iomesh-tui).
 
 ## Requirements
 
@@ -48,6 +49,7 @@ func main() {
 		iomeshclient.Options{URL: "http://127.0.0.1:8422"},
 		iomeshclient.WithTenant("dept.engineering"),
 		iomeshclient.WithOrg("acme-org"),
+		iomeshclient.WithWorkspace("ws_default"), // multi-tenant metering / entitlements
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -91,12 +93,34 @@ defer kc.Close()
 offset, err := kc.Produce(ctx, "mesh.finance.events", 0, []byte("key"), []byte(`{"event_id":"evt-1"}`))
 ```
 
+## Memory (async streams + sync sidecar)
+
+| API | Path | Notes |
+|-----|------|--------|
+| `PublishMemoryIngest` | `MEMORY_INGEST` publish | Async dual-write; temporal fields on `MemoryEnvelope` |
+| `RequestMemoryRecall` / `RequestMemoryRecallFull` | `MEMORY_RPC` publish | Async; Full adds `session_id` correlation |
+| `RetrieveMemory` | `POST /v1` then `/v5/memory/retrieve` | Sync hits; empty query OK if `session_id` set |
+| `IngestMemoryTurn` | `POST /v1` then `/v5/memory/ingest` | Sync Palace turn write |
+
+```go
+// Sync retrieve (sidecar URL or gateway that routes /v1|/v5/memory/*)
+hits, err := nc.RetrieveMemory(ctx, iomeshclient.MemoryRetrieveRequest{
+	TenantID:  "dept.research",
+	Query:     "lease rotation",
+	SessionID: "dept.research.mesh-dogfood",
+	Limit:     8,
+})
+// hits.Path is "/v1/memory/retrieve" or "/v5/memory/retrieve"
+```
+
+The agent harness ([iomesh-tui](https://github.com/iome-sh/iomesh-tui)) mirrors these surfaces without depending on this module (lean public HTTP).
+
 ## Security
 
 - Report vulnerabilities **privately**: [SECURITY.md](SECURITY.md) (GitHub Security Advisory or security@iome.sh).  
   Do **not** open public issues for exploits.
 - Do **not** commit API tokens, broker URLs with credentials, or customer payloads into issues/PRs.
-- Prefer short-lived bearer tokens (`WithBearerToken`) and tenant-scoped headers (`WithTenant` / `WithOrg`).
+- Prefer short-lived bearer tokens (`WithBearerToken`) and tenant-scoped headers (`WithTenant` / `WithOrg` / `WithWorkspace`).
 - Broker URLs must be absolute **`http`/`https`** (no `file://`, no embedded userinfo).
 - Connector HMAC secrets must stay server-side; never embed partner secrets in mobile or browser clients.
 - Treat `X-IOMesh-Tenant` / `X-IOMesh-Org` as an authorization boundary — **enforce server-side**.

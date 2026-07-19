@@ -12,12 +12,14 @@ import (
 
 func TestConnectSetsTenantAndBearerHeaders(t *testing.T) {
 	var mu sync.Mutex
-	var gotTenant, gotAuth string
+	var gotTenant, gotAuth, gotOrg, gotWS string
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		gotTenant = r.Header.Get("X-IOMesh-Tenant")
 		gotAuth = r.Header.Get("Authorization")
+		gotOrg = r.Header.Get("X-IOMesh-Org")
+		gotWS = r.Header.Get("X-IOMesh-Workspace")
 		mu.Unlock()
 		w.WriteHeader(http.StatusNoContent)
 	}))
@@ -27,6 +29,8 @@ func TestConnectSetsTenantAndBearerHeaders(t *testing.T) {
 		iomeshclient.Options{URL: srv.URL},
 		iomeshclient.WithTenant("dept.research"),
 		iomeshclient.WithBearerToken("test-token"),
+		iomeshclient.WithOrg("org_a"),
+		iomeshclient.WithWorkspace("ws_1"),
 	)
 	if err != nil {
 		t.Fatalf("Connect() error: %v", err)
@@ -43,6 +47,12 @@ func TestConnectSetsTenantAndBearerHeaders(t *testing.T) {
 	}
 	if gotAuth != "Bearer test-token" {
 		t.Fatalf("Authorization = %q, want Bearer test-token", gotAuth)
+	}
+	if gotOrg != "org_a" {
+		t.Fatalf("X-IOMesh-Org = %q, want org_a", gotOrg)
+	}
+	if gotWS != "ws_1" {
+		t.Fatalf("X-IOMesh-Workspace = %q, want ws_1", gotWS)
 	}
 }
 

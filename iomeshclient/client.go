@@ -25,8 +25,9 @@ type Options struct {
 }
 
 const (
-	tenantHeader = "X-IOMesh-Tenant"
-	orgHeader    = "X-IOMesh-Org"
+	tenantHeader    = "X-IOMesh-Tenant"
+	orgHeader       = "X-IOMesh-Org"
+	workspaceHeader = "X-IOMesh-Workspace"
 )
 
 // Client talks to an I/O Mesh broker over HTTP.
@@ -36,12 +37,14 @@ type Client struct {
 	timeout     time.Duration
 	tenant      string
 	org         string
+	workspace   string
 	bearerToken string
 }
 
 type connectOpts struct {
 	tenant      string
 	org         string
+	workspace   string
 	bearerToken string
 }
 
@@ -66,6 +69,14 @@ func WithBearerToken(token string) ConnectOpt {
 func WithOrg(orgID string) ConnectOpt {
 	return func(o *connectOpts) {
 		o.org = strings.TrimSpace(orgID)
+	}
+}
+
+// WithWorkspace sets X-IOMesh-Workspace on all HTTP requests (multi-tenant metering / entitlements).
+// Parity with iomesh-tui mesh client and aion WorkspaceHeader.
+func WithWorkspace(workspaceID string) ConnectOpt {
+	return func(o *connectOpts) {
+		o.workspace = strings.TrimSpace(workspaceID)
 	}
 }
 
@@ -107,6 +118,7 @@ func Connect(base Options, opts ...ConnectOpt) (*Client, error) {
 		timeout:     timeout,
 		tenant:      co.tenant,
 		org:         co.org,
+		workspace:   co.workspace,
 		bearerToken: co.bearerToken,
 	}, nil
 }
@@ -433,15 +445,7 @@ func (c *Client) doJSON(ctx context.Context, method, path string, reqBody any, r
 	if reqBody != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	if c.tenant != "" {
-		req.Header.Set(tenantHeader, c.tenant)
-	}
-	if c.org != "" {
-		req.Header.Set(orgHeader, c.org)
-	}
-	if c.bearerToken != "" {
-		req.Header.Set("Authorization", "Bearer "+c.bearerToken)
-	}
+	c.applyAuthHeaders(req)
 
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -465,4 +469,23 @@ func (c *Client) doJSON(ctx context.Context, method, path string, reqBody any, r
 		return nil
 	}
 	return json.Unmarshal(raw, respBody)
+}
+
+// applyAuthHeaders sets tenant / org / workspace / bearer on the request.
+func (c *Client) applyAuthHeaders(req *http.Request) {
+	if c == nil || req == nil {
+		return
+	}
+	if c.tenant != "" {
+		req.Header.Set(tenantHeader, c.tenant)
+	}
+	if c.org != "" {
+		req.Header.Set(orgHeader, c.org)
+	}
+	if c.workspace != "" {
+		req.Header.Set(workspaceHeader, c.workspace)
+	}
+	if c.bearerToken != "" {
+		req.Header.Set("Authorization", "Bearer "+c.bearerToken)
+	}
 }

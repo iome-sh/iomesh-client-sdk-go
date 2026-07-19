@@ -322,9 +322,9 @@ func TestRetrieveMemoryValidation(t *testing.T) {
 	}
 
 	if _, err := nc.RetrieveMemory(ctx, iomeshclient.MemoryRetrieveRequest{TenantID: "dept.research"}); err == nil {
-		t.Fatal("expected query required")
-	} else if !strings.Contains(err.Error(), "query") {
-		t.Fatalf("err = %v, want query", err)
+		t.Fatal("expected query or session_id required")
+	} else if !strings.Contains(err.Error(), "query or session_id") {
+		t.Fatalf("err = %v, want query or session_id", err)
 	}
 
 	// Whitespace-only also rejected.
@@ -338,7 +338,88 @@ func TestRetrieveMemoryValidation(t *testing.T) {
 		TenantID: "dept.research",
 		Query:    "   ",
 	}); err == nil {
-		t.Fatal("expected query required for whitespace")
+		t.Fatal("expected query or session_id required for whitespace")
+	}
+}
+
+func TestRetrieveMemoryV1ThenV5Fallback(t *testing.T) {
+	var paths []string
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /v1/memory/retrieve", func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		w.WriteHeader(http.StatusNotFound)
+	})
+	mux.HandleFunc("POST /v5/memory/retrieve", func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		_ = json.NewEncoder(w).Encode(map[string]any{"memories": []any{}})
+	})
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: ts.URL})
+	if err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	resp, err := nc.RetrieveMemory(context.Background(), iomeshclient.MemoryRetrieveRequest{
+		TenantID:  "dept.x",
+		SessionID: "sess-only", // query may be empty when session_id set
+	})
+	if err != nil {
+		t.Fatalf("RetrieveMemory: %v", err)
+	}
+	if resp.Path != "/v5/memory/retrieve" {
+		t.Fatalf("path=%q", resp.Path)
+	}
+	if len(paths) != 2 || paths[0] != "/v1/memory/retrieve" || paths[1] != "/v5/memory/retrieve" {
+		t.Fatalf("paths=%v", paths)
+	}
+}
+
+func TestRequestMemoryRecallFullSessionID(t *testing.T) {
+	var mu sync.Mutex
+	var rawPayload []byte
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /v1/streams/MEMORY_RPC/publish", func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if s, ok := body["payload"].(string); ok {
+			decoded, _ := base64.StdEncoding.DecodeString(s)
+			mu.Lock()
+			rawPayload = decoded
+			mu.Unlock()
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"stream": "MEMORY_RPC", "seq": 2, "subject": body["subject"]})
+	})
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: ts.URL})
+	if err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	ack, err := nc.RequestMemoryRecallFull(context.Background(), iomeshclient.MemoryRecallRequest{
+		TenantID:  "dept.research",
+		Query:     "find notes",
+		Limit:     8,
+		SessionID: "dept.research.mesh-dogfood",
+	})
+	if err != nil {
+		t.Fatalf("RequestMemoryRecallFull: %v", err)
+	}
+	if ack == nil || ack.Seq != 2 {
+		t.Fatalf("ack=%+v", ack)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	var got map[string]any
+	if err := json.Unmarshal(rawPayload, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got["session_id"] != "dept.research.mesh-dogfood" {
+		t.Fatalf("session_id=%v", got["session_id"])
+	}
+	if got["query"] != "find notes" {
+		t.Fatalf("query=%v", got["query"])
 	}
 }
 
