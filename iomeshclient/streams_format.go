@@ -33,6 +33,21 @@ func FormatStreams(streams []StreamInfo) string {
 	return b.String()
 }
 
+// FormatConsumerInfo is a multi-line view for one durable consumer (operator / CLI style).
+// Pure helper with no network I/O. filter_subject is omitted when empty.
+func FormatConsumerInfo(info ConsumerInfo) string {
+	var b strings.Builder
+	b.WriteString("iomesh consumer\n")
+	fmt.Fprintf(&b, "stream:          %s\n", info.Stream)
+	fmt.Fprintf(&b, "name:            %s\n", info.Name)
+	fmt.Fprintf(&b, "ack_floor:       %d\n", info.AckFloor)
+	fmt.Fprintf(&b, "pending_count:   %d\n", info.PendingCount)
+	if info.FilterSubject != "" {
+		fmt.Fprintf(&b, "filter_subject:  %s\n", info.FilterSubject)
+	}
+	return b.String()
+}
+
 // FormatStreamDetail is a multi-line view for one stream (operator / CLI style).
 // Pure helper with no network I/O.
 func FormatStreamDetail(s StreamInfo) string {

@@ -107,7 +107,7 @@ offset, err := kc.Produce(ctx, "mesh.finance.events", 0, []byte("key"), []byte(`
 | `GetStream` | `GET /v1/streams/{name}` | Single `StreamInfo`; 404 → `*APIError` |
 | `DeleteStream` | `DELETE /v1/streams/{name}` | 204 success; 404 → `*APIError`; destructive — not used in dogfood by default |
 | `ListStreamMessages` | `GET /v1/streams/{name}/messages` | Stream replay/read-range; `from_seq`/`to_seq`/`limit`; payload base64→`[]byte`; non-2xx → `*APIError` |
-| `Publish` / `PullSubscribe` | stream publish / consumer | See Quick start |
+| `Publish` / `PullSubscribe` | stream publish / consumer | `PullSubscribe` returns `*Subscription` with `ConsumerInfo()` (201 body; 409 → zero info); stream/consumer path segments escaped |
 | `Pub` | `POST /v1/pub` | Ephemeral fire-and-forget |
 
 ```go
@@ -139,6 +139,16 @@ if err != nil {
 	log.Fatal(err)
 }
 // msgs[i].Seq, Subject, Payload ([]byte), Headers, Timestamp, …
+
+// PullSubscribe: durable consumer (201 → ConsumerInfo; 409 reuse → zero info)
+sub, err := nc.PullSubscribe(ctx, iomeshclient.PullSubscribeConfig{
+	Stream: "EVENTS", Consumer: "worker-1", Filter: "dept.events.>",
+})
+if err != nil {
+	log.Fatal(err)
+}
+fmt.Print(iomeshclient.FormatConsumerInfo(sub.ConsumerInfo())) // operator detail
+// batch, err := sub.Fetch(10); batch[i].Ack() / Nack()
 ```
 
 ## KV (buckets + keys)

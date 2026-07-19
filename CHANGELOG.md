@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`ConsumerInfo`** — public durable-consumer metadata type (`stream`, `name`, `ack_floor`, `pending_count`, `filter_subject`)
+- **`Subscription.ConsumerInfo()`** — returns create-response metadata (zero value after 409 reuse)
+- **`FormatConsumerInfo`** — pure operator helper for consumer metadata detail (no network I/O)
+
+### Changed
+
+- **`PullSubscribe`** — on 201, decodes `ConsumerInfo` from the create response into the subscription; on 409 conflict, success with empty/zero info. Stream path segment is `url.PathEscape`'d
+- **`Subscription.Fetch` / `Ack` / `Nack`** — path-escape stream and consumer URL segments
+
 ## [0.19.0] — 2026-07-19
 
 Minor release: EnsureBucket and FormatBucketInfo.
