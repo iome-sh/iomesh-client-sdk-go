@@ -149,6 +149,9 @@ go run ./examples/memory-metering-dogfood
 fmt.Println(iomeshclient.Version) // e.g. "0.6.0"
 // All requests send: User-Agent: iomesh-client-sdk-go/0.6.0
 // Override: iomeshclient.WithUserAgent("my-service/1.2.3")
+
+if err := nc.Health(ctx); err != nil { /* broker down */ }
+if err := nc.Ready(ctx); err != nil { /* optional readiness path missing */ }
 ```
 
 ## Security

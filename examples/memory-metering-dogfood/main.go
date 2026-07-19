@@ -62,6 +62,20 @@ func main() {
 	sessionID := tenant + ".sdk-dogfood"
 	now := time.Now().UTC().Format(time.RFC3339)
 
+	fmt.Printf("sdk=%s user-agent=iomesh-client-sdk-go/%s\n", iomeshclient.Version, iomeshclient.Version)
+
+	// 0) Health / ready (mesh broker)
+	if err := mesh.Health(ctx); err != nil {
+		log.Printf("WARN Health: %v", err)
+	} else {
+		fmt.Println("PASS Health GET /health")
+	}
+	if err := mesh.Ready(ctx); err != nil {
+		log.Printf("WARN Ready: %v (optional on some brokers)", err)
+	} else {
+		fmt.Println("PASS Ready GET /ready|/readyz")
+	}
+
 	// 1) Dual-write: async MEMORY_INGEST + optional sync Palace ingest (fail-open)
 	env := iomeshclient.MemoryEnvelope{
 		Role:       "tool",
