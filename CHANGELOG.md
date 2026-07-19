@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.25.0] — 2026-07-19
+
+Minor release: examples/pull-loop pull consumer demo.
+
 ### Added
 
 - **Example** `examples/pull-loop` — stage smoke for durable pull consumer (`ConnectionStatus`, optional `EnsureStream`, `PullSubscribe` / `FetchContext` / `FormatMsgs` / optional `AckContext`)
@@ -252,7 +256,8 @@ Minor release: I/O Mesh platform / iomesh-tui memory + multi-tenant header parit
 - Docs: public naming policy for packages, env, and headers.
 - Removed package `aionclient` and legacy `X-Aion-*` / `AION_*` aliases.
 
-[Unreleased]: https://github.com/iome-sh/iomesh-client-sdk-go/compare/v0.24.0...HEAD
+[Unreleased]: https://github.com/iome-sh/iomesh-client-sdk-go/compare/v0.25.0...HEAD
+[0.25.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.25.0
 [0.24.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.24.0
 [0.23.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.23.0
 [0.22.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.22.0
