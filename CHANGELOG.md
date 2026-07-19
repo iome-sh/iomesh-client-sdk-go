@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`Subscription.FetchContext` / `AckContext` / `NackContext`** — context-aware pull subscription ops so callers need not use `context.Background()`. Existing `Fetch` / `Ack` / `Nack` remain as thin wrappers that pass `context.Background()`
+- **`DefaultFetchMaxWait`** — exported `5s` default long-poll wait for `Fetch` / `FetchContext` / `ConsumerFetch` when `MaxWait` is omitted
+- **`FormatMsg`** — pure operator helper for one fetched message (`seq`, `subject`, byte length)
+
+### Changed
+
+- **`MaxWait` / `Fetch` docs** — document default via `DefaultFetchMaxWait`
+
 ## [0.22.0] — 2026-07-19
 
 Minor release: ConsumerFetch, ConsumerAck, and ConsumerNack client helpers.
