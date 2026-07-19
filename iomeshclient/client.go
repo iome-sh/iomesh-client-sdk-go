@@ -20,7 +20,7 @@ import (
 
 // Version is the public module version string for User-Agent and diagnostics.
 // Bump when cutting a release (keep aligned with CHANGELOG / git tags).
-const Version = "0.22.0"
+const Version = "0.23.0"
 
 // DefaultFetchMaxWait is the default long-poll wait for Fetch / ConsumerFetch
 // when MaxWait is not set. Used as the fetchOptions.maxWait baseline.
