@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`ListStreams` / `GetStream`** — explicit stream discovery (`GET /v1/streams`, `GET /v1/streams/{name}`); `StreamInfo` wire type; non-2xx returns `*APIError` (not fail-open empty); optional list envelope `{"streams":[...]}` (s297)
+
 ## [0.11.0] — 2026-07-19
 
 Minor release: ConnectionStatus diagnostics helper. Compatible with `v0.10.x`.

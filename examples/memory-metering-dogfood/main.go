@@ -93,6 +93,13 @@ func main() {
 		fmt.Println("PASS Ready GET /ready|/readyz")
 	}
 
+	// 0s) Stream discovery (explicit; warn-only in dogfood)
+	if streams, err := mesh.ListStreams(ctx); err != nil {
+		log.Printf("WARN ListStreams: %v", err)
+	} else {
+		fmt.Printf("PASS ListStreams count=%d\n", len(streams))
+	}
+
 	// 0a) Catalog plane (fail-open; warn-only)
 	cat := mesh.ListCatalog(ctx, "")
 	if cat.Source == "fail-open" || cat.Source == "off" {
