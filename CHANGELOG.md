@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Example** `examples/pull-loop` — optional `IOMESH_PUBLISH=1` self-contained Publish before fetch (`IOMESH_PUB_SUBJECT` or derived subject; warn-only on publish fail)
+- **CI** — build all `./examples/...` after tests so examples stay compile-clean
+
 ## [0.25.0] — 2026-07-19
 
 Minor release: examples/pull-loop pull consumer demo.

@@ -51,6 +51,9 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      - name: Build examples
+        run: go build -o /dev/null ./examples/...
+
   govulncheck:
     name: govulncheck
     runs-on: ubuntu-latest
