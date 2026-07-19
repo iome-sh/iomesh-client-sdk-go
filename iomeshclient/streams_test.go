@@ -13,6 +13,185 @@ import (
 	"github.com/iome-sh/iomesh-client-sdk-go/iomeshclient"
 )
 
+func TestCreateStream_201Body(t *testing.T) {
+	var gotMethod, gotPath string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod = r.Method
+		gotPath = r.URL.Path
+		if r.Method != http.MethodPost || r.URL.Path != "/v1/streams" {
+			http.NotFound(w, r)
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"name":       "EVENTS",
+			"subjects":   []string{"dept.events.>"},
+			"retention":  "limits",
+			"partitions": 1,
+			"messages":   0,
+			"first_seq":  0,
+			"last_seq":   0,
+			"created_at": time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC),
+		})
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := nc.CreateStream(context.Background(), iomeshclient.StreamConfig{
+		Name:     "EVENTS",
+		Subjects: []string{"dept.events.>"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotMethod != http.MethodPost || gotPath != "/v1/streams" {
+		t.Fatalf("method=%q path=%q", gotMethod, gotPath)
+	}
+	if info == nil || info.Name != "EVENTS" {
+		t.Fatalf("info=%+v", info)
+	}
+	if len(info.Subjects) != 1 || info.Subjects[0] != "dept.events.>" {
+		t.Fatalf("subjects=%v", info.Subjects)
+	}
+	if info.Retention != "limits" || info.Partitions != 1 {
+		t.Fatalf("retention/partitions=%+v", info)
+	}
+}
+
+func TestCreateStream_409ThenGetInfo(t *testing.T) {
+	var posts, gets int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/streams":
+			posts++
+			w.WriteHeader(http.StatusConflict)
+			_, _ = w.Write([]byte(`{"error":"stream already exists"}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/streams/EVENTS":
+			gets++
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"name":      "EVENTS",
+				"subjects":  []string{"dept.events.>"},
+				"messages":  5,
+				"first_seq": 1,
+				"last_seq":  5,
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := nc.CreateStream(context.Background(), iomeshclient.StreamConfig{
+		Name:     "EVENTS",
+		Subjects: []string{"dept.events.>"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if posts != 1 || gets != 1 {
+		t.Fatalf("posts=%d gets=%d", posts, gets)
+	}
+	if info == nil || info.Name != "EVENTS" || info.LastSeq != 5 {
+		t.Fatalf("info=%+v", info)
+	}
+}
+
+func TestCreateStream_409GetFailsNilInfo(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/streams":
+			w.WriteHeader(http.StatusConflict)
+			_, _ = w.Write([]byte(`{"error":"stream already exists"}`))
+		case r.Method == http.MethodGet:
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"error":"stream not found"}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := nc.CreateStream(context.Background(), iomeshclient.StreamConfig{
+		Name:     "EVENTS",
+		Subjects: []string{"dept.events.>"},
+	})
+	if err != nil {
+		t.Fatalf("expected nil err on 409+GET fail, got %v", err)
+	}
+	if info != nil {
+		t.Fatalf("expected nil info, got %+v", info)
+	}
+}
+
+func TestCreateStream_Validation(t *testing.T) {
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: "http://127.0.0.1:9"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = nc.CreateStream(context.Background(), iomeshclient.StreamConfig{
+		Name:     "",
+		Subjects: []string{"x.>"},
+	})
+	if err == nil || !strings.Contains(err.Error(), "stream name required") {
+		t.Fatalf("empty name err=%v", err)
+	}
+
+	_, err = nc.CreateStream(context.Background(), iomeshclient.StreamConfig{
+		Name:     "EVENTS",
+		Subjects: nil,
+	})
+	if err == nil || !strings.Contains(err.Error(), "subjects required") {
+		t.Fatalf("empty subjects err=%v", err)
+	}
+
+	var c *iomeshclient.Client
+	_, err = c.CreateStream(context.Background(), iomeshclient.StreamConfig{
+		Name: "X", Subjects: []string{"x.>"},
+	})
+	if err == nil || !strings.Contains(err.Error(), "nil client") {
+		t.Fatalf("nil client err=%v", err)
+	}
+}
+
+func TestEnsureStream_Delegates(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"name":     "KV",
+			"subjects": []string{"kv.>"},
+			"messages": 0,
+		})
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := nc.EnsureStream(context.Background(), iomeshclient.StreamConfig{
+		Name:     "KV",
+		Subjects: []string{"kv.>"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info == nil || info.Name != "KV" {
+		t.Fatalf("info=%+v", info)
+	}
+}
+
 func TestListStreams_OKArrayAndUserAgent(t *testing.T) {
 	var gotUA, gotMethod string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

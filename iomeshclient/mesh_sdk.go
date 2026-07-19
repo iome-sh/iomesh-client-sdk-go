@@ -63,9 +63,10 @@ func (m *MeshSDK) Publish(
 }
 
 // EnsureStream creates the stream if it does not already exist.
-func (m *MeshSDK) EnsureStream(ctx context.Context, cfg StreamConfig) error {
+// Returns *StreamInfo when available (201 body or 409 best-effort GET); nil info is OK on 409 if GET fails.
+func (m *MeshSDK) EnsureStream(ctx context.Context, cfg StreamConfig) (*StreamInfo, error) {
 	if m == nil || m.http == nil {
-		return errors.New("iomeshclient: mesh sdk http client not configured")
+		return nil, errors.New("iomeshclient: mesh sdk http client not configured")
 	}
 	return m.http.EnsureStream(ctx, cfg)
 }
