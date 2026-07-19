@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 )
 
 // Health checks GET /health on the broker base URL.
@@ -39,6 +40,61 @@ func (c *Client) Ready(ctx context.Context) error {
 		return last404
 	}
 	return fmt.Errorf("iomeshclient: ready: http 404")
+}
+
+// WaitReadyOptions configures WaitReady polling.
+type WaitReadyOptions struct {
+	// Interval between probe attempts. Default 500ms when zero or negative.
+	Interval time.Duration
+	// RequireHealth also requires Health() to succeed each attempt (after Ready).
+	RequireHealth bool
+}
+
+// WaitReady polls Ready until it succeeds or ctx is done.
+// When RequireHealth is set, Health must also succeed on the same attempt.
+// Returns the last probe error wrapped with ctx.Err() when the deadline expires,
+// or ctx.Err() if cancelled with no prior probe error.
+func (c *Client) WaitReady(ctx context.Context, opts WaitReadyOptions) error {
+	if c == nil {
+		return fmt.Errorf("iomeshclient: nil client")
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	interval := opts.Interval
+	if interval <= 0 {
+		interval = 500 * time.Millisecond
+	}
+
+	var last error
+	for {
+		if err := ctx.Err(); err != nil {
+			if last != nil {
+				return fmt.Errorf("iomeshclient: wait ready: %w (last: %v)", err, last)
+			}
+			return fmt.Errorf("iomeshclient: wait ready: %w", err)
+		}
+
+		err := c.Ready(ctx)
+		if err == nil && opts.RequireHealth {
+			err = c.Health(ctx)
+		}
+		if err == nil {
+			return nil
+		}
+		last = err
+
+		timer := time.NewTimer(interval)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			if last != nil {
+				return fmt.Errorf("iomeshclient: wait ready: %w (last: %v)", ctx.Err(), last)
+			}
+			return fmt.Errorf("iomeshclient: wait ready: %w", ctx.Err())
+		case <-timer.C:
+		}
+	}
 }
 
 func (c *Client) getStatus(ctx context.Context, path string) error {

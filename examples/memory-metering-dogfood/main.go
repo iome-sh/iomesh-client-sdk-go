@@ -11,12 +11,14 @@
 //	                       (when unset, uses IOMESH_URL — broker-only often 404s retrieve)
 //	IOMESH_POLICY_MODE    optional off|advisory|enforce (default off); when advisory/enforce,
 //	                       probes EvaluatePolicy for tool.run_shell (warn-only, never exits)
+//	IOMESH_WAIT_READY     set to 1 to poll WaitReady before continuing (default: single Ready)
 //
 // Usage:
 //
 //	export IOMESH_URL=http://127.0.0.1:8422
 //	export IOMESH_MEMORY_ENDPOINT=http://127.0.0.1:8765
 //	export IOMESH_POLICY_MODE=advisory   # optional
+//	export IOMESH_WAIT_READY=1          # optional
 //	go run ./examples/memory-metering-dogfood
 package main
 
@@ -74,10 +76,27 @@ func main() {
 	} else {
 		fmt.Println("PASS Health GET /health")
 	}
-	if err := mesh.Ready(ctx); err != nil {
+	if os.Getenv("IOMESH_WAIT_READY") == "1" {
+		waitCtx, waitCancel := context.WithTimeout(ctx, 15*time.Second)
+		err := mesh.WaitReady(waitCtx, iomeshclient.WaitReadyOptions{Interval: 500 * time.Millisecond})
+		waitCancel()
+		if err != nil {
+			log.Printf("WARN WaitReady: %v", err)
+		} else {
+			fmt.Println("PASS WaitReady")
+		}
+	} else if err := mesh.Ready(ctx); err != nil {
 		log.Printf("WARN Ready: %v (optional on some brokers)", err)
 	} else {
 		fmt.Println("PASS Ready GET /ready|/readyz")
+	}
+
+	// 0a) Catalog plane (fail-open; warn-only)
+	cat := mesh.ListCatalog(ctx, "")
+	if cat.Source == "fail-open" || cat.Source == "off" {
+		log.Printf("WARN ListCatalog source=%s detail=%s", cat.Source, cat.Detail)
+	} else {
+		fmt.Printf("PASS ListCatalog source=%s products=%d detail=%s\n", cat.Source, len(cat.Products), cat.Detail)
 	}
 
 	// 0b) Optional policy evaluate (fail-open; warn-only)
