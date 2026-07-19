@@ -20,7 +20,7 @@ import (
 
 // Version is the public module version string for User-Agent and diagnostics.
 // Bump when cutting a release (keep aligned with CHANGELOG / git tags).
-const Version = "0.6.0"
+const Version = "0.7.0"
 
 // defaultUserAgent identifies this SDK on outbound HTTP (override with WithUserAgent).
 const defaultUserAgent = "iomesh-client-sdk-go/" + Version
