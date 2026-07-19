@@ -33,6 +33,15 @@ func FormatStreams(streams []StreamInfo) string {
 	return b.String()
 }
 
+// FormatMsg is a compact one-line view for a fetched message (seq, subject, byte length).
+// Pure helper with no network I/O. Nil msg renders as "(nil)".
+func FormatMsg(m *Msg) string {
+	if m == nil {
+		return "iomesh msg (nil)\n"
+	}
+	return fmt.Sprintf("iomesh msg seq=%d subject=%s bytes=%d\n", m.Seq(), m.Subject(), len(m.Data()))
+}
+
 // FormatConsumerInfo is a multi-line view for one durable consumer (operator / CLI style).
 // Pure helper with no network I/O. filter_subject is omitted when empty.
 func FormatConsumerInfo(info ConsumerInfo) string {

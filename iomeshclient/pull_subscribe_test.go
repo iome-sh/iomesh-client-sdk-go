@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/iome-sh/iomesh-client-sdk-go/iomeshclient"
 )
@@ -390,6 +392,219 @@ func TestSubscription_FetchAckNack_PathEscape(t *testing.T) {
 	for i := range want {
 		if paths[i] != want[i] {
 			t.Fatalf("path[%d]=%q want %q", i, paths[i], want[i])
+		}
+	}
+}
+
+func TestSubscription_FetchContext_MaxWait(t *testing.T) {
+	var gotBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/consumers"):
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(map[string]any{"stream": "EVENTS", "name": "worker-1"})
+		case strings.HasSuffix(r.URL.Path, "/fetch"):
+			_ = json.NewDecoder(r.Body).Decode(&gotBody)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"messages": []map[string]any{
+					{
+						"stream":  "EVENTS",
+						"seq":     9,
+						"subject": "dept.events.x",
+						"payload": base64.StdEncoding.EncodeToString([]byte("hi")),
+						"headers": map[string]string{},
+					},
+				},
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sub, err := nc.PullSubscribe(context.Background(), iomeshclient.PullSubscribeConfig{
+		Stream: "EVENTS", Consumer: "worker-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Custom MaxWait should land in max_wait_ms.
+	msgs, err := sub.FetchContext(context.Background(), 3, iomeshclient.MaxWait(1500*time.Millisecond))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(msgs) != 1 || msgs[0].Seq() != 9 {
+		t.Fatalf("msgs=%v", msgs)
+	}
+	if gotBody["batch"] != float64(3) {
+		t.Fatalf("batch=%v", gotBody["batch"])
+	}
+	if gotBody["max_wait_ms"] != float64(1500) {
+		t.Fatalf("max_wait_ms=%v want 1500", gotBody["max_wait_ms"])
+	}
+	// Rebind: Msg.Ack should hit the caller's subscription (not ephemeral).
+	if out := iomeshclient.FormatMsg(msgs[0]); !strings.Contains(out, "seq=9") || !strings.Contains(out, "bytes=2") {
+		t.Fatalf("FormatMsg=%q", out)
+	}
+}
+
+func TestSubscription_FetchContext_DefaultMaxWait(t *testing.T) {
+	var gotBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/consumers"):
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(map[string]any{"stream": "S", "name": "c"})
+		case strings.HasSuffix(r.URL.Path, "/fetch"):
+			_ = json.NewDecoder(r.Body).Decode(&gotBody)
+			_ = json.NewEncoder(w).Encode(map[string]any{"messages": []any{}})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sub, err := nc.PullSubscribe(context.Background(), iomeshclient.PullSubscribeConfig{
+		Stream: "S", Consumer: "c",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := sub.FetchContext(context.Background(), 1); err != nil {
+		t.Fatal(err)
+	}
+	wantMs := float64(iomeshclient.DefaultFetchMaxWait.Milliseconds())
+	if gotBody["max_wait_ms"] != wantMs {
+		t.Fatalf("max_wait_ms=%v want %v (DefaultFetchMaxWait)", gotBody["max_wait_ms"], wantMs)
+	}
+}
+
+func TestSubscription_FetchContext_Canceled(t *testing.T) {
+	// Already-canceled ctx must fail before/without needing a live long-poll.
+	// Handler would hang if a request were fully sent; cancel is checked on Do.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/consumers"):
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(map[string]any{"stream": "S", "name": "c"})
+		case strings.HasSuffix(r.URL.Path, "/fetch"):
+			// Should not be reached when ctx is already canceled; if it is, fail fast.
+			http.Error(w, "unexpected fetch with canceled ctx", http.StatusInternalServerError)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sub, err := nc.PullSubscribe(context.Background(), iomeshclient.PullSubscribeConfig{
+		Stream: "S", Consumer: "c",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err = sub.FetchContext(ctx, 1)
+	if err == nil {
+		t.Fatal("expected error from canceled context")
+	}
+	if !errors.Is(err, context.Canceled) && !strings.Contains(err.Error(), "canceled") && !strings.Contains(err.Error(), "cancelled") {
+		t.Fatalf("err=%v", err)
+	}
+}
+
+func TestSubscription_AckNackContext(t *testing.T) {
+	var paths []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.EscapedPath())
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/consumers"):
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(map[string]any{"stream": "EVENTS", "name": "worker-1"})
+		case strings.HasSuffix(r.URL.Path, "/ack"), strings.HasSuffix(r.URL.Path, "/nack"):
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sub, err := nc.PullSubscribe(context.Background(), iomeshclient.PullSubscribeConfig{
+		Stream: "EVENTS", Consumer: "worker-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sub.AckContext(context.Background(), 1, 2); err != nil {
+		t.Fatal(err)
+	}
+	if err := sub.NackContext(context.Background(), 3); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"/v1/streams/EVENTS/consumers",
+		"/v1/streams/EVENTS/consumers/worker-1/ack",
+		"/v1/streams/EVENTS/consumers/worker-1/nack",
+	}
+	if len(paths) != len(want) {
+		t.Fatalf("paths=%v", paths)
+	}
+	for i := range want {
+		if paths[i] != want[i] {
+			t.Fatalf("path[%d]=%q want %q", i, paths[i], want[i])
+		}
+	}
+}
+
+func TestFormatMsg(t *testing.T) {
+	if out := iomeshclient.FormatMsg(nil); out != "iomesh msg (nil)\n" {
+		t.Fatalf("nil=%q", out)
+	}
+	// Build a real msg via fetch so fields are set correctly.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"messages": []map[string]any{
+				{
+					"stream":  "S",
+					"seq":     42,
+					"subject": "dept.events.x",
+					"payload": base64.StdEncoding.EncodeToString([]byte("hello")),
+					"headers": map[string]string{},
+				},
+			},
+		})
+	}))
+	defer srv.Close()
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	msgs, err := nc.ConsumerFetch(context.Background(), "S", "c", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := iomeshclient.FormatMsg(msgs[0])
+	for _, want := range []string{"seq=42", "subject=dept.events.x", "bytes=5"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing %q in %q", want, out)
 		}
 	}
 }

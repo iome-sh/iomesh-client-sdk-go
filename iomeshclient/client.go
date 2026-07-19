@@ -22,6 +22,10 @@ import (
 // Bump when cutting a release (keep aligned with CHANGELOG / git tags).
 const Version = "0.22.0"
 
+// DefaultFetchMaxWait is the default long-poll wait for Fetch / ConsumerFetch
+// when MaxWait is not set. Used as the fetchOptions.maxWait baseline.
+const DefaultFetchMaxWait = 5 * time.Second
+
 // defaultUserAgent identifies this SDK on outbound HTTP (override with WithUserAgent).
 const defaultUserAgent = "iomesh-client-sdk-go/" + Version
 
@@ -335,7 +339,7 @@ func (c *Client) ConsumerFetch(ctx context.Context, stream, consumer string, bat
 		return nil, errors.New("iomeshclient: batch must be > 0")
 	}
 
-	fo := fetchOptions{maxWait: 5 * time.Second}
+	fo := fetchOptions{maxWait: DefaultFetchMaxWait}
 	for _, opt := range opts {
 		opt(&fo)
 	}
@@ -408,12 +412,14 @@ func (c *Client) ConsumerNack(ctx context.Context, stream, consumer string, seqs
 	return c.doJSON(ctx, http.MethodPost, path, req, new(struct{}))
 }
 
-// Fetch pulls up to batch messages.
-func (s *Subscription) Fetch(batch int, opts ...FetchOpt) ([]*Msg, error) {
+// FetchContext pulls up to batch messages using ctx for cancellation and deadlines.
+// Prefer this over Fetch when the caller already has a request-scoped context.
+// MaxWait defaults to DefaultFetchMaxWait when not set via opts.
+func (s *Subscription) FetchContext(ctx context.Context, batch int, opts ...FetchOpt) ([]*Msg, error) {
 	if s == nil || s.client == nil {
 		return nil, errors.New("iomeshclient: nil subscription")
 	}
-	msgs, err := s.client.ConsumerFetch(context.Background(), s.stream, s.consumer, batch, opts...)
+	msgs, err := s.client.ConsumerFetch(ctx, s.stream, s.consumer, batch, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -426,20 +432,38 @@ func (s *Subscription) Fetch(batch int, opts ...FetchOpt) ([]*Msg, error) {
 	return msgs, nil
 }
 
-// Ack acknowledges one or more message sequences.
-func (s *Subscription) Ack(seqs ...uint64) error {
+// Fetch pulls up to batch messages. Equivalent to FetchContext(context.Background(), …).
+// MaxWait defaults to DefaultFetchMaxWait when not set via opts.
+func (s *Subscription) Fetch(batch int, opts ...FetchOpt) ([]*Msg, error) {
+	return s.FetchContext(context.Background(), batch, opts...)
+}
+
+// AckContext acknowledges one or more message sequences using ctx.
+func (s *Subscription) AckContext(ctx context.Context, seqs ...uint64) error {
 	if s == nil || s.client == nil {
 		return errors.New("iomeshclient: nil subscription")
 	}
-	return s.client.ConsumerAck(context.Background(), s.stream, s.consumer, seqs...)
+	return s.client.ConsumerAck(ctx, s.stream, s.consumer, seqs...)
+}
+
+// Ack acknowledges one or more message sequences.
+// Equivalent to AckContext(context.Background(), seqs...).
+func (s *Subscription) Ack(seqs ...uint64) error {
+	return s.AckContext(context.Background(), seqs...)
+}
+
+// NackContext negatively acknowledges sequences using ctx.
+func (s *Subscription) NackContext(ctx context.Context, seqs ...uint64) error {
+	if s == nil || s.client == nil {
+		return errors.New("iomeshclient: nil subscription")
+	}
+	return s.client.ConsumerNack(ctx, s.stream, s.consumer, seqs...)
 }
 
 // Nack negatively acknowledges sequences (optional PoC hook).
+// Equivalent to NackContext(context.Background(), seqs...).
 func (s *Subscription) Nack(seqs ...uint64) error {
-	if s == nil || s.client == nil {
-		return errors.New("iomeshclient: nil subscription")
-	}
-	return s.client.ConsumerNack(context.Background(), s.stream, s.consumer, seqs...)
+	return s.NackContext(context.Background(), seqs...)
 }
 
 // Unsubscribe is a no-op for durable consumers in the PoC HTTP client.
@@ -483,10 +507,11 @@ type fetchOptions struct {
 	maxWait time.Duration
 }
 
-// FetchOpt configures Fetch behavior.
+// FetchOpt configures Fetch / FetchContext / ConsumerFetch behavior.
 type FetchOpt func(*fetchOptions)
 
-// MaxWait sets the long-poll wait duration for Fetch.
+// MaxWait sets the long-poll wait duration for Fetch / FetchContext / ConsumerFetch.
+// When omitted, DefaultFetchMaxWait (5s) is used.
 func MaxWait(d time.Duration) FetchOpt {
 	return func(o *fetchOptions) {
 		o.maxWait = d
