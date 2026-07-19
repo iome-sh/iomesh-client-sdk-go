@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] — 2026-07-19
+
+Minor release: CreateConsumer and EnsureConsumer helpers.
+
 ### Added
 
 - **`CreateConsumer` / `EnsureConsumer`** — standalone durable pull consumer helpers (`POST /v1/streams/{stream}/consumers`); return `*ConsumerInfo`. On 201, full body decode; on 409 conflict, success with `&ConsumerInfo{Stream, Name}` (name-only). `EnsureConsumer` is an idempotent alias of `CreateConsumer`
@@ -209,7 +213,8 @@ Minor release: I/O Mesh platform / iomesh-tui memory + multi-tenant header parit
 - Docs: public naming policy for packages, env, and headers.
 - Removed package `aionclient` and legacy `X-Aion-*` / `AION_*` aliases.
 
-[Unreleased]: https://github.com/iome-sh/iomesh-client-sdk-go/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/iome-sh/iomesh-client-sdk-go/compare/v0.21.0...HEAD
+[0.21.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.21.0
 [0.20.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.20.0
 [0.19.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.19.0
 [0.18.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.18.0
