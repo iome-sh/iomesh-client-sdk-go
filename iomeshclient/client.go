@@ -321,8 +321,16 @@ func (s *Subscription) ConsumerInfo() ConsumerInfo {
 	return s.info
 }
 
-// Fetch pulls up to batch messages.
-func (s *Subscription) Fetch(batch int, opts ...FetchOpt) ([]*Msg, error) {
+// ConsumerFetch pulls up to batch messages from a durable consumer without holding a
+// long-lived Subscription. Returned Msg values are wired to an ephemeral Subscription
+// so Msg.Ack / Msg.Nack work. Stream and consumer path segments are url.PathEscape'd.
+func (c *Client) ConsumerFetch(ctx context.Context, stream, consumer string, batch int, opts ...FetchOpt) ([]*Msg, error) {
+	if c == nil {
+		return nil, errors.New("iomeshclient: nil client")
+	}
+	if stream == "" || consumer == "" {
+		return nil, errors.New("iomeshclient: stream and consumer required")
+	}
 	if batch <= 0 {
 		return nil, errors.New("iomeshclient: batch must be > 0")
 	}
@@ -338,11 +346,13 @@ func (s *Subscription) Fetch(batch int, opts ...FetchOpt) ([]*Msg, error) {
 	}
 	var resp fetchResponse
 	path := fmt.Sprintf("/v1/streams/%s/consumers/%s/fetch",
-		url.PathEscape(s.stream), url.PathEscape(s.consumer))
-	if err := s.client.doJSON(context.Background(), http.MethodPost, path, req, &resp); err != nil {
+		url.PathEscape(stream), url.PathEscape(consumer))
+	if err := c.doJSON(ctx, http.MethodPost, path, req, &resp); err != nil {
 		return nil, err
 	}
 
+	// Ephemeral sub so Msg.Ack / Msg.Nack can call Client.ConsumerAck/Nack.
+	sub := &Subscription{client: c, stream: stream, consumer: consumer}
 	msgs := make([]*Msg, len(resp.Messages))
 	for i, m := range resp.Messages {
 		payload, err := base64.StdEncoding.DecodeString(m.Payload)
@@ -350,7 +360,7 @@ func (s *Subscription) Fetch(batch int, opts ...FetchOpt) ([]*Msg, error) {
 			return nil, fmt.Errorf("iomeshclient: decode payload seq %d: %w", m.Seq, err)
 		}
 		msgs[i] = &Msg{
-			sub:       s,
+			sub:       sub,
 			stream:    m.Stream,
 			seq:       m.Seq,
 			subject:   m.Subject,
@@ -362,26 +372,74 @@ func (s *Subscription) Fetch(batch int, opts ...FetchOpt) ([]*Msg, error) {
 	return msgs, nil
 }
 
-// Ack acknowledges one or more message sequences.
-func (s *Subscription) Ack(seqs ...uint64) error {
+// ConsumerAck acknowledges one or more message sequences on a durable consumer.
+// Stream and consumer path segments are url.PathEscape'd.
+func (c *Client) ConsumerAck(ctx context.Context, stream, consumer string, seqs ...uint64) error {
+	if c == nil {
+		return errors.New("iomeshclient: nil client")
+	}
+	if stream == "" || consumer == "" {
+		return errors.New("iomeshclient: stream and consumer required")
+	}
 	if len(seqs) == 0 {
 		return errors.New("iomeshclient: seqs required")
 	}
 	req := ackRequest{Seqs: seqs}
 	path := fmt.Sprintf("/v1/streams/%s/consumers/%s/ack",
-		url.PathEscape(s.stream), url.PathEscape(s.consumer))
-	return s.client.doJSON(context.Background(), http.MethodPost, path, req, new(struct{}))
+		url.PathEscape(stream), url.PathEscape(consumer))
+	return c.doJSON(ctx, http.MethodPost, path, req, new(struct{}))
 }
 
-// Nack negatively acknowledges sequences (optional PoC hook).
-func (s *Subscription) Nack(seqs ...uint64) error {
+// ConsumerNack negatively acknowledges one or more message sequences on a durable consumer.
+// Stream and consumer path segments are url.PathEscape'd.
+func (c *Client) ConsumerNack(ctx context.Context, stream, consumer string, seqs ...uint64) error {
+	if c == nil {
+		return errors.New("iomeshclient: nil client")
+	}
+	if stream == "" || consumer == "" {
+		return errors.New("iomeshclient: stream and consumer required")
+	}
 	if len(seqs) == 0 {
 		return errors.New("iomeshclient: seqs required")
 	}
 	req := ackRequest{Seqs: seqs}
 	path := fmt.Sprintf("/v1/streams/%s/consumers/%s/nack",
-		url.PathEscape(s.stream), url.PathEscape(s.consumer))
-	return s.client.doJSON(context.Background(), http.MethodPost, path, req, new(struct{}))
+		url.PathEscape(stream), url.PathEscape(consumer))
+	return c.doJSON(ctx, http.MethodPost, path, req, new(struct{}))
+}
+
+// Fetch pulls up to batch messages.
+func (s *Subscription) Fetch(batch int, opts ...FetchOpt) ([]*Msg, error) {
+	if s == nil || s.client == nil {
+		return nil, errors.New("iomeshclient: nil subscription")
+	}
+	msgs, err := s.client.ConsumerFetch(context.Background(), s.stream, s.consumer, batch, opts...)
+	if err != nil {
+		return nil, err
+	}
+	// Rebind Msg.sub to this Subscription so Ack/Nack use the caller's handle.
+	for _, m := range msgs {
+		if m != nil {
+			m.sub = s
+		}
+	}
+	return msgs, nil
+}
+
+// Ack acknowledges one or more message sequences.
+func (s *Subscription) Ack(seqs ...uint64) error {
+	if s == nil || s.client == nil {
+		return errors.New("iomeshclient: nil subscription")
+	}
+	return s.client.ConsumerAck(context.Background(), s.stream, s.consumer, seqs...)
+}
+
+// Nack negatively acknowledges sequences (optional PoC hook).
+func (s *Subscription) Nack(seqs ...uint64) error {
+	if s == nil || s.client == nil {
+		return errors.New("iomeshclient: nil subscription")
+	}
+	return s.client.ConsumerNack(context.Background(), s.stream, s.consumer, seqs...)
 }
 
 // Unsubscribe is a no-op for durable consumers in the PoC HTTP client.

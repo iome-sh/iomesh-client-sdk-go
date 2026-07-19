@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`ConsumerFetch` / `ConsumerAck` / `ConsumerNack`** — standalone one-shot consumer ops (`POST …/fetch|ack|nack`) without holding a long-lived `Subscription`. Path-escape stream and consumer segments. `ConsumerFetch` wires returned `Msg` values to an ephemeral subscription so `Msg.Ack` / `Msg.Nack` work
+
+### Changed
+
+- **`Subscription.Fetch` / `Ack` / `Nack`** — thin wrappers over the client helpers (still use `context.Background()`)
+
 ## [0.21.0] — 2026-07-19
 
 Minor release: CreateConsumer and EnsureConsumer helpers.
