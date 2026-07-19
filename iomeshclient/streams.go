@@ -2,10 +2,12 @@ package iomeshclient
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -154,6 +156,108 @@ func (c *Client) DeleteStream(ctx context.Context, name string) error {
 
 	path := "/v1/streams/" + url.PathEscape(name)
 	return c.doJSON(ctx, http.MethodDelete, path, nil, nil)
+}
+
+
+// StreamMessage is one message from stream replay/list (GET /v1/streams/{name}/messages).
+// Payload is decoded from the wire base64 string; invalid base64 falls back to raw string bytes.
+type StreamMessage struct {
+	Stream    string
+	Seq       uint64
+	Subject   string
+	Partition int
+	Payload   []byte
+	Headers   map[string]string
+	Timestamp time.Time
+}
+
+// ListStreamMessagesOptions configures stream message replay range.
+// Zero values map to broker-friendly defaults: FromSeq 0→1, ToSeq 0→last,
+// Limit 0→100 (capped at 1000 client-side).
+type ListStreamMessagesOptions struct {
+	FromSeq uint64 // 0 → 1
+	ToSeq   uint64 // 0 → broker last
+	Limit   int    // 0 → 100; max 1000
+}
+
+// listStreamMessagesWire is the broker JSON envelope for message list/replay.
+type listStreamMessagesWire struct {
+	Messages []streamMessageWire `json:"messages"`
+}
+
+type streamMessageWire struct {
+	Stream    string            `json:"stream"`
+	Seq       uint64            `json:"seq"`
+	Subject   string            `json:"subject"`
+	Partition int               `json:"partition"`
+	Payload   string            `json:"payload"`
+	Headers   map[string]string `json:"headers"`
+	Timestamp time.Time         `json:"timestamp"`
+}
+
+// ListStreamMessages returns messages from a stream via GET /v1/streams/{name}/messages
+// (broker stream replay / read-range). Query: from_seq (default 1), to_seq (0=last),
+// limit (default 100, max 1000). Nil client / empty stream → error. Non-2xx → *APIError.
+// applyAuthHeaders (tenant etc.) run via doJSON — some brokers gate replay on tenant.
+func (c *Client) ListStreamMessages(ctx context.Context, stream string, opts ListStreamMessagesOptions) ([]StreamMessage, error) {
+	if c == nil {
+		return nil, errors.New("iomeshclient: nil client")
+	}
+	stream = strings.TrimSpace(stream)
+	if stream == "" {
+		return nil, errors.New("iomeshclient: stream name required")
+	}
+
+	fromSeq := opts.FromSeq
+	if fromSeq == 0 {
+		fromSeq = 1
+	}
+	limit := opts.Limit
+	if limit <= 0 {
+		limit = 100
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
+
+	q := url.Values{}
+	q.Set("from_seq", strconv.FormatUint(fromSeq, 10))
+	q.Set("to_seq", strconv.FormatUint(opts.ToSeq, 10))
+	q.Set("limit", strconv.Itoa(limit))
+
+	path := "/v1/streams/" + url.PathEscape(stream) + "/messages?" + q.Encode()
+	var wire listStreamMessagesWire
+	if err := c.doJSON(ctx, http.MethodGet, path, nil, &wire); err != nil {
+		return nil, err
+	}
+	if wire.Messages == nil {
+		return []StreamMessage{}, nil
+	}
+
+	out := make([]StreamMessage, len(wire.Messages))
+	for i, m := range wire.Messages {
+		out[i] = StreamMessage{
+			Stream:    m.Stream,
+			Seq:       m.Seq,
+			Subject:   m.Subject,
+			Partition: m.Partition,
+			Payload:   decodeStreamPayload(m.Payload),
+			Headers:   m.Headers,
+			Timestamp: m.Timestamp,
+		}
+	}
+	return out, nil
+}
+
+// decodeStreamPayload decodes a base64 payload string; on invalid base64 returns raw string bytes.
+func decodeStreamPayload(s string) []byte {
+	if s == "" {
+		return []byte{}
+	}
+	if b, err := base64.StdEncoding.DecodeString(s); err == nil {
+		return b
+	}
+	return []byte(s)
 }
 
 // Pub publishes an ephemeral fire-and-forget message via POST /v1/pub.

@@ -13,6 +13,7 @@ Minor release: stream format helpers and package examples; public-surface hygien
 
 ### Added
 
+- **`ListStreamMessages`** — stream replay/read-range (`GET /v1/streams/{name}/messages`); `StreamMessage` + `ListStreamMessagesOptions` (`from_seq`/`to_seq`/`limit`); base64 payload decode with soft raw-bytes fallback; non-2xx → `*APIError`
 - **`FormatStreams` / `FormatStreamDetail`** — pure operator table/detail helpers for `StreamInfo` (iomesh-tui CLI parity; no network I/O)
 - **Package examples** (`example_test.go`) — godoc Examples for format/diagnostics helpers (`FormatStreams`, `FormatStreamDetail`, `FormatConnectionStatus`, `FormatContextSnippet`, `PolicyDecision.Summary` / `ShouldBlockTool`)
 
