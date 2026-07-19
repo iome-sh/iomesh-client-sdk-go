@@ -7,13 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] — 2026-07-19
+
+Minor release: ListStreamMessages stream replay helper.
+
+### Added
+
+- **`ListStreamMessages`** — stream replay/read-range (`GET /v1/streams/{name}/messages`); `StreamMessage` + `ListStreamMessagesOptions` (`from_seq`/`to_seq`/`limit`); base64 payload decode with soft raw-bytes fallback; non-2xx → `*APIError`
+
 ## [0.15.0] — 2026-07-19
 
 Minor release: stream format helpers and package examples; public-surface hygiene.
 
 ### Added
 
-- **`ListStreamMessages`** — stream replay/read-range (`GET /v1/streams/{name}/messages`); `StreamMessage` + `ListStreamMessagesOptions` (`from_seq`/`to_seq`/`limit`); base64 payload decode with soft raw-bytes fallback; non-2xx → `*APIError`
 - **`FormatStreams` / `FormatStreamDetail`** — pure operator table/detail helpers for `StreamInfo` (iomesh-tui CLI parity; no network I/O)
 - **Package examples** (`example_test.go`) — godoc Examples for format/diagnostics helpers (`FormatStreams`, `FormatStreamDetail`, `FormatConnectionStatus`, `FormatContextSnippet`, `PolicyDecision.Summary` / `ShouldBlockTool`)
 
@@ -143,7 +150,8 @@ Minor release: I/O Mesh platform / iomesh-tui memory + multi-tenant header parit
 - Docs: public naming policy for packages, env, and headers.
 - Removed package `aionclient` and legacy `X-Aion-*` / `AION_*` aliases.
 
-[Unreleased]: https://github.com/iome-sh/iomesh-client-sdk-go/compare/v0.15.0...HEAD
+[Unreleased]: https://github.com/iome-sh/iomesh-client-sdk-go/compare/v0.16.0...HEAD
+[0.16.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.16.0
 [0.15.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.15.0
 [0.14.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.14.0
 [0.13.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.13.0
