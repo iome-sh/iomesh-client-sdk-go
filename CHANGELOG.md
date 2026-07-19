@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`FormatKVEntry` / `FormatKVKeys`** — pure operator helpers for KV entry detail and key listings (iomesh-tui CLI parity; no network I/O)
+- **`BucketInfo`** — public bucket metadata type returned by `CreateBucket`
+
+### Changed
+
+- **`CreateBucket`** — now returns `(*BucketInfo, error)` instead of `error` only. On 201, decodes bucket metadata from the response body; on 409 conflict, success with `&BucketInfo{Name: name}` (name only). Empty name / nil client → error. **Breaking for pre-1.0 callers** that assigned a single return value — update to two return values
+
 ## [0.16.0] — 2026-07-19
 
 Minor release: ListStreamMessages stream replay helper.

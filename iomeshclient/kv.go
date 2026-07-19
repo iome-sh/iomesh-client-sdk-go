@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -19,6 +20,14 @@ type KVEntry struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// BucketInfo is broker KV bucket metadata from create responses.
+type BucketInfo struct {
+	Name       string `json:"name"`
+	MaxBytes   *int64 `json:"max_bytes,omitempty"`
+	History    int    `json:"history,omitempty"`
+	TTLSeconds *int64 `json:"ttl_seconds,omitempty"`
+}
+
 // CreateBucketConfig optionally tunes a new KV bucket.
 type CreateBucketConfig struct {
 	MaxBytes   *int64 `json:"max_bytes,omitempty"`
@@ -26,8 +35,22 @@ type CreateBucketConfig struct {
 	TTLSeconds *int64 `json:"ttl_seconds,omitempty"`
 }
 
-// CreateBucket registers a KV bucket. Duplicate bucket creation is treated as success.
-func (c *Client) CreateBucket(ctx context.Context, name string, cfg ...CreateBucketConfig) error {
+// CreateBucket registers a KV bucket via POST /v1/kv/{name}.
+// On 201, decodes BucketInfo from the response body.
+// On 409 conflict, treats as success and returns &BucketInfo{Name: name} (name only).
+// Empty name / nil client → error.
+//
+// Pre-1.0 signature change: previously returned only error. Callers that assigned a
+// single return value must update to (*BucketInfo, error).
+func (c *Client) CreateBucket(ctx context.Context, name string, cfg ...CreateBucketConfig) (*BucketInfo, error) {
+	if c == nil {
+		return nil, errors.New("iomeshclient: nil client")
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, errors.New("iomeshclient: bucket name required")
+	}
+
 	var req *createBucketRequest
 	if len(cfg) > 0 {
 		req = &createBucketRequest{
@@ -37,16 +60,20 @@ func (c *Client) CreateBucket(ctx context.Context, name string, cfg ...CreateBuc
 		}
 	}
 
-	path := "/v1/kv/" + name
-	var resp bucketResponse
-	if err := c.doJSON(ctx, http.MethodPost, path, req, &resp); err != nil {
-		var apiErr *APIError
-		if errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusConflict {
-			return nil
+	path := "/v1/kv/" + url.PathEscape(name)
+	var info BucketInfo
+	err := c.doJSON(ctx, http.MethodPost, path, req, &info)
+	if err == nil {
+		if info.Name == "" {
+			info.Name = name // defensive when broker omits name
 		}
-		return err
+		return &info, nil
 	}
-	return nil
+	var apiErr *APIError
+	if errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusConflict {
+		return &BucketInfo{Name: name}, nil
+	}
+	return nil, err
 }
 
 func kvKeyPath(bucket, key string) string {
@@ -84,7 +111,7 @@ func (c *Client) Delete(ctx context.Context, bucket, key string) error {
 
 // ListKeys returns keys in bucket, optionally filtered by prefix.
 func (c *Client) ListKeys(ctx context.Context, bucket, prefix string) ([]string, error) {
-	path := "/v1/kv/" + bucket
+	path := "/v1/kv/" + url.PathEscape(bucket)
 	if prefix != "" {
 		path += "?prefix=" + url.QueryEscape(prefix)
 	}
@@ -97,13 +124,6 @@ func (c *Client) ListKeys(ctx context.Context, bucket, prefix string) ([]string,
 }
 
 type createBucketRequest struct {
-	MaxBytes   *int64 `json:"max_bytes,omitempty"`
-	History    int    `json:"history,omitempty"`
-	TTLSeconds *int64 `json:"ttl_seconds,omitempty"`
-}
-
-type bucketResponse struct {
-	Name       string `json:"name"`
 	MaxBytes   *int64 `json:"max_bytes,omitempty"`
 	History    int    `json:"history,omitempty"`
 	TTLSeconds *int64 `json:"ttl_seconds,omitempty"`
