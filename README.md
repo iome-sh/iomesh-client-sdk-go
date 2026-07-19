@@ -19,7 +19,7 @@ Official open-source tooling from [IOMesh](https://iome.sh) (**IOMesh Technology
 > **Package:** `iomeshclient`  
 > **Env prefix:** `IOMESH_*`  
 > **Wire headers:** `X-IOMesh-Tenant`, `X-IOMesh-Org`, `X-IOMesh-Workspace`, …  
-> **Status:** public OSS **v0.18.x** (pre-1.0). Memory M2/M3 + multi-tenant headers + dual-write/metering + Health/Ready/WaitReady + catalog plane + EvaluatePolicy + QueryContext + ConnectionStatus + ListStreams/GetStream/DeleteStream/ListStreamMessages + CreateStream/EnsureStream `*StreamInfo` + FormatStreams/FormatStreamDetail + KV CreateBucket `*BucketInfo` + Put `*PutResult` + FormatKVEntry/FormatKVKeys/FormatPutResult aligned with [iomesh-tui](https://github.com/iome-sh/iomesh-tui).  
+> **Status:** public OSS **v0.18.x** (pre-1.0). Memory M2/M3 + multi-tenant headers + dual-write/metering + Health/Ready/WaitReady + catalog plane + EvaluatePolicy + QueryContext + ConnectionStatus + ListStreams/GetStream/DeleteStream/ListStreamMessages + CreateStream/EnsureStream `*StreamInfo` + FormatStreams/FormatStreamDetail + KV CreateBucket/EnsureBucket `*BucketInfo` + Put `*PutResult` + FormatBucketInfo/FormatKVEntry/FormatKVKeys/FormatPutResult aligned with [iomesh-tui](https://github.com/iome-sh/iomesh-tui).  
 > **User-Agent:** `iomesh-client-sdk-go/<Version>` (override with `WithUserAgent`).
 
 ## Requirements
@@ -145,20 +145,20 @@ if err != nil {
 
 | API | Path | Notes |
 |-----|------|--------|
-| `CreateBucket` | `POST /v1/kv/{name}` | Returns `*BucketInfo`; 409 conflict → success with name only |
+| `CreateBucket` / `EnsureBucket` | `POST /v1/kv/{name}` | Returns `*BucketInfo`; 409 conflict → success with name only. EnsureBucket is an idempotent alias of CreateBucket |
 | `Put` / `Get` / `Delete` | `/v1/kv/{bucket}/{key}` | Put returns `*PutResult` (revision metadata); value is base64 in JSON body; Get returns `*KVEntry` |
 | `ListKeys` | `GET /v1/kv/{bucket}?prefix=` | Optional prefix filter |
-| `FormatKVEntry` / `FormatKVKeys` / `FormatPutResult` | — | Pure operator format helpers (no network I/O) |
+| `FormatBucketInfo` / `FormatKVEntry` / `FormatKVKeys` / `FormatPutResult` | — | Pure operator format helpers (no network I/O) |
 
 ```go
-info, err := nc.CreateBucket(ctx, "agent-state", iomeshclient.CreateBucketConfig{
+info, err := nc.EnsureBucket(ctx, "agent-state", iomeshclient.CreateBucketConfig{
 	History: 5,
 })
 if err != nil {
 	log.Fatal(err)
 }
 if info != nil {
-	log.Printf("bucket=%s history=%d", info.Name, info.History)
+	fmt.Print(iomeshclient.FormatBucketInfo(*info)) // multi-line bucket detail
 }
 
 put, err := nc.Put(ctx, "agent-state", "worker-1.checkpoint", []byte("seq=42"))

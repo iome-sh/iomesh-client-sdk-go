@@ -19,6 +19,25 @@ func FormatPutResult(r PutResult) string {
 	return b.String()
 }
 
+// FormatBucketInfo is a multi-line view for one KV bucket (operator / CLI style).
+// Pure helper with no network I/O. Optional pointer fields are omitted when nil;
+// history is shown when non-zero.
+func FormatBucketInfo(info BucketInfo) string {
+	var b strings.Builder
+	b.WriteString("iomesh kv bucket\n")
+	fmt.Fprintf(&b, "name:         %s\n", info.Name)
+	if info.History != 0 {
+		fmt.Fprintf(&b, "history:      %d\n", info.History)
+	}
+	if info.MaxBytes != nil {
+		fmt.Fprintf(&b, "max_bytes:    %d\n", *info.MaxBytes)
+	}
+	if info.TTLSeconds != nil {
+		fmt.Fprintf(&b, "ttl_seconds:  %d\n", *info.TTLSeconds)
+	}
+	return b.String()
+}
+
 // FormatKVEntry is a multi-line view for one KV entry (operator / CLI style).
 // Pure helper with no network I/O. Value is shown as UTF-8 text when printable;
 // otherwise as a base64-friendly byte length note with a short hex preview.

@@ -83,6 +83,12 @@ func (c *Client) CreateBucket(ctx context.Context, name string, cfg ...CreateBuc
 	return nil, err
 }
 
+// EnsureBucket creates the bucket if it does not already exist (CreateBucket semantics:
+// 409 conflict is success). Same return as CreateBucket.
+func (c *Client) EnsureBucket(ctx context.Context, name string, cfg ...CreateBucketConfig) (*BucketInfo, error) {
+	return c.CreateBucket(ctx, name, cfg...)
+}
+
 func kvKeyPath(bucket, key string) string {
 	return fmt.Sprintf("/v1/kv/%s/%s", url.PathEscape(bucket), url.PathEscape(key))
 }
