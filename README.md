@@ -19,7 +19,7 @@ Official open-source tooling from [IOMesh](https://iome.sh) (**IOMesh Technology
 > **Package:** `iomeshclient`  
 > **Env prefix:** `IOMESH_*`  
 > **Wire headers:** `X-IOMesh-Tenant`, `X-IOMesh-Org`, `X-IOMesh-Workspace`, …  
-> **Status:** public OSS **v0.3.x** (pre-1.0). Memory M2/M3 + multi-tenant headers aligned with [iomesh-tui](https://github.com/iome-sh/iomesh-tui).
+> **Status:** public OSS **v0.4.x** (pre-1.0). Memory M2/M3 + multi-tenant headers aligned with [iomesh-tui](https://github.com/iome-sh/iomesh-tui).
 
 ## Requirements
 
