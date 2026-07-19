@@ -212,7 +212,20 @@ type PullSubscribeConfig struct {
 	AckWaitSec int
 }
 
+// ConsumerInfo is durable consumer metadata returned on create (201).
+// On 409 conflict, PullSubscribe succeeds with a zero-value ConsumerInfo.
+type ConsumerInfo struct {
+	Stream        string `json:"stream"`
+	Name          string `json:"name"`
+	AckFloor      uint64 `json:"ack_floor"`
+	PendingCount  int    `json:"pending_count"`
+	FilterSubject string `json:"filter_subject,omitempty"`
+}
+
 // PullSubscribe registers (or reuses) a durable consumer and returns a subscription handle.
+// On 201, decodes ConsumerInfo from the response body into the subscription.
+// On 409 conflict, treats as success with empty/zero ConsumerInfo (consumer already exists).
+// Stream path segment is url.PathEscape'd.
 func (c *Client) PullSubscribe(ctx context.Context, cfg PullSubscribeConfig) (*Subscription, error) {
 	if cfg.Stream == "" || cfg.Consumer == "" {
 		return nil, errors.New("iomeshclient: stream and consumer required")
@@ -224,18 +237,23 @@ func (c *Client) PullSubscribe(ctx context.Context, cfg PullSubscribeConfig) (*S
 		MaxDeliver:    cfg.MaxDeliver,
 		AckWaitSec:    cfg.AckWaitSec,
 	}
-	path := "/v1/streams/" + cfg.Stream + "/consumers"
-	if err := c.doJSON(ctx, http.MethodPost, path, req, new(struct{})); err != nil {
+	path := "/v1/streams/" + url.PathEscape(cfg.Stream) + "/consumers"
+	var info ConsumerInfo
+	err := c.doJSON(ctx, http.MethodPost, path, req, &info)
+	if err != nil {
 		var apiErr *APIError
 		if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
 			return nil, err
 		}
+		// 409: success without full info (zero value)
+		info = ConsumerInfo{}
 	}
 
 	return &Subscription{
 		client:   c,
 		stream:   cfg.Stream,
 		consumer: cfg.Consumer,
+		info:     info,
 	}, nil
 }
 
@@ -244,6 +262,15 @@ type Subscription struct {
 	client   *Client
 	stream   string
 	consumer string
+	info     ConsumerInfo
+}
+
+// ConsumerInfo returns consumer metadata from create (201), or zero value after 409 reuse.
+func (s *Subscription) ConsumerInfo() ConsumerInfo {
+	if s == nil {
+		return ConsumerInfo{}
+	}
+	return s.info
 }
 
 // Fetch pulls up to batch messages.
@@ -262,7 +289,8 @@ func (s *Subscription) Fetch(batch int, opts ...FetchOpt) ([]*Msg, error) {
 		MaxWaitMs: int(fo.maxWait.Milliseconds()),
 	}
 	var resp fetchResponse
-	path := fmt.Sprintf("/v1/streams/%s/consumers/%s/fetch", s.stream, s.consumer)
+	path := fmt.Sprintf("/v1/streams/%s/consumers/%s/fetch",
+		url.PathEscape(s.stream), url.PathEscape(s.consumer))
 	if err := s.client.doJSON(context.Background(), http.MethodPost, path, req, &resp); err != nil {
 		return nil, err
 	}
@@ -292,7 +320,8 @@ func (s *Subscription) Ack(seqs ...uint64) error {
 		return errors.New("iomeshclient: seqs required")
 	}
 	req := ackRequest{Seqs: seqs}
-	path := fmt.Sprintf("/v1/streams/%s/consumers/%s/ack", s.stream, s.consumer)
+	path := fmt.Sprintf("/v1/streams/%s/consumers/%s/ack",
+		url.PathEscape(s.stream), url.PathEscape(s.consumer))
 	return s.client.doJSON(context.Background(), http.MethodPost, path, req, new(struct{}))
 }
 
@@ -302,7 +331,8 @@ func (s *Subscription) Nack(seqs ...uint64) error {
 		return errors.New("iomeshclient: seqs required")
 	}
 	req := ackRequest{Seqs: seqs}
-	path := fmt.Sprintf("/v1/streams/%s/consumers/%s/nack", s.stream, s.consumer)
+	path := fmt.Sprintf("/v1/streams/%s/consumers/%s/nack",
+		url.PathEscape(s.stream), url.PathEscape(s.consumer))
 	return s.client.doJSON(context.Background(), http.MethodPost, path, req, new(struct{}))
 }
 
