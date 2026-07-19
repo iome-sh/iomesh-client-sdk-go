@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] — 2026-07-19
+
+Minor release: FormatKV helpers and CreateBucket BucketInfo. Pre-1.0 CreateBucket signature change.
+
 ### Added
 
 - **`FormatKVEntry` / `FormatKVKeys`** — pure operator helpers for KV entry detail and key listings (iomesh-tui CLI parity; no network I/O)
@@ -159,7 +163,8 @@ Minor release: I/O Mesh platform / iomesh-tui memory + multi-tenant header parit
 - Docs: public naming policy for packages, env, and headers.
 - Removed package `aionclient` and legacy `X-Aion-*` / `AION_*` aliases.
 
-[Unreleased]: https://github.com/iome-sh/iomesh-client-sdk-go/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/iome-sh/iomesh-client-sdk-go/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.17.0
 [0.16.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.16.0
 [0.15.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.15.0
 [0.14.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.14.0
