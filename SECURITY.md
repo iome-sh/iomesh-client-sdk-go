@@ -4,7 +4,8 @@
 
 | Version | Supported |
 |---------|-----------|
-| `v0.11.x` (latest minor on `main`) | ✅ security fixes |
+| `v0.12.x` (latest minor on `main`) | ✅ security fixes |
+| `v0.11.x` | best-effort |
 | `v0.10.x` | best-effort |
 | `v0.9.x` | best-effort |
 | `v0.8.x` | best-effort |
