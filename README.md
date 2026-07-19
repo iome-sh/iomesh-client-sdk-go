@@ -182,6 +182,7 @@ fmt.Print(iomeshclient.FormatMsgs(batch))    // batch: count header + one line p
 //     for i, m := range batch { seqs[i] = m.Seq() }
 //     if err := sub.AckContext(ctx, seqs...); err != nil { log.Fatal(err) }
 // }
+// Runnable stage smoke: examples/pull-loop (IOMESH_URL, optional IOMESH_ENSURE_STREAM / IOMESH_ACK)
 
 // One-shot consumer ops (no long-lived Subscription)
 msgs, err := nc.ConsumerFetch(ctx, "EVENTS", "worker-1", 10)
@@ -273,6 +274,19 @@ export IOMESH_URL=http://127.0.0.1:8422
 export IOMESH_MEMORY_ENDPOINT=http://127.0.0.1:8765  # warm plane
 go run ./examples/memory-metering-dogfood
 ```
+
+Pull consumer stage smoke (one fetch cycle; optional ensure/ack):
+
+```bash
+export IOMESH_URL=http://127.0.0.1:8422
+export IOMESH_STREAM=EVENTS
+export IOMESH_CONSUMER=sdk-pull-loop
+# export IOMESH_ENSURE_STREAM=1  # create stream with subject stream.>
+# export IOMESH_ACK=1            # ack fetched sequences
+go run ./examples/pull-loop
+```
+
+See [`examples/pull-loop/`](examples/pull-loop/) for env flags (`IOMESH_BATCH`, `IOMESH_MAX_WAIT_MS`, `IOMESH_SUBJECT`, …).
 
 ## Diagnostics
 

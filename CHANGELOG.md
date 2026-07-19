@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Example** `examples/pull-loop` — stage smoke for durable pull consumer (`ConnectionStatus`, optional `EnsureStream`, `PullSubscribe` / `FetchContext` / `FormatMsgs` / optional `AckContext`)
+
 ## [0.24.0] — 2026-07-19
 
 Minor release: FormatMsgs and pull-loop docs.
