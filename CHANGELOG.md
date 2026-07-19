@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`EvaluatePolicy`** — public fail-open mesh policy helper (`POST /v1/policy/evaluate`); per-call `PolicyMode` (`off`|`advisory`|`enforce`); `ShouldBlockTool` / `Summary` (iomesh-tui semantics without auto dept emit)
+
 ## [0.7.0] — 2026-07-19
 
 Minor release: Health and Ready probes (TUI dogfood parity). Compatible with `v0.6.x`.
