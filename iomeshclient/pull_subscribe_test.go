@@ -394,6 +394,280 @@ func TestSubscription_FetchAckNack_PathEscape(t *testing.T) {
 	}
 }
 
+func TestConsumerAck_PathAndBody(t *testing.T) {
+	var gotMethod, gotPath string
+	var gotBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod = r.Method
+		gotPath = r.URL.EscapedPath()
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := nc.ConsumerAck(context.Background(), "EVENTS", "worker-1", 10, 11); err != nil {
+		t.Fatal(err)
+	}
+	if gotMethod != http.MethodPost {
+		t.Fatalf("method=%q", gotMethod)
+	}
+	if gotPath != "/v1/streams/EVENTS/consumers/worker-1/ack" {
+		t.Fatalf("path=%q", gotPath)
+	}
+	seqs, ok := gotBody["seqs"].([]any)
+	if !ok || len(seqs) != 2 {
+		t.Fatalf("body=%v", gotBody)
+	}
+	if seqs[0] != float64(10) || seqs[1] != float64(11) {
+		t.Fatalf("seqs=%v", seqs)
+	}
+}
+
+func TestConsumerAck_PathEscape(t *testing.T) {
+	var gotPath string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.EscapedPath()
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := nc.ConsumerAck(context.Background(), "a/b", "c/d", 1); err != nil {
+		t.Fatal(err)
+	}
+	if gotPath != "/v1/streams/a%2Fb/consumers/c%2Fd/ack" {
+		t.Fatalf("path=%q", gotPath)
+	}
+}
+
+func TestConsumerAck_Validation(t *testing.T) {
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: "http://127.0.0.1:9"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = nc.ConsumerAck(context.Background(), "", "c", 1)
+	if err == nil || !strings.Contains(err.Error(), "stream and consumer required") {
+		t.Fatalf("empty stream err=%v", err)
+	}
+	err = nc.ConsumerAck(context.Background(), "S", "c")
+	if err == nil || !strings.Contains(err.Error(), "seqs required") {
+		t.Fatalf("empty seqs err=%v", err)
+	}
+	var c *iomeshclient.Client
+	err = c.ConsumerAck(context.Background(), "S", "c", 1)
+	if err == nil || !strings.Contains(err.Error(), "nil client") {
+		t.Fatalf("nil client err=%v", err)
+	}
+}
+
+func TestConsumerNack_PathAndBody(t *testing.T) {
+	var gotMethod, gotPath string
+	var gotBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod = r.Method
+		gotPath = r.URL.EscapedPath()
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := nc.ConsumerNack(context.Background(), "EVENTS", "worker-1", 7); err != nil {
+		t.Fatal(err)
+	}
+	if gotMethod != http.MethodPost || gotPath != "/v1/streams/EVENTS/consumers/worker-1/nack" {
+		t.Fatalf("method=%q path=%q", gotMethod, gotPath)
+	}
+	seqs, ok := gotBody["seqs"].([]any)
+	if !ok || len(seqs) != 1 || seqs[0] != float64(7) {
+		t.Fatalf("body=%v", gotBody)
+	}
+}
+
+func TestConsumerFetch(t *testing.T) {
+	var gotMethod, gotPath string
+	var gotBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod = r.Method
+		gotPath = r.URL.EscapedPath()
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"messages": []map[string]any{
+				{
+					"stream":  "EVENTS",
+					"seq":     42,
+					"subject": "dept.events.x",
+					"payload": base64.StdEncoding.EncodeToString([]byte("hello")),
+					"headers": map[string]string{"k": "v"},
+				},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	msgs, err := nc.ConsumerFetch(context.Background(), "EVENTS", "worker-1", 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotMethod != http.MethodPost || gotPath != "/v1/streams/EVENTS/consumers/worker-1/fetch" {
+		t.Fatalf("method=%q path=%q", gotMethod, gotPath)
+	}
+	if gotBody["batch"] != float64(5) {
+		t.Fatalf("body=%v", gotBody)
+	}
+	if len(msgs) != 1 {
+		t.Fatalf("msgs=%d", len(msgs))
+	}
+	if msgs[0].Seq() != 42 {
+		t.Fatalf("seq=%d", msgs[0].Seq())
+	}
+	if string(msgs[0].Data()) != "hello" {
+		t.Fatalf("data=%q", msgs[0].Data())
+	}
+	if msgs[0].Subject() != "dept.events.x" {
+		t.Fatalf("subject=%q", msgs[0].Subject())
+	}
+	if msgs[0].Headers()["k"] != "v" {
+		t.Fatalf("headers=%v", msgs[0].Headers())
+	}
+}
+
+func TestConsumerFetch_PathEscapeAndMsgAck(t *testing.T) {
+	var paths []string
+	var ackBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.EscapedPath())
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/fetch"):
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"messages": []map[string]any{
+					{
+						"stream":  "a/b",
+						"seq":     9,
+						"subject": "x",
+						"payload": base64.StdEncoding.EncodeToString([]byte("hi")),
+						"headers": map[string]string{},
+					},
+				},
+			})
+		case strings.HasSuffix(r.URL.Path, "/ack"):
+			_ = json.NewDecoder(r.Body).Decode(&ackBody)
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	msgs, err := nc.ConsumerFetch(context.Background(), "a/b", "c/d", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(msgs) != 1 {
+		t.Fatalf("msgs=%d", len(msgs))
+	}
+	// Ephemeral sub wiring: Msg.Ack must hit ConsumerAck path.
+	if err := msgs[0].Ack(); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"/v1/streams/a%2Fb/consumers/c%2Fd/fetch",
+		"/v1/streams/a%2Fb/consumers/c%2Fd/ack",
+	}
+	if len(paths) != len(want) {
+		t.Fatalf("paths=%v want %v", paths, want)
+	}
+	for i := range want {
+		if paths[i] != want[i] {
+			t.Fatalf("path[%d]=%q want %q", i, paths[i], want[i])
+		}
+	}
+	seqs, ok := ackBody["seqs"].([]any)
+	if !ok || len(seqs) != 1 || seqs[0] != float64(9) {
+		t.Fatalf("ack body=%v", ackBody)
+	}
+}
+
+func TestConsumerFetch_Validation(t *testing.T) {
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: "http://127.0.0.1:9"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = nc.ConsumerFetch(context.Background(), "", "c", 1)
+	if err == nil || !strings.Contains(err.Error(), "stream and consumer required") {
+		t.Fatalf("empty stream err=%v", err)
+	}
+	_, err = nc.ConsumerFetch(context.Background(), "S", "c", 0)
+	if err == nil || !strings.Contains(err.Error(), "batch must be > 0") {
+		t.Fatalf("batch err=%v", err)
+	}
+	var c *iomeshclient.Client
+	_, err = c.ConsumerFetch(context.Background(), "S", "c", 1)
+	if err == nil || !strings.Contains(err.Error(), "nil client") {
+		t.Fatalf("nil client err=%v", err)
+	}
+}
+
+func TestSubscription_AckStillWorks(t *testing.T) {
+	var gotPath string
+	var gotBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/streams/EVENTS/consumers" {
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(map[string]any{"stream": "EVENTS", "name": "worker-1"})
+			return
+		}
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/streams/EVENTS/consumers/worker-1/ack" {
+			gotPath = r.URL.Path
+			_ = json.NewDecoder(r.Body).Decode(&gotBody)
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sub, err := nc.PullSubscribe(context.Background(), iomeshclient.PullSubscribeConfig{
+		Stream:   "EVENTS",
+		Consumer: "worker-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sub.Ack(99); err != nil {
+		t.Fatal(err)
+	}
+	if gotPath != "/v1/streams/EVENTS/consumers/worker-1/ack" {
+		t.Fatalf("path=%q", gotPath)
+	}
+	seqs, ok := gotBody["seqs"].([]any)
+	if !ok || len(seqs) != 1 || seqs[0] != float64(99) {
+		t.Fatalf("body=%v", gotBody)
+	}
+}
+
 func TestPullSubscribe_Validation(t *testing.T) {
 	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: "http://127.0.0.1:9"})
 	if err != nil {
