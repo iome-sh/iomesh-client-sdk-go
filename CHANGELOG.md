@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`ConnectionStatus`** — fail-open one-shot diagnostics (`Health` + `Ready` + identity fields); `FormatConnectionStatus` / `FormatConnectionStatusJSON` for operators/CI (iomesh-tui mesh status parity, s296)
+
 ## [0.10.0] — 2026-07-19
 
 Minor release: QueryContext + ContextSnippet context plane. Compatible with `v0.9.x`.
