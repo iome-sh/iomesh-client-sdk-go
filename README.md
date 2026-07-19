@@ -182,7 +182,8 @@ fmt.Print(iomeshclient.FormatMsgs(batch))    // batch: count header + one line p
 //     for i, m := range batch { seqs[i] = m.Seq() }
 //     if err := sub.AckContext(ctx, seqs...); err != nil { log.Fatal(err) }
 // }
-// Runnable stage smoke: examples/pull-loop (IOMESH_URL, optional IOMESH_ENSURE_STREAM / IOMESH_PUBLISH / IOMESH_ACK)
+// Runnable stage smoke: examples/pull-loop (IOMESH_URL, optional IOMESH_ENSURE_STREAM / IOMESH_PUBLISH / IOMESH_ACK;
+// with ENSURE_STREAM=1, default pub subject is stream.sdk-pull-loop under stream.>)
 
 // One-shot consumer ops (no long-lived Subscription)
 msgs, err := nc.ConsumerFetch(ctx, "EVENTS", "worker-1", 10)
@@ -286,6 +287,8 @@ export IOMESH_CONSUMER=sdk-pull-loop
 # export IOMESH_ACK=1            # ack fetched sequences
 go run ./examples/pull-loop
 ```
+
+With `IOMESH_ENSURE_STREAM=1` and `IOMESH_PUBLISH=1`, the default publish subject is `stream.sdk-pull-loop` (under `stream.>`) so Publish is accepted without setting `IOMESH_PUB_SUBJECT`. Override with `IOMESH_PUB_SUBJECT` or `IOMESH_SUBJECT`.
 
 See [`examples/pull-loop/`](examples/pull-loop/) for env flags (`IOMESH_BATCH`, `IOMESH_MAX_WAIT_MS`, `IOMESH_SUBJECT`, `IOMESH_PUBLISH`, …).
 
