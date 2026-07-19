@@ -416,7 +416,6 @@ func TestDeleteStream_NilClient(t *testing.T) {
 	}
 }
 
-
 func TestListStreamMessages_OK(t *testing.T) {
 	var gotPath, gotQuery, gotUA, gotTenant string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

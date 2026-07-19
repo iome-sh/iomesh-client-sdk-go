@@ -158,7 +158,6 @@ func (c *Client) DeleteStream(ctx context.Context, name string) error {
 	return c.doJSON(ctx, http.MethodDelete, path, nil, nil)
 }
 
-
 // StreamMessage is one message from stream replay/list (GET /v1/streams/{name}/messages).
 // Payload is decoded from the wire base64 string; invalid base64 falls back to raw string bytes.
 type StreamMessage struct {
