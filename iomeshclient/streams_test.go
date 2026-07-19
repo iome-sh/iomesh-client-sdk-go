@@ -415,3 +415,76 @@ func TestDeleteStream_NilClient(t *testing.T) {
 		t.Fatalf("err=%v", err)
 	}
 }
+
+func TestFormatStreams_Empty(t *testing.T) {
+	out := iomeshclient.FormatStreams(nil)
+	if !strings.Contains(out, "count=0") || !strings.Contains(out, "(no streams)") {
+		t.Fatalf("empty: %q", out)
+	}
+	out = iomeshclient.FormatStreams([]iomeshclient.StreamInfo{})
+	if !strings.Contains(out, "count=0") || !strings.Contains(out, "(no streams)") {
+		t.Fatalf("empty slice: %q", out)
+	}
+}
+
+func TestFormatStreams_One(t *testing.T) {
+	out := iomeshclient.FormatStreams([]iomeshclient.StreamInfo{
+		{
+			Name:      "EVENTS",
+			Subjects:  []string{"dept.events.>"},
+			Messages:  3,
+			FirstSeq:  1,
+			LastSeq:   3,
+			Retention: "limits",
+		},
+	})
+	if !strings.Contains(out, "count=1") {
+		t.Fatalf("count: %q", out)
+	}
+	if !strings.Contains(out, "EVENTS") || !strings.Contains(out, "dept.events.>") {
+		t.Fatalf("name/subjects: %q", out)
+	}
+	if !strings.Contains(out, "NAME") || !strings.Contains(out, "MSGS") {
+		t.Fatalf("header: %q", out)
+	}
+	if !strings.Contains(out, "limits") {
+		t.Fatalf("retention: %q", out)
+	}
+}
+
+func TestFormatStreamDetail_Fields(t *testing.T) {
+	max := int64(1000)
+	age := int64(3600)
+	detail := iomeshclient.FormatStreamDetail(iomeshclient.StreamInfo{
+		Name:        "EVENTS",
+		Description: "ops events",
+		Retention:   "limits",
+		Partitions:  1,
+		MaxMsgs:     &max,
+		MaxAgeSec:   &age,
+		Messages:    10,
+		FirstSeq:    1,
+		LastSeq:     10,
+		CreatedAt:   time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC),
+		Subjects:    []string{"dept.events.>", "dept.ops.>"},
+	})
+	for _, want := range []string{
+		"iomesh stream",
+		"name:        EVENTS",
+		"ops events",
+		"retention:   limits",
+		"partitions:  1",
+		"max_msgs:    1000",
+		"max_age_sec: 3600",
+		"messages:    10",
+		"first_seq:   1",
+		"last_seq:    10",
+		"2026-07-01T12:00:00Z",
+		"dept.events.>",
+		"dept.ops.>",
+	} {
+		if !strings.Contains(detail, want) {
+			t.Fatalf("missing %q in:\n%s", want, detail)
+		}
+	}
+}

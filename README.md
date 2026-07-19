@@ -116,12 +116,13 @@ if err != nil {
 	log.Fatal(err) // *iomeshclient.APIError on non-2xx
 }
 // streams[i].Name, Subjects, Messages, FirstSeq, LastSeq, CreatedAt, …
+fmt.Print(iomeshclient.FormatStreams(streams)) // compact operator table
 
 info, err := nc.GetStream(ctx, "EVENTS")
 if err != nil {
 	log.Fatal(err)
 }
-log.Printf("stream=%s last_seq=%d messages=%d", info.Name, info.LastSeq, info.Messages)
+fmt.Print(iomeshclient.FormatStreamDetail(*info)) // multi-line detail
 
 // DeleteStream is destructive — opt-in only (e.g. IOMESH_DELETE_STREAM=name); not auto-run in dogfood
 if err := nc.DeleteStream(ctx, "TEMP_STREAM"); err != nil {
