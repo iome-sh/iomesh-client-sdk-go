@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`EmitDeptEvent` / `EmitLLMCall`** — publish `dept.*` / `dept.agent.llm_call` via `POST /v1/streams/dept/publish` (base64 envelope; multi-tenant headers + payload org/workspace; parity with iomesh-tui remote metering)
+- **Example** `examples/memory-metering-dogfood` — stage smoke for dual-write ingest, session recall, sync retrieve, llm_call emit
+
 ## [0.3.0] — 2026-07-18
 
 Minor release: aion/iomesh-tui memory + multi-tenant header parity. Compatible with `v0.2.x` callers (`RequestMemoryRecall` signature unchanged).

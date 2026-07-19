@@ -1,0 +1,131 @@
+// Command memory-metering-dogfood is a stage smoke for public SDK memory + metering wire.
+//
+// Env:
+//
+//	IOMESH_URL            mesh broker base (required)
+//	IOMESH_TENANT         tenant (default demo.tenant)
+//	IOMESH_ORG            optional X-IOMesh-Org
+//	IOMESH_WORKSPACE      optional X-IOMesh-Workspace
+//	IOMESH_API_KEY        optional Bearer
+//	IOMESH_MEMORY_ENDPOINT optional memory sidecar base for sync retrieve
+//	                       (when unset, uses IOMESH_URL — broker-only often 404s retrieve)
+//
+// Usage:
+//
+//	export IOMESH_URL=http://127.0.0.1:8422
+//	export IOMESH_MEMORY_ENDPOINT=http://127.0.0.1:8765
+//	go run ./examples/memory-metering-dogfood
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"time"
+
+	"github.com/iome-sh/iomesh-client-sdk-go/iomeshclient"
+)
+
+func main() {
+	base := env("IOMESH_URL", "")
+	if base == "" {
+		log.Fatal("IOMESH_URL required")
+	}
+	tenant := env("IOMESH_TENANT", "demo.tenant")
+	memoryBase := env("IOMESH_MEMORY_ENDPOINT", base)
+
+	opts := []iomeshclient.ConnectOpt{
+		iomeshclient.WithTenant(tenant),
+	}
+	if org := os.Getenv("IOMESH_ORG"); org != "" {
+		opts = append(opts, iomeshclient.WithOrg(org))
+	}
+	if ws := os.Getenv("IOMESH_WORKSPACE"); ws != "" {
+		opts = append(opts, iomeshclient.WithWorkspace(ws))
+	}
+	if key := os.Getenv("IOMESH_API_KEY"); key != "" {
+		opts = append(opts, iomeshclient.WithBearerToken(key))
+	}
+
+	mesh, err := iomeshclient.Connect(iomeshclient.Options{URL: base}, opts...)
+	if err != nil {
+		log.Fatalf("mesh connect: %v", err)
+	}
+	memory, err := iomeshclient.Connect(iomeshclient.Options{URL: memoryBase}, opts...)
+	if err != nil {
+		log.Fatalf("memory connect: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	sessionID := tenant + ".sdk-dogfood"
+	now := time.Now().UTC().Format(time.RFC3339)
+
+	// 1) Dual-write style async ingest
+	if _, err := mesh.PublishMemoryIngest(ctx, tenant, iomeshclient.MemoryEnvelope{
+		Role:       "tool",
+		Content:    "iomesh-client-sdk-go memory-metering-dogfood",
+		SessionID:  sessionID,
+		SessionSeq: 1,
+		EventTime:  now,
+	}); err != nil {
+		log.Printf("WARN PublishMemoryIngest: %v", err)
+	} else {
+		fmt.Println("PASS PublishMemoryIngest session_id=" + sessionID)
+	}
+
+	// 2) Async recall with session correlation
+	if _, err := mesh.RequestMemoryRecallFull(ctx, iomeshclient.MemoryRecallRequest{
+		TenantID:  tenant,
+		Query:     "iomesh-client-sdk-go memory-metering-dogfood",
+		Limit:     8,
+		SessionID: sessionID,
+	}); err != nil {
+		log.Printf("WARN RequestMemoryRecallFull: %v", err)
+	} else {
+		fmt.Println("PASS RequestMemoryRecallFull session_id=" + sessionID)
+	}
+
+	// 3) Sync retrieve against memory sidecar (or gateway)
+	res, err := memory.RetrieveMemory(ctx, iomeshclient.MemoryRetrieveRequest{
+		TenantID:  tenant,
+		Query:     "iomesh-client-sdk-go memory-metering-dogfood",
+		SessionID: sessionID,
+		Limit:     8,
+	})
+	if err != nil {
+		log.Printf("WARN RetrieveMemory: %v (set IOMESH_MEMORY_ENDPOINT to sidecar if broker-only)", err)
+	} else {
+		fmt.Printf("PASS RetrieveMemory path=%s hits=%d\n", res.Path, len(res.Memories))
+	}
+
+	// 4) Remote metering emit (platform dashboards)
+	if _, err := mesh.EmitLLMCall(ctx, iomeshclient.LLMCallEvent{
+		Tenant:       tenant,
+		SessionID:    sessionID,
+		Model:        "sdk-dogfood",
+		ModelID:      "sdk-dogfood",
+		DurationMS:   1,
+		Attempts:     1,
+		TotalTokens:  0,
+		PromptTokens: 0,
+		Extra: map[string]any{
+			"source": "iomesh-client-sdk-go",
+			"probe":  "memory-metering-dogfood",
+		},
+	}); err != nil {
+		log.Printf("WARN EmitLLMCall: %v", err)
+	} else {
+		fmt.Println("PASS EmitLLMCall type=dept.agent.llm_call")
+	}
+
+	fmt.Println("RESULT=done")
+}
+
+func env(k, def string) string {
+	if v := os.Getenv(k); v != "" {
+		return v
+	}
+	return def
+}
