@@ -101,6 +101,7 @@ offset, err := kc.Produce(ctx, "mesh.finance.events", 0, []byte("key"), []byte(`
 | `CreateStream` / `EnsureStream` | `POST /v1/streams` | 409 conflict treated as success |
 | `ListStreams` | `GET /v1/streams` | Explicit discovery; non-2xx → `*APIError` (not fail-open empty) |
 | `GetStream` | `GET /v1/streams/{name}` | Single `StreamInfo`; 404 → `*APIError` |
+| `DeleteStream` | `DELETE /v1/streams/{name}` | 204 success; 404 → `*APIError`; destructive — not used in dogfood by default |
 | `Publish` / `PullSubscribe` | stream publish / consumer | See Quick start |
 | `Pub` | `POST /v1/pub` | Ephemeral fire-and-forget |
 
@@ -117,6 +118,11 @@ if err != nil {
 	log.Fatal(err)
 }
 log.Printf("stream=%s last_seq=%d messages=%d", info.Name, info.LastSeq, info.Messages)
+
+// DeleteStream is destructive — opt-in only (e.g. IOMESH_DELETE_STREAM=name); not auto-run in dogfood
+if err := nc.DeleteStream(ctx, "TEMP_STREAM"); err != nil {
+	log.Fatal(err) // *iomeshclient.APIError on 404 / non-2xx
+}
 ```
 
 ## Memory (async streams + sync sidecar)

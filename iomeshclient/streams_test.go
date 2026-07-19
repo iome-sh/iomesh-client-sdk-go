@@ -164,3 +164,75 @@ func TestGetStream_NilClient(t *testing.T) {
 		t.Fatalf("err=%v", err)
 	}
 }
+
+func TestDeleteStream_OK204AndUserAgent(t *testing.T) {
+	var gotUA, gotMethod, gotPath string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod = r.Method
+		gotPath = r.URL.Path
+		gotUA = r.Header.Get("User-Agent")
+		if r.Method != http.MethodDelete || r.URL.Path != "/v1/streams/foo" {
+			http.NotFound(w, r)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := nc.DeleteStream(context.Background(), "foo"); err != nil {
+		t.Fatal(err)
+	}
+	if gotMethod != http.MethodDelete {
+		t.Fatalf("method=%q", gotMethod)
+	}
+	if gotPath != "/v1/streams/foo" {
+		t.Fatalf("path=%q", gotPath)
+	}
+	if !strings.HasPrefix(gotUA, "iomesh-client-sdk-go/") {
+		t.Fatalf("User-Agent=%q", gotUA)
+	}
+}
+
+func TestDeleteStream_EmptyName(t *testing.T) {
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: "http://127.0.0.1:9"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = nc.DeleteStream(context.Background(), "  ")
+	if err == nil || !strings.Contains(err.Error(), "stream name required") {
+		t.Fatalf("err=%v", err)
+	}
+}
+
+func TestDeleteStream_404APIError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"error":"stream not found"}`))
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = nc.DeleteStream(context.Background(), "missing")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	var apiErr *iomeshclient.APIError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
+		t.Fatalf("err=%v (want APIError 404)", err)
+	}
+}
+
+func TestDeleteStream_NilClient(t *testing.T) {
+	var c *iomeshclient.Client
+	err := c.DeleteStream(context.Background(), "foo")
+	if err == nil || !strings.Contains(err.Error(), "nil client") {
+		t.Fatalf("err=%v", err)
+	}
+}

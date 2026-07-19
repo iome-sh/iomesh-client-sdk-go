@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`DeleteStream`** — `DELETE /v1/streams/{name}` (204 success; empty name / nil client → error; non-2xx → `*APIError`) (s298)
+
 ## [0.12.0] — 2026-07-19
 
 Minor release: ListStreams and GetStream. Compatible with `v0.11.x`.
