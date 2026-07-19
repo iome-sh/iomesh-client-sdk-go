@@ -70,9 +70,11 @@ func main() {
 
 	fmt.Printf("sdk=%s user-agent=iomesh-client-sdk-go/%s\n", iomeshclient.Version, iomeshclient.Version)
 
-	// 0) Health / ready (mesh broker)
-	if err := mesh.Health(ctx); err != nil {
-		log.Printf("WARN Health: %v", err)
+	// 0) ConnectionStatus snapshot (identity + Health + Ready; fail-open)
+	st := mesh.ConnectionStatus(ctx)
+	fmt.Print(iomeshclient.FormatConnectionStatus(st))
+	if !st.HealthOK {
+		log.Printf("WARN Health: %s", st.HealthErr)
 	} else {
 		fmt.Println("PASS Health GET /health")
 	}
