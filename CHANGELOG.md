@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-07-19
+
+Minor release: public Version constant + default User-Agent on all HTTP. Compatible with `v0.5.x`.
+
 ### Added
 
 - **`Version` / User-Agent** — default `User-Agent: iomesh-client-sdk-go/<Version>` on all HTTP; `WithUserAgent` override; public `iomeshclient.Version` constant (s287)
@@ -59,7 +63,8 @@ Minor release: aion/iomesh-tui memory + multi-tenant header parity. Compatible w
 - Docs: public naming policy for packages, env, and headers.
 - Removed package `aionclient` and legacy `X-Aion-*` / `AION_*` aliases.
 
-[Unreleased]: https://github.com/iome-sh/iomesh-client-sdk-go/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/iome-sh/iomesh-client-sdk-go/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.6.0
 [0.5.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.5.0
 [0.4.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.4.0
 [0.3.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.3.0
