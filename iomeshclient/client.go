@@ -212,8 +212,17 @@ type PullSubscribeConfig struct {
 	AckWaitSec int
 }
 
+// CreateConsumerConfig for durable pull consumer create.
+type CreateConsumerConfig struct {
+	Stream        string
+	Name          string
+	FilterSubject string
+	MaxDeliver    int
+	AckWaitSec    int
+}
+
 // ConsumerInfo is durable consumer metadata returned on create (201).
-// On 409 conflict, PullSubscribe succeeds with a zero-value ConsumerInfo.
+// On 409 conflict, CreateConsumer succeeds with Stream and Name only.
 type ConsumerInfo struct {
 	Stream        string `json:"stream"`
 	Name          string `json:"name"`
@@ -222,38 +231,77 @@ type ConsumerInfo struct {
 	FilterSubject string `json:"filter_subject,omitempty"`
 }
 
-// PullSubscribe registers (or reuses) a durable consumer and returns a subscription handle.
-// On 201, decodes ConsumerInfo from the response body into the subscription.
-// On 409 conflict, treats as success with empty/zero ConsumerInfo (consumer already exists).
-// Stream path segment is url.PathEscape'd.
-func (c *Client) PullSubscribe(ctx context.Context, cfg PullSubscribeConfig) (*Subscription, error) {
-	if cfg.Stream == "" || cfg.Consumer == "" {
-		return nil, errors.New("iomeshclient: stream and consumer required")
+// CreateConsumer registers a durable pull consumer via POST /v1/streams/{stream}/consumers.
+// On 201, decodes ConsumerInfo from the response body.
+// On 409 conflict, treats as success and returns &ConsumerInfo{Stream, Name} (name-only, like EnsureBucket).
+// Empty stream/name / nil client → error. Stream path segment is url.PathEscape'd.
+func (c *Client) CreateConsumer(ctx context.Context, cfg CreateConsumerConfig) (*ConsumerInfo, error) {
+	if c == nil {
+		return nil, errors.New("iomeshclient: nil client")
+	}
+	if cfg.Stream == "" || cfg.Name == "" {
+		return nil, errors.New("iomeshclient: stream and name required")
 	}
 
 	req := createConsumerRequest{
-		Name:          cfg.Consumer,
-		FilterSubject: cfg.Filter,
+		Name:          cfg.Name,
+		FilterSubject: cfg.FilterSubject,
 		MaxDeliver:    cfg.MaxDeliver,
 		AckWaitSec:    cfg.AckWaitSec,
 	}
 	path := "/v1/streams/" + url.PathEscape(cfg.Stream) + "/consumers"
 	var info ConsumerInfo
 	err := c.doJSON(ctx, http.MethodPost, path, req, &info)
-	if err != nil {
-		var apiErr *APIError
-		if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusConflict {
-			return nil, err
+	if err == nil {
+		if info.Stream == "" {
+			info.Stream = cfg.Stream // defensive when broker omits stream
 		}
-		// 409: success without full info (zero value)
-		info = ConsumerInfo{}
+		if info.Name == "" {
+			info.Name = cfg.Name // defensive when broker omits name
+		}
+		return &info, nil
+	}
+	var apiErr *APIError
+	if errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusConflict {
+		return &ConsumerInfo{Stream: cfg.Stream, Name: cfg.Name}, nil
+	}
+	return nil, err
+}
+
+// EnsureConsumer creates the durable consumer if it does not already exist
+// (CreateConsumer semantics: 409 conflict is success). Same return as CreateConsumer.
+func (c *Client) EnsureConsumer(ctx context.Context, cfg CreateConsumerConfig) (*ConsumerInfo, error) {
+	return c.CreateConsumer(ctx, cfg)
+}
+
+// PullSubscribe registers (or reuses) a durable consumer and returns a subscription handle.
+// Uses CreateConsumer: on 201, full ConsumerInfo from the body; on 409, Stream/Name only.
+// Stream path segment is url.PathEscape'd.
+func (c *Client) PullSubscribe(ctx context.Context, cfg PullSubscribeConfig) (*Subscription, error) {
+	if cfg.Stream == "" || cfg.Consumer == "" {
+		return nil, errors.New("iomeshclient: stream and consumer required")
+	}
+
+	info, err := c.CreateConsumer(ctx, CreateConsumerConfig{
+		Stream:        cfg.Stream,
+		Name:          cfg.Consumer,
+		FilterSubject: cfg.Filter,
+		MaxDeliver:    cfg.MaxDeliver,
+		AckWaitSec:    cfg.AckWaitSec,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var subInfo ConsumerInfo
+	if info != nil {
+		subInfo = *info
 	}
 
 	return &Subscription{
 		client:   c,
 		stream:   cfg.Stream,
 		consumer: cfg.Consumer,
-		info:     info,
+		info:     subInfo,
 	}, nil
 }
 
@@ -265,7 +313,7 @@ type Subscription struct {
 	info     ConsumerInfo
 }
 
-// ConsumerInfo returns consumer metadata from create (201), or zero value after 409 reuse.
+// ConsumerInfo returns consumer metadata from create (201 full body; 409 Stream/Name only).
 func (s *Subscription) ConsumerInfo() ConsumerInfo {
 	if s == nil {
 		return ConsumerInfo{}

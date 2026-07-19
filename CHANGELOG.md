@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`CreateConsumer` / `EnsureConsumer`** — standalone durable pull consumer helpers (`POST /v1/streams/{stream}/consumers`); return `*ConsumerInfo`. On 201, full body decode; on 409 conflict, success with `&ConsumerInfo{Stream, Name}` (name-only). `EnsureConsumer` is an idempotent alias of `CreateConsumer`
+- **`CreateConsumerConfig`** — public config type (`Stream`, `Name`, `FilterSubject`, `MaxDeliver`, `AckWaitSec`)
+
+### Changed
+
+- **`PullSubscribe`** — refactored to use `CreateConsumer`; 409 reuse now carries Stream/Name (not fully zero info)
+
 ## [0.20.0] — 2026-07-19
 
 Minor release: PullSubscribe ConsumerInfo and path escape.
