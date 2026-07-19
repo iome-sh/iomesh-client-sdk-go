@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`Health` / `Ready`** — `GET /health` and `GET /ready` then `/readyz` (iomesh-tui dogfood parity); sends User-Agent
+- Example `memory-metering-dogfood` probes health/ready first
+
 ## [0.6.0] — 2026-07-19
 
 Minor release: public Version constant + default User-Agent on all HTTP. Compatible with `v0.5.x`.
