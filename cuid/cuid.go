@@ -1,4 +1,4 @@
-// Package cuid wraps github.com/nrednav/cuid2 for consistent ID generation across Aion.
+// Package cuid wraps github.com/nrednav/cuid2 for consistent ID generation across I/O Mesh.
 //
 // Default IDs use cuid2.Generate() (length 24). Custom lengths use cuid2.Init()
 // with cuid2.WithLength, matching https://github.com/nrednav/cuid2.

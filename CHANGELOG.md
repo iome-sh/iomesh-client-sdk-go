@@ -9,8 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`FormatStreams` / `FormatStreamDetail`** — pure operator table/detail helpers for `StreamInfo` (iomesh-tui CLI parity; no network I/O) (s302)
-- **Package examples** (`example_test.go`) — godoc Examples for format/diagnostics helpers (`FormatStreams`, `FormatStreamDetail`, `FormatConnectionStatus`, `FormatContextSnippet`, `PolicyDecision.Summary` / `ShouldBlockTool`) (s302)
+- **`FormatStreams` / `FormatStreamDetail`** — pure operator table/detail helpers for `StreamInfo` (iomesh-tui CLI parity; no network I/O)
+- **Package examples** (`example_test.go`) — godoc Examples for format/diagnostics helpers (`FormatStreams`, `FormatStreamDetail`, `FormatConnectionStatus`, `FormatContextSnippet`, `PolicyDecision.Summary` / `ShouldBlockTool`)
+
+### Changed
+
+- **Public-surface hygiene** — CONTRIBUTING public repository policy; strip private continuum serials from CHANGELOG; replace private monorepo codenames in docs/comments with I/O Mesh broker/platform language (historical `aionclient` package rename retained as public API history)
 
 ## [0.14.0] — 2026-07-19
 
@@ -18,7 +22,7 @@ Minor release: CreateStream and EnsureStream return *StreamInfo (pre-1.0 signatu
 
 ### Changed
 
-- **`CreateStream` / `EnsureStream`** — now return `(*StreamInfo, error)` instead of `error` only. On 201, decodes stream metadata from the response body; on 409 conflict, best-effort `GetStream` (returns info if found, else `(nil, nil)` success without metadata). Same for `MeshSDK.EnsureStream`. **Breaking for pre-1.0 callers** that assigned a single return value — update to two return values (s300)
+- **`CreateStream` / `EnsureStream`** — now return `(*StreamInfo, error)` instead of `error` only. On 201, decodes stream metadata from the response body; on 409 conflict, best-effort `GetStream` (returns info if found, else `(nil, nil)` success without metadata). Same for `MeshSDK.EnsureStream`. **Breaking for pre-1.0 callers** that assigned a single return value — update to two return values
 
 ## [0.13.0] — 2026-07-19
 
@@ -26,7 +30,7 @@ Minor release: DeleteStream. Compatible with `v0.12.x`.
 
 ### Added
 
-- **`DeleteStream`** — `DELETE /v1/streams/{name}` (204 success; empty name / nil client → error; non-2xx → `*APIError`) (s298)
+- **`DeleteStream`** — `DELETE /v1/streams/{name}` (204 success; empty name / nil client → error; non-2xx → `*APIError`)
 
 ## [0.12.0] — 2026-07-19
 
@@ -34,7 +38,7 @@ Minor release: ListStreams and GetStream. Compatible with `v0.11.x`.
 
 ### Added
 
-- **`ListStreams` / `GetStream`** — explicit stream discovery (`GET /v1/streams`, `GET /v1/streams/{name}`); `StreamInfo` wire type; non-2xx returns `*APIError` (not fail-open empty); optional list envelope `{"streams":[...]}` (s297)
+- **`ListStreams` / `GetStream`** — explicit stream discovery (`GET /v1/streams`, `GET /v1/streams/{name}`); `StreamInfo` wire type; non-2xx returns `*APIError` (not fail-open empty); optional list envelope `{"streams":[...]}`
 
 ## [0.11.0] — 2026-07-19
 
@@ -42,7 +46,7 @@ Minor release: ConnectionStatus diagnostics helper. Compatible with `v0.10.x`.
 
 ### Added
 
-- **`ConnectionStatus`** — fail-open one-shot diagnostics (`Health` + `Ready` + identity fields); `FormatConnectionStatus` / `FormatConnectionStatusJSON` for operators/CI (iomesh-tui mesh status parity, s296)
+- **`ConnectionStatus`** — fail-open one-shot diagnostics (`Health` + `Ready` + identity fields); `FormatConnectionStatus` / `FormatConnectionStatusJSON` for operators/CI (iomesh-tui mesh status parity)
 
 ## [0.10.0] — 2026-07-19
 
@@ -50,7 +54,7 @@ Minor release: QueryContext + ContextSnippet context plane. Compatible with `v0.
 
 ### Added
 
-- **`QueryContext` / `ContextSnippet`** — fail-open context plane (`POST /v1/context/query`); `LineageRef` / `ContextResult` / `QueryContextRequest`; `FormatContextSnippet` with `<iomesh-lineage>` (max 12 refs); agent `ContextSnippet` defaults `IncludeLineage=true` (iomesh-tui parity, s292)
+- **`QueryContext` / `ContextSnippet`** — fail-open context plane (`POST /v1/context/query`); `LineageRef` / `ContextResult` / `QueryContextRequest`; `FormatContextSnippet` with `<iomesh-lineage>` (max 12 refs); agent `ContextSnippet` defaults `IncludeLineage=true` (iomesh-tui parity)
 
 ## [0.9.0] — 2026-07-19
 
@@ -58,7 +62,7 @@ Minor release: ListCatalog/GetCatalogProduct + WaitReady. Compatible with `v0.8.
 
 ### Added
 
-- **`ListCatalog` / `GetCatalogProduct`** — fail-open catalog plane (mesh `/v1/catalog/*` then portal `/v17|/v16` federation); multi-shape decode; `CatalogProduct` (+ Normalize); `FormatCatalog` / `FormatProductDetail` (iomesh-tui parity, s291; named `CatalogProduct` to avoid clash with registry `DataProduct`)
+- **`ListCatalog` / `GetCatalogProduct`** — fail-open catalog plane (mesh `/v1/catalog/*` then portal `/v17|/v16` federation); multi-shape decode; `CatalogProduct` (+ Normalize); `FormatCatalog` / `FormatProductDetail` (iomesh-tui parity; named `CatalogProduct` to avoid clash with registry `DataProduct`)
 - **`WaitReady`** — poll `Ready` (optional `RequireHealth`) until success or context done; default interval 500ms
 
 ## [0.8.0] — 2026-07-19
@@ -84,7 +88,7 @@ Minor release: public Version constant + default User-Agent on all HTTP. Compati
 
 ### Added
 
-- **`Version` / User-Agent** — default `User-Agent: iomesh-client-sdk-go/<Version>` on all HTTP; `WithUserAgent` override; public `iomeshclient.Version` constant (s287)
+- **`Version` / User-Agent** — default `User-Agent: iomesh-client-sdk-go/<Version>` on all HTTP; `WithUserAgent` override; public `iomeshclient.Version` constant
 
 ## [0.5.0] — 2026-07-19
 
@@ -106,7 +110,7 @@ Minor release: dept metering emit helpers + stage dogfood example. Compatible wi
 
 ## [0.3.0] — 2026-07-18
 
-Minor release: aion/iomesh-tui memory + multi-tenant header parity. Compatible with `v0.2.x` callers (`RequestMemoryRecall` signature unchanged).
+Minor release: I/O Mesh platform / iomesh-tui memory + multi-tenant header parity. Compatible with `v0.2.x` callers (`RequestMemoryRecall` signature unchanged).
 
 ### Added
 

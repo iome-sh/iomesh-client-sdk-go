@@ -5,7 +5,7 @@ Consumers: `go get github.com/iome-sh/iomesh-client-sdk-go@vX.Y.Z` (module proxy
 
 ## When to bump and tag
 
-**Do not leave feature waves only under `[Unreleased]`.** After merging a coherent API surface (new methods, headers, wire parity with aion / iomesh-tui), cut a release in the same delivery loop:
+**Do not leave feature waves only under `[Unreleased]`.** After merging a coherent API surface (new methods, headers, wire parity with I/O Mesh platform / iomesh-tui), cut a release in the same delivery loop:
 
 | Trigger | Bump | Examples |
 |---------|------|----------|

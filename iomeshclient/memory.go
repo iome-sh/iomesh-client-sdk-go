@@ -42,7 +42,7 @@ type MemoryEnvelope struct {
 	EmbeddingRef  string  `json:"embedding_ref,omitempty"`
 	SurpriseScore float64 `json:"surprise_score,omitempty"`
 
-	// Temporal envelope fields (optional; match aion domain.MemoryEnvelope).
+	// Temporal envelope fields (optional; match platform memory envelope).
 	EventTime      string            `json:"event_time,omitempty"`       // RFC3339 source-system fact time
 	IngestedAt     string            `json:"ingested_at,omitempty"`      // RFC3339 palace capture time (usually server-set)
 	SourceStream   string            `json:"source_stream,omitempty"`    // originating durable stream name
@@ -262,7 +262,7 @@ func (c *Client) RequestMemoryRecallFull(ctx context.Context, req MemoryRecallRe
 }
 
 // RetrieveMemory performs synchronous hybrid recall against the memory sidecar HTTP API.
-// Tries POST /v1/memory/retrieve then /v5/memory/retrieve (iomesh-tui / aion parity).
+// Tries POST /v1/memory/retrieve then /v5/memory/retrieve (iomesh-tui / platform parity).
 // Prefer this over RequestMemoryRecall when the caller needs hits in-process.
 // Query may be empty when SessionID is set (session-scoped temporal slice).
 func (c *Client) RetrieveMemory(ctx context.Context, req MemoryRetrieveRequest) (*MemoryRetrieveResponse, error) {

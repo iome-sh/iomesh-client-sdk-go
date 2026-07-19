@@ -65,12 +65,12 @@ type catalogPath struct {
 	Source string // mesh | portal
 }
 
-// defaultCatalogPaths: broker first, then aion control-plane portal federation.
+// defaultCatalogPaths: broker first, then portal / control-plane federation.
 func defaultCatalogPaths() []catalogPath {
 	return []catalogPath{
 		{Path: "/v1/catalog/data-products", Source: "mesh"},
 		{Path: "/v1/catalog/products", Source: "mesh"},
-		// Portal (aion control plane) — public list when endpoint points at CP/console edge.
+		// Portal / control-plane — public list when endpoint points at CP/console edge.
 		{Path: "/v17/portal/catalog/data-products", Source: "portal"},
 		{Path: "/v16/portal/catalog/marketing/data-products", Source: "portal"},
 	}
