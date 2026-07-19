@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`PutResult`** — public put outcome type (`bucket`, `key`, `revision`) returned by `Put`
+- **`FormatPutResult`** — pure operator helper for put outcome detail (no network I/O)
+
+### Changed
+
+- **`Put`** — now returns `(*PutResult, error)` instead of `(uint64, error)`. Decodes full put metadata from the response body; defensive fill of bucket/key from args when the broker omits them. Empty bucket/key / nil client → error. **Breaking for pre-1.0 callers** that assigned a revision `uint64` — update to two-value `*PutResult` assign
+
 ## [0.17.0] — 2026-07-19
 
 Minor release: FormatKV helpers and CreateBucket BucketInfo. Pre-1.0 CreateBucket signature change.

@@ -8,6 +8,17 @@ import (
 	"unicode/utf8"
 )
 
+// FormatPutResult is a multi-line view for one Put outcome (operator / CLI style).
+// Pure helper with no network I/O.
+func FormatPutResult(r PutResult) string {
+	var b strings.Builder
+	b.WriteString("iomesh kv put\n")
+	fmt.Fprintf(&b, "bucket:     %s\n", r.Bucket)
+	fmt.Fprintf(&b, "key:        %s\n", r.Key)
+	fmt.Fprintf(&b, "revision:   %d\n", r.Revision)
+	return b.String()
+}
+
 // FormatKVEntry is a multi-line view for one KV entry (operator / CLI style).
 // Pure helper with no network I/O. Value is shown as UTF-8 text when printable;
 // otherwise as a base64-friendly byte length note with a short hex preview.

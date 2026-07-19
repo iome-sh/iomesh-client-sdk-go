@@ -19,7 +19,7 @@ Official open-source tooling from [IOMesh](https://iome.sh) (**IOMesh Technology
 > **Package:** `iomeshclient`  
 > **Env prefix:** `IOMESH_*`  
 > **Wire headers:** `X-IOMesh-Tenant`, `X-IOMesh-Org`, `X-IOMesh-Workspace`, …  
-> **Status:** public OSS **v0.17.x** (pre-1.0). Memory M2/M3 + multi-tenant headers + dual-write/metering + Health/Ready/WaitReady + catalog plane + EvaluatePolicy + QueryContext + ConnectionStatus + ListStreams/GetStream/DeleteStream/ListStreamMessages + CreateStream/EnsureStream `*StreamInfo` + FormatStreams/FormatStreamDetail + KV CreateBucket `*BucketInfo` + FormatKVEntry/FormatKVKeys aligned with [iomesh-tui](https://github.com/iome-sh/iomesh-tui).  
+> **Status:** public OSS **v0.17.x** (pre-1.0). Memory M2/M3 + multi-tenant headers + dual-write/metering + Health/Ready/WaitReady + catalog plane + EvaluatePolicy + QueryContext + ConnectionStatus + ListStreams/GetStream/DeleteStream/ListStreamMessages + CreateStream/EnsureStream `*StreamInfo` + FormatStreams/FormatStreamDetail + KV CreateBucket `*BucketInfo` + Put `*PutResult` + FormatKVEntry/FormatKVKeys/FormatPutResult aligned with [iomesh-tui](https://github.com/iome-sh/iomesh-tui).  
 > **User-Agent:** `iomesh-client-sdk-go/<Version>` (override with `WithUserAgent`).
 
 ## Requirements
@@ -146,9 +146,9 @@ if err != nil {
 | API | Path | Notes |
 |-----|------|--------|
 | `CreateBucket` | `POST /v1/kv/{name}` | Returns `*BucketInfo`; 409 conflict → success with name only |
-| `Put` / `Get` / `Delete` | `/v1/kv/{bucket}/{key}` | Put value is base64 in JSON body; Get returns `*KVEntry` |
+| `Put` / `Get` / `Delete` | `/v1/kv/{bucket}/{key}` | Put returns `*PutResult` (revision metadata); value is base64 in JSON body; Get returns `*KVEntry` |
 | `ListKeys` | `GET /v1/kv/{bucket}?prefix=` | Optional prefix filter |
-| `FormatKVEntry` / `FormatKVKeys` | — | Pure operator format helpers (no network I/O) |
+| `FormatKVEntry` / `FormatKVKeys` / `FormatPutResult` | — | Pure operator format helpers (no network I/O) |
 
 ```go
 info, err := nc.CreateBucket(ctx, "agent-state", iomeshclient.CreateBucketConfig{
@@ -161,8 +161,12 @@ if info != nil {
 	log.Printf("bucket=%s history=%d", info.Name, info.History)
 }
 
-rev, err := nc.Put(ctx, "agent-state", "worker-1.checkpoint", []byte("seq=42"))
-// …
+put, err := nc.Put(ctx, "agent-state", "worker-1.checkpoint", []byte("seq=42"))
+if err != nil {
+	log.Fatal(err)
+}
+fmt.Print(iomeshclient.FormatPutResult(*put)) // bucket/key/revision
+
 entry, err := nc.Get(ctx, "agent-state", "worker-1.checkpoint")
 fmt.Print(iomeshclient.FormatKVEntry(*entry)) // multi-line entry detail
 
