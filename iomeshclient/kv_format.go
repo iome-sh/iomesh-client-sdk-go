@@ -1,0 +1,78 @@
+package iomeshclient
+
+import (
+	"fmt"
+	"strings"
+	"time"
+	"unicode"
+	"unicode/utf8"
+)
+
+// FormatKVEntry is a multi-line view for one KV entry (operator / CLI style).
+// Pure helper with no network I/O. Value is shown as UTF-8 text when printable;
+// otherwise as a base64-friendly byte length note with a short hex preview.
+func FormatKVEntry(e KVEntry) string {
+	var b strings.Builder
+	b.WriteString("iomesh kv entry\n")
+	fmt.Fprintf(&b, "bucket:     %s\n", e.Bucket)
+	fmt.Fprintf(&b, "key:        %s\n", e.Key)
+	fmt.Fprintf(&b, "revision:   %d\n", e.Revision)
+	if !e.CreatedAt.IsZero() {
+		fmt.Fprintf(&b, "created_at: %s\n", e.CreatedAt.UTC().Format(time.RFC3339))
+	}
+	fmt.Fprintf(&b, "value:      %s\n", formatKVValue(e.Value, 256))
+	return b.String()
+}
+
+// FormatKVKeys renders a compact key listing for operator discovery.
+// Mirrors iomesh-tui CLI style; pure helper with no network I/O.
+func FormatKVKeys(bucket string, keys []string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "iomesh kv keys bucket=%s count=%d\n", bucket, len(keys))
+	if len(keys) == 0 {
+		b.WriteString("(no keys)\n")
+		return b.String()
+	}
+	for i, k := range keys {
+		if i >= 50 {
+			fmt.Fprintf(&b, "… (%d more)\n", len(keys)-50)
+			break
+		}
+		b.WriteString(truncateRunes(k, 96))
+		b.WriteByte('\n')
+	}
+	return b.String()
+}
+
+func formatKVValue(v []byte, maxRunes int) string {
+	if len(v) == 0 {
+		return `""`
+	}
+	if isMostlyPrintableUTF8(v) {
+		s := string(v)
+		if utf8.RuneCountInString(s) > maxRunes {
+			return truncateRunes(s, maxRunes)
+		}
+		return s
+	}
+	preview := v
+	if len(preview) > 16 {
+		preview = preview[:16]
+	}
+	return fmt.Sprintf("<%d bytes hex=%x…>", len(v), preview)
+}
+
+func isMostlyPrintableUTF8(v []byte) bool {
+	if !utf8.Valid(v) {
+		return false
+	}
+	for _, r := range string(v) {
+		if r == '\n' || r == '\r' || r == '\t' {
+			continue
+		}
+		if !unicode.IsPrint(r) {
+			return false
+		}
+	}
+	return true
+}

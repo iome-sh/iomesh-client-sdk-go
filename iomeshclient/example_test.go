@@ -130,6 +130,17 @@ func ExamplePolicyDecision_ShouldBlockTool() {
 	// true
 }
 
+// ExampleFormatKVKeys shows compact key listing after ListKeys (no network).
+// Live usage: keys, err := nc.ListKeys(ctx, "agent-state", "worker-"); fmt.Print(FormatKVKeys("agent-state", keys)).
+func ExampleFormatKVKeys() {
+	keys := []string{"worker-1.checkpoint", "worker-2.checkpoint"}
+	fmt.Print(iomeshclient.FormatKVKeys("agent-state", keys))
+	// Output:
+	// iomesh kv keys bucket=agent-state count=2
+	// worker-1.checkpoint
+	// worker-2.checkpoint
+}
+
 // Example_streamLifecycle documents CreateStream / ListStreams / GetStream call shape.
 // Network omitted: format helpers only (examples stay deterministic for godoc).
 func Example_streamLifecycle() {
