@@ -145,6 +145,39 @@ func TestCreateBucket_201OmitsName(t *testing.T) {
 	}
 }
 
+func TestEnsureBucket_409NameOnly(t *testing.T) {
+	var posts int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/kv/agent-state" {
+			posts++
+			w.WriteHeader(http.StatusConflict)
+			_, _ = w.Write([]byte(`{"error":"bucket already exists"}`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := nc.EnsureBucket(context.Background(), "agent-state")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if posts != 1 {
+		t.Fatalf("posts=%d", posts)
+	}
+	if info == nil || info.Name != "agent-state" {
+		t.Fatalf("info=%+v", info)
+	}
+	// 409 path does not populate optional fields (CreateBucket semantics)
+	if info.History != 0 || info.MaxBytes != nil || info.TTLSeconds != nil {
+		t.Fatalf("expected name-only info, got %+v", info)
+	}
+}
+
 func TestPut_200Revision(t *testing.T) {
 	var gotMethod, gotPath string
 	var gotBody map[string]any
@@ -256,6 +289,39 @@ func TestFormatPutResult_Fields(t *testing.T) {
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("missing %q in:\n%s", want, out)
+		}
+	}
+}
+
+func TestFormatBucketInfo_Fields(t *testing.T) {
+	maxBytes := int64(1024)
+	ttl := int64(3600)
+	out := iomeshclient.FormatBucketInfo(iomeshclient.BucketInfo{
+		Name:       "agent-state",
+		History:    5,
+		MaxBytes:   &maxBytes,
+		TTLSeconds: &ttl,
+	})
+	for _, want := range []string{
+		"iomesh kv bucket",
+		"name:         agent-state",
+		"history:      5",
+		"max_bytes:    1024",
+		"ttl_seconds:  3600",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing %q in:\n%s", want, out)
+		}
+	}
+
+	// name-only (409 EnsureBucket / CreateBucket path) omits optional lines
+	nameOnly := iomeshclient.FormatBucketInfo(iomeshclient.BucketInfo{Name: "agent-state"})
+	if !strings.Contains(nameOnly, "name:         agent-state") {
+		t.Fatalf("name-only missing name:\n%s", nameOnly)
+	}
+	for _, ban := range []string{"history:", "max_bytes:", "ttl_seconds:"} {
+		if strings.Contains(nameOnly, ban) {
+			t.Fatalf("name-only should omit %q:\n%s", ban, nameOnly)
 		}
 	}
 }

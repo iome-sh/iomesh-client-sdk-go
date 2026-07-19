@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`EnsureBucket`** — documented idempotent alias of `CreateBucket` (same signature; 409 conflict is success)
+- **`FormatBucketInfo`** — pure operator helper for bucket metadata detail (no network I/O)
+
 ## [0.18.0] — 2026-07-19
 
 Minor release: Put returns PutResult with revision metadata. Pre-1.0 signature change.

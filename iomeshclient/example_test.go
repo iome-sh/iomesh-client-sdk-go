@@ -141,6 +141,26 @@ func ExampleFormatKVKeys() {
 	// worker-2.checkpoint
 }
 
+// ExampleFormatBucketInfo shows multi-line bucket detail after CreateBucket / EnsureBucket (no network).
+// Live usage: info, err := nc.EnsureBucket(ctx, "agent-state"); fmt.Print(FormatBucketInfo(*info)).
+func ExampleFormatBucketInfo() {
+	maxBytes := int64(1024)
+	ttl := int64(3600)
+	info := iomeshclient.BucketInfo{
+		Name:       "agent-state",
+		History:    5,
+		MaxBytes:   &maxBytes,
+		TTLSeconds: &ttl,
+	}
+	fmt.Print(iomeshclient.FormatBucketInfo(info))
+	// Output:
+	// iomesh kv bucket
+	// name:         agent-state
+	// history:      5
+	// max_bytes:    1024
+	// ttl_seconds:  3600
+}
+
 // Example_streamLifecycle documents CreateStream / ListStreams / GetStream call shape.
 // Network omitted: format helpers only (examples stay deterministic for godoc).
 func Example_streamLifecycle() {
