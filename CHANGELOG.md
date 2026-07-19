@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] — 2026-07-19
+
+Minor release: EnsureBucket and FormatBucketInfo.
+
 ### Added
 
 - **`EnsureBucket`** — documented idempotent alias of `CreateBucket` (same signature; 409 conflict is success)
@@ -181,7 +185,8 @@ Minor release: I/O Mesh platform / iomesh-tui memory + multi-tenant header parit
 - Docs: public naming policy for packages, env, and headers.
 - Removed package `aionclient` and legacy `X-Aion-*` / `AION_*` aliases.
 
-[Unreleased]: https://github.com/iome-sh/iomesh-client-sdk-go/compare/v0.18.0...HEAD
+[Unreleased]: https://github.com/iome-sh/iomesh-client-sdk-go/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.19.0
 [0.18.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.18.0
 [0.17.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.17.0
 [0.16.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.16.0
