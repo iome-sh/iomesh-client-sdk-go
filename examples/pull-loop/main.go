@@ -15,19 +15,22 @@
 //	IOMESH_MAX_WAIT_MS    long-poll max wait ms (default 2000)
 //	IOMESH_ENSURE_STREAM  set to 1 to EnsureStream with subject stream.>
 //	IOMESH_PUBLISH        set to 1 to Publish one message before fetch
-//	IOMESH_PUB_SUBJECT    publish subject (default: filter, else tenant+".sdk-pull-loop", else stream+".demo")
+//	IOMESH_PUB_SUBJECT    publish subject override (see resolvePublishSubject priority)
 //	IOMESH_ACK            set to 1 to AckContext fetched sequences
 //
 // Usage:
 //
 //	export IOMESH_URL=http://127.0.0.1:8422
-//	export IOMESH_ENSURE_STREAM=1   # optional
+//	export IOMESH_ENSURE_STREAM=1   # optional; also defaults pub subject under stream.>
 //	export IOMESH_PUBLISH=1         # optional self-contained publish before fetch
 //	export IOMESH_ACK=1             # optional
 //	go run ./examples/pull-loop
 //
-// When IOMESH_PUBLISH=1 with EnsureStream (stream.>), set IOMESH_PUB_SUBJECT under that
-// prefix (e.g. stream.demo) so the message is accepted and fetchable.
+// Publish subject defaults (when IOMESH_PUB_SUBJECT unset):
+//  1. IOMESH_SUBJECT / filter if set (operator-chosen; used even if ensure is on)
+//  2. When IOMESH_ENSURE_STREAM=1: stream.sdk-pull-loop (matches EnsureStream subjects stream.>)
+//  3. Else tenant+".sdk-pull-loop" if tenant set
+//  4. Else stream+".demo"
 //
 // One fetch cycle then exit 0. Errors after connect are warn-only.
 package main
@@ -62,7 +65,8 @@ func main() {
 		maxWaitMS = 2000
 	}
 	doPublish := os.Getenv("IOMESH_PUBLISH") == "1"
-	pubSubject := publishSubject(filter, tenant, stream)
+	ensureStream := os.Getenv("IOMESH_ENSURE_STREAM") == "1"
+	pubSubject := publishSubject(filter, tenant, stream, ensureStream)
 
 	opts := []iomeshclient.ConnectOpt{
 		iomeshclient.WithTenant(tenant),
@@ -90,7 +94,7 @@ func main() {
 	fmt.Printf("sdk=%s user-agent=iomesh-client-sdk-go/%s\n", iomeshclient.Version, iomeshclient.Version)
 	fmt.Printf("stream=%s consumer=%s batch=%d max_wait_ms=%d filter=%q ensure_stream=%v publish=%v pub_subject=%q ack=%v\n",
 		stream, consumer, batch, maxWaitMS, filter,
-		os.Getenv("IOMESH_ENSURE_STREAM") == "1",
+		ensureStream,
 		doPublish,
 		pubSubject,
 		os.Getenv("IOMESH_ACK") == "1",
@@ -111,7 +115,7 @@ func main() {
 	}
 
 	// 1) Optional EnsureStream (subject stream.>)
-	if os.Getenv("IOMESH_ENSURE_STREAM") == "1" {
+	if ensureStream {
 		info, err := nc.EnsureStream(ctx, iomeshclient.StreamConfig{
 			Name:     stream,
 			Subjects: []string{"stream.>"},
@@ -185,13 +189,27 @@ func main() {
 	fmt.Println("RESULT=done")
 }
 
-// publishSubject resolves IOMESH_PUB_SUBJECT, else filter, else tenant+".sdk-pull-loop", else stream+".demo".
-func publishSubject(filter, tenant, stream string) string {
-	if s := strings.TrimSpace(os.Getenv("IOMESH_PUB_SUBJECT")); s != "" {
+// publishSubject resolves the publish subject from env and flags.
+// See resolvePublishSubject for priority.
+func publishSubject(filter, tenant, stream string, ensureStream bool) string {
+	return resolvePublishSubject(os.Getenv("IOMESH_PUB_SUBJECT"), filter, tenant, stream, ensureStream)
+}
+
+// resolvePublishSubject picks a publish subject in priority order:
+//  1. pubSubject (IOMESH_PUB_SUBJECT) if set
+//  2. filter (IOMESH_SUBJECT) if set — operator-chosen even when ensure is on
+//  3. when ensureStream: "stream.sdk-pull-loop" (under EnsureStream subjects stream.>)
+//  4. tenant+".sdk-pull-loop" if tenant set
+//  5. stream+".demo"
+func resolvePublishSubject(pubSubject, filter, tenant, stream string, ensureStream bool) string {
+	if s := strings.TrimSpace(pubSubject); s != "" {
 		return s
 	}
 	if filter != "" {
 		return filter
+	}
+	if ensureStream {
+		return "stream.sdk-pull-loop"
 	}
 	if tenant != "" {
 		return tenant + ".sdk-pull-loop"

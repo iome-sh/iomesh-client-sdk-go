@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Example** `examples/pull-loop` — when `IOMESH_ENSURE_STREAM=1`, default publish subject is `stream.sdk-pull-loop` (under EnsureStream subjects `stream.>`) so `IOMESH_PUBLISH=1` works without setting `IOMESH_PUB_SUBJECT`. Explicit `IOMESH_PUB_SUBJECT` / `IOMESH_SUBJECT` still win.
+
 ## [0.26.0] — 2026-07-19
 
 Minor release: pull-loop optional publish and CI example builds.
