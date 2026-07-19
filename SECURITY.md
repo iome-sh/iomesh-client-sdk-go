@@ -4,7 +4,8 @@
 
 | Version | Supported |
 |---------|-----------|
-| `v0.2.x` (latest minor on `main`) | ✅ security fixes |
+| `v0.3.x` (latest minor on `main`) | ✅ security fixes |
+| `v0.2.x` | best-effort |
 | `v0.1.x` | best-effort until EOL notice |
 | pre-release / untagged | best-effort |
 

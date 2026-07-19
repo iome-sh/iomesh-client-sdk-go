@@ -85,6 +85,16 @@ type MemoryHit struct {
 // MemoryRetrieveResponse is the sync retrieve JSON body.
 type MemoryRetrieveResponse struct {
 	Memories []MemoryHit `json:"memories"`
+	// Path is the successful API path (/v1/memory/retrieve or /v5/memory/retrieve). Not JSON.
+	Path string `json:"-"`
+}
+
+// MemoryRecallRequest is the async MEMORY_RPC publish body (RequestMemoryRecall / RequestMemoryRecallFull).
+type MemoryRecallRequest struct {
+	TenantID  string
+	Query     string
+	Limit     int
+	SessionID string // optional temporal correlation (parity with iomesh-tui dogfood)
 }
 
 // MemoryIngestResponse is the sync ingest JSON body from POST /v5/memory/ingest.
@@ -101,10 +111,11 @@ const (
 	streamMemoryIngest   = "MEMORY_INGEST"
 	streamMemoryRPC      = "MEMORY_RPC"
 
-	// Primary paths on the aion memory sidecar. Some deployments may also expose
-	// /v1/memory/{retrieve,ingest} as preferred public aliases; the SDK targets /v5.
-	pathMemoryRetrieve = "/v5/memory/retrieve"
-	pathMemoryIngest   = "/v5/memory/ingest"
+	// Public alias then sidecar-stable path (parity with iomesh-tui RetrieveMemory).
+	pathMemoryRetrieveV1 = "/v1/memory/retrieve"
+	pathMemoryRetrieveV5 = "/v5/memory/retrieve"
+	pathMemoryIngestV1   = "/v1/memory/ingest"
+	pathMemoryIngestV5   = "/v5/memory/ingest"
 )
 
 // RegisterMemoryProduct registers a memory DataProduct via POST /v5/registry/memory-products.
@@ -171,13 +182,23 @@ func (c *Client) PublishMemoryIngest(ctx context.Context, tenantID string, env M
 }
 
 // RequestMemoryRecall publishes an async memory_recall request to MEMORY_RPC.
-// For synchronous HTTP recall with temporal filters, use RetrieveMemory.
+// For session correlation, use RequestMemoryRecallFull. For sync hits, use RetrieveMemory.
 func (c *Client) RequestMemoryRecall(ctx context.Context, tenantID, query string, limit int) (*PubAck, error) {
-	tenantID = strings.TrimSpace(tenantID)
+	return c.RequestMemoryRecallFull(ctx, MemoryRecallRequest{
+		TenantID: tenantID,
+		Query:    query,
+		Limit:    limit,
+	})
+}
+
+// RequestMemoryRecallFull publishes async MEMORY_RPC with optional session_id (TUI dogfood parity).
+func (c *Client) RequestMemoryRecallFull(ctx context.Context, req MemoryRecallRequest) (*PubAck, error) {
+	tenantID := strings.TrimSpace(req.TenantID)
 	if tenantID == "" {
 		return nil, errors.New("iomeshclient: tenant_id required")
 	}
-	if strings.TrimSpace(query) == "" {
+	query := strings.TrimSpace(req.Query)
+	if query == "" {
 		return nil, errors.New("iomeshclient: query required")
 	}
 
@@ -186,8 +207,11 @@ func (c *Client) RequestMemoryRecall(ctx context.Context, tenantID, query string
 		"tenant_id": tenantID,
 		"query":     query,
 	}
-	if limit > 0 {
-		body["limit"] = limit
+	if req.Limit > 0 {
+		body["limit"] = req.Limit
+	}
+	if sid := strings.TrimSpace(req.SessionID); sid != "" {
+		body["session_id"] = sid
 	}
 	payload, err := json.Marshal(body)
 	if err != nil {
@@ -197,18 +221,19 @@ func (c *Client) RequestMemoryRecall(ctx context.Context, tenantID, query string
 	return c.Publish(ctx, streamMemoryRPC, subject, payload)
 }
 
-// RetrieveMemory performs a synchronous memory recall via POST /v5/memory/retrieve.
-// Prefer this over RequestMemoryRecall when the caller needs hits in-process (no stream consumer).
-// Deployments that expose /v1/memory/retrieve as a public alias should map to the same handler;
-// this client uses the sidecar-stable /v5 path.
+// RetrieveMemory performs synchronous hybrid recall against the memory sidecar HTTP API.
+// Tries POST /v1/memory/retrieve then /v5/memory/retrieve (iomesh-tui / aion parity).
+// Prefer this over RequestMemoryRecall when the caller needs hits in-process.
+// Query may be empty when SessionID is set (session-scoped temporal slice).
 func (c *Client) RetrieveMemory(ctx context.Context, req MemoryRetrieveRequest) (*MemoryRetrieveResponse, error) {
 	req.TenantID = strings.TrimSpace(req.TenantID)
 	req.Query = strings.TrimSpace(req.Query)
+	req.SessionID = strings.TrimSpace(req.SessionID)
 	if req.TenantID == "" {
 		return nil, errors.New("iomeshclient: tenant_id required")
 	}
-	if req.Query == "" {
-		return nil, errors.New("iomeshclient: query required")
+	if req.Query == "" && req.SessionID == "" {
+		return nil, errors.New("iomeshclient: query or session_id required")
 	}
 
 	// Wire type for recall so sidecars that validate envelope type accept the request.
@@ -220,8 +245,8 @@ func (c *Client) RetrieveMemory(ctx context.Context, req MemoryRetrieveRequest) 
 	if req.Limit > 0 {
 		body["limit"] = req.Limit
 	}
-	if sid := strings.TrimSpace(req.SessionID); sid != "" {
-		body["session_id"] = sid
+	if req.SessionID != "" {
+		body["session_id"] = req.SessionID
 	}
 	if req.SessionSeq != 0 {
 		body["session_seq"] = req.SessionSeq
@@ -233,17 +258,36 @@ func (c *Client) RetrieveMemory(ctx context.Context, req MemoryRetrieveRequest) 
 		body["until"] = until
 	}
 
-	var resp MemoryRetrieveResponse
-	if err := c.doJSON(ctx, http.MethodPost, pathMemoryRetrieve, body, &resp); err != nil {
-		return nil, err
+	var lastErr error
+	for _, path := range []string{pathMemoryRetrieveV1, pathMemoryRetrieveV5} {
+		var resp MemoryRetrieveResponse
+		err := c.doJSON(ctx, http.MethodPost, path, body, &resp)
+		if err == nil {
+			if resp.Memories == nil {
+				resp.Memories = []MemoryHit{}
+			}
+			resp.Path = path
+			return &resp, nil
+		}
+		lastErr = err
+		var apiErr *APIError
+		if errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusNotFound {
+			continue // try next path
+		}
+		// Non-404: still try v5 once if v1 failed for other reasons? Prefer fail fast on 4xx != 404.
+		if errors.As(err, &apiErr) && apiErr.StatusCode >= 400 && apiErr.StatusCode < 500 && apiErr.StatusCode != http.StatusNotFound {
+			return nil, err
+		}
+		// transport / 5xx: try next path once
+		continue
 	}
-	if resp.Memories == nil {
-		resp.Memories = []MemoryHit{}
+	if lastErr == nil {
+		lastErr = errors.New("iomeshclient: memory retrieve: no path succeeded")
 	}
-	return &resp, nil
+	return nil, lastErr
 }
 
-// IngestMemoryTurn performs a synchronous single-turn ingest via POST /v5/memory/ingest.
+// IngestMemoryTurn performs a synchronous single-turn ingest via POST /v1 then /v5 memory/ingest.
 // PublishMemoryIngest remains the async stream path (MEMORY_INGEST publish).
 // Temporal fields on env (event_time, session_seq, …) are forwarded when set.
 func (c *Client) IngestMemoryTurn(ctx context.Context, tenantID string, env MemoryEnvelope) (*MemoryIngestResponse, error) {
@@ -309,9 +353,25 @@ func (c *Client) IngestMemoryTurn(ctx context.Context, tenantID string, env Memo
 		body["valid_until"] = env.ValidUntil
 	}
 
-	var resp MemoryIngestResponse
-	if err := c.doJSON(ctx, http.MethodPost, pathMemoryIngest, body, &resp); err != nil {
-		return nil, err
+	var lastErr error
+	for _, path := range []string{pathMemoryIngestV1, pathMemoryIngestV5} {
+		var resp MemoryIngestResponse
+		err := c.doJSON(ctx, http.MethodPost, path, body, &resp)
+		if err == nil {
+			return &resp, nil
+		}
+		lastErr = err
+		var apiErr *APIError
+		if errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusNotFound {
+			continue
+		}
+		if errors.As(err, &apiErr) && apiErr.StatusCode >= 400 && apiErr.StatusCode < 500 && apiErr.StatusCode != http.StatusNotFound {
+			return nil, err
+		}
+		continue
 	}
-	return &resp, nil
+	if lastErr == nil {
+		lastErr = errors.New("iomeshclient: memory ingest: no path succeeded")
+	}
+	return nil, lastErr
 }
