@@ -1,6 +1,7 @@
 // Package iomeshclient is the Go HTTP client for the I/O Mesh broker (/v1 API).
 //
-// Wire headers: X-IOMesh-Tenant, X-IOMesh-Org (and related X-IOMesh-* ingress headers).
+// Wire headers: X-IOMesh-Tenant, X-IOMesh-Org, X-IOMesh-Workspace (and related X-IOMesh-* ingress headers).
+// Default User-Agent: iomesh-client-sdk-go/<Version> for operator supportability.
 package iomeshclient
 
 import (
@@ -16,6 +17,13 @@ import (
 	"strings"
 	"time"
 )
+
+// Version is the public module version string for User-Agent and diagnostics.
+// Bump when cutting a release (keep aligned with CHANGELOG / git tags).
+const Version = "0.6.0"
+
+// defaultUserAgent identifies this SDK on outbound HTTP (override with WithUserAgent).
+const defaultUserAgent = "iomesh-client-sdk-go/" + Version
 
 // Options configures the I/O Mesh HTTP client.
 type Options struct {
@@ -39,6 +47,7 @@ type Client struct {
 	org         string
 	workspace   string
 	bearerToken string
+	userAgent   string
 }
 
 type connectOpts struct {
@@ -46,6 +55,7 @@ type connectOpts struct {
 	org         string
 	workspace   string
 	bearerToken string
+	userAgent   string
 }
 
 // ConnectOpt configures optional client connection settings.
@@ -80,6 +90,14 @@ func WithWorkspace(workspaceID string) ConnectOpt {
 	}
 }
 
+// WithUserAgent overrides the default User-Agent (iomesh-client-sdk-go/<Version>).
+// Empty string keeps the default.
+func WithUserAgent(ua string) ConnectOpt {
+	return func(o *connectOpts) {
+		o.userAgent = strings.TrimSpace(ua)
+	}
+}
+
 func applyConnectOpts(opts []ConnectOpt) connectOpts {
 	var co connectOpts
 	for _, opt := range opts {
@@ -111,6 +129,10 @@ func Connect(base Options, opts ...ConnectOpt) (*Client, error) {
 	}
 
 	co := applyConnectOpts(opts)
+	ua := co.userAgent
+	if ua == "" {
+		ua = defaultUserAgent
+	}
 
 	return &Client{
 		baseURL:     raw,
@@ -120,6 +142,7 @@ func Connect(base Options, opts ...ConnectOpt) (*Client, error) {
 		org:         co.org,
 		workspace:   co.workspace,
 		bearerToken: co.bearerToken,
+		userAgent:   ua,
 	}, nil
 }
 
@@ -471,11 +494,16 @@ func (c *Client) doJSON(ctx context.Context, method, path string, reqBody any, r
 	return json.Unmarshal(raw, respBody)
 }
 
-// applyAuthHeaders sets tenant / org / workspace / bearer on the request.
+// applyAuthHeaders sets User-Agent, tenant / org / workspace / bearer on the request.
 func (c *Client) applyAuthHeaders(req *http.Request) {
 	if c == nil || req == nil {
 		return
 	}
+	ua := c.userAgent
+	if ua == "" {
+		ua = defaultUserAgent
+	}
+	req.Header.Set("User-Agent", ua)
 	if c.tenant != "" {
 		req.Header.Set(tenantHeader, c.tenant)
 	}

@@ -19,7 +19,8 @@ Official open-source tooling from [IOMesh](https://iome.sh) (**IOMesh Technology
 > **Package:** `iomeshclient`  
 > **Env prefix:** `IOMESH_*`  
 > **Wire headers:** `X-IOMesh-Tenant`, `X-IOMesh-Org`, `X-IOMesh-Workspace`, …  
-> **Status:** public OSS **v0.5.x** (pre-1.0). Memory M2/M3 + multi-tenant headers aligned with [iomesh-tui](https://github.com/iome-sh/iomesh-tui).
+> **Status:** public OSS **v0.6.x** (pre-1.0). Memory M2/M3 + multi-tenant headers + dual-write/metering helpers aligned with [iomesh-tui](https://github.com/iome-sh/iomesh-tui).  
+> **User-Agent:** `iomesh-client-sdk-go/<Version>` (override with `WithUserAgent`).
 
 ## Requirements
 
@@ -140,6 +141,14 @@ Stage smoke (mesh + optional memory sidecar):
 export IOMESH_URL=http://127.0.0.1:8422
 export IOMESH_MEMORY_ENDPOINT=http://127.0.0.1:8765  # warm plane
 go run ./examples/memory-metering-dogfood
+```
+
+## Diagnostics
+
+```go
+fmt.Println(iomeshclient.Version) // e.g. "0.6.0"
+// All requests send: User-Agent: iomesh-client-sdk-go/0.6.0
+// Override: iomeshclient.WithUserAgent("my-service/1.2.3")
 ```
 
 ## Security
