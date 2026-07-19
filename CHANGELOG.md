@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-07-19
+
+Minor release: EvaluatePolicy fail-open mesh policy helper. Compatible with `v0.7.x`.
+
 ### Added
 
 - **`EvaluatePolicy`** — public fail-open mesh policy helper (`POST /v1/policy/evaluate`); per-call `PolicyMode` (`off`|`advisory`|`enforce`); `ShouldBlockTool` / `Summary` (iomesh-tui semantics without auto dept emit)
@@ -76,7 +80,8 @@ Minor release: aion/iomesh-tui memory + multi-tenant header parity. Compatible w
 - Docs: public naming policy for packages, env, and headers.
 - Removed package `aionclient` and legacy `X-Aion-*` / `AION_*` aliases.
 
-[Unreleased]: https://github.com/iome-sh/iomesh-client-sdk-go/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/iome-sh/iomesh-client-sdk-go/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.8.0
 [0.7.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.7.0
 [0.6.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.6.0
 [0.5.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.5.0
