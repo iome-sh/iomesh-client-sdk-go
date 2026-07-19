@@ -128,6 +128,22 @@ func (c *Client) GetStream(ctx context.Context, name string) (*StreamInfo, error
 	return &info, nil
 }
 
+// DeleteStream removes a stream via DELETE /v1/streams/{name}.
+// Empty name / nil client → error. Non-2xx → *APIError (404 if missing).
+// 204 No Content is success (doJSON handles empty body on 2xx).
+func (c *Client) DeleteStream(ctx context.Context, name string) error {
+	if c == nil {
+		return errors.New("iomeshclient: nil client")
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return errors.New("iomeshclient: stream name required")
+	}
+
+	path := "/v1/streams/" + url.PathEscape(name)
+	return c.doJSON(ctx, http.MethodDelete, path, nil, nil)
+}
+
 // Pub publishes an ephemeral fire-and-forget message via POST /v1/pub.
 func (c *Client) Pub(ctx context.Context, subject string, payload []byte, headers map[string]string) error {
 	if subject == "" {
