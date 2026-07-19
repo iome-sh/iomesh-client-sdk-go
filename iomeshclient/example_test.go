@@ -65,14 +65,14 @@ func ExampleFormatStreamDetail() {
 func ExampleFormatConnectionStatus() {
 	st := iomeshclient.ConnectionStatus{
 		BaseURL:   "http://127.0.0.1:8422",
-		UserAgent: "iomesh-client-sdk-go/0.23.0",
+		UserAgent: "iomesh-client-sdk-go/0.24.0",
 		HealthOK:  true,
 		ReadyOK:   true,
 	}
 	fmt.Print(iomeshclient.FormatConnectionStatus(st))
 	// Output:
 	// base_url=http://127.0.0.1:8422
-	// user_agent=iomesh-client-sdk-go/0.23.0
+	// user_agent=iomesh-client-sdk-go/0.24.0
 	// health=ok
 	// ready=ok
 }

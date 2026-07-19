@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.0] — 2026-07-19
+
+Minor release: FormatMsgs and pull-loop docs.
+
 ### Added
 
 - **`FormatMsgs`** — pure operator helper for a batch of fetched messages (`count` header + one `FormatMsg` line per message; nil/empty → `count=0`)
@@ -244,7 +248,8 @@ Minor release: I/O Mesh platform / iomesh-tui memory + multi-tenant header parit
 - Docs: public naming policy for packages, env, and headers.
 - Removed package `aionclient` and legacy `X-Aion-*` / `AION_*` aliases.
 
-[Unreleased]: https://github.com/iome-sh/iomesh-client-sdk-go/compare/v0.23.0...HEAD
+[Unreleased]: https://github.com/iome-sh/iomesh-client-sdk-go/compare/v0.24.0...HEAD
+[0.24.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.24.0
 [0.23.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.23.0
 [0.22.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.22.0
 [0.21.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.21.0
