@@ -12,7 +12,7 @@ import (
 
 func TestConnectSetsTenantAndBearerHeaders(t *testing.T) {
 	var mu sync.Mutex
-	var gotTenant, gotAuth, gotOrg, gotWS string
+	var gotTenant, gotAuth, gotOrg, gotWS, gotUA string
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
@@ -20,6 +20,7 @@ func TestConnectSetsTenantAndBearerHeaders(t *testing.T) {
 		gotAuth = r.Header.Get("Authorization")
 		gotOrg = r.Header.Get("X-IOMesh-Org")
 		gotWS = r.Header.Get("X-IOMesh-Workspace")
+		gotUA = r.Header.Get("User-Agent")
 		mu.Unlock()
 		w.WriteHeader(http.StatusNoContent)
 	}))
@@ -53,6 +54,33 @@ func TestConnectSetsTenantAndBearerHeaders(t *testing.T) {
 	}
 	if gotWS != "ws_1" {
 		t.Fatalf("X-IOMesh-Workspace = %q, want ws_1", gotWS)
+	}
+	wantUA := "iomesh-client-sdk-go/" + iomeshclient.Version
+	if gotUA != wantUA {
+		t.Fatalf("User-Agent = %q, want %q", gotUA, wantUA)
+	}
+}
+
+func TestWithUserAgentOverride(t *testing.T) {
+	var gotUA string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotUA = r.Header.Get("User-Agent")
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(srv.Close)
+
+	nc, err := iomeshclient.Connect(
+		iomeshclient.Options{URL: srv.URL},
+		iomeshclient.WithUserAgent("my-agent/1.0"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := nc.Pub(context.Background(), "events", []byte("x"), nil); err != nil {
+		t.Fatal(err)
+	}
+	if gotUA != "my-agent/1.0" {
+		t.Fatalf("User-Agent = %q", gotUA)
 	}
 }
 
