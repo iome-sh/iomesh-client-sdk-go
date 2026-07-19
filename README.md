@@ -19,7 +19,7 @@ Official open-source tooling from [IOMesh](https://iome.sh) (**IOMesh Technology
 > **Package:** `iomeshclient`  
 > **Env prefix:** `IOMESH_*`  
 > **Wire headers:** `X-IOMesh-Tenant`, `X-IOMesh-Org`, `X-IOMesh-Workspace`, …  
-> **Status:** public OSS **v0.8.x** (pre-1.0). Memory M2/M3 + multi-tenant headers + dual-write/metering + Health/Ready + EvaluatePolicy aligned with [iomesh-tui](https://github.com/iome-sh/iomesh-tui).  
+> **Status:** public OSS **v0.8.x** (pre-1.0). Memory M2/M3 + multi-tenant headers + dual-write/metering + Health/Ready/WaitReady + catalog plane + EvaluatePolicy aligned with [iomesh-tui](https://github.com/iome-sh/iomesh-tui).  
 > **User-Agent:** `iomesh-client-sdk-go/<Version>` (override with `WithUserAgent`).
 
 ## Requirements
@@ -153,6 +153,12 @@ fmt.Println(iomeshclient.Version) // e.g. "0.8.0"
 if err := nc.Health(ctx); err != nil { /* broker down */ }
 if err := nc.Ready(ctx); err != nil { /* optional readiness path missing */ }
 
+// Poll until Ready (optional Health) or ctx deadline.
+if err := nc.WaitReady(ctx, iomeshclient.WaitReadyOptions{
+	Interval: 500 * time.Millisecond, // default when zero
+	// RequireHealth: true,
+}); err != nil { /* still not ready */ }
+
 // Optional remote policy (POST /v1/policy/evaluate). Mode is per-call.
 // Transport / 404 / non-OK are fail-open (Allow=true) so agent DX is not blocked
 // when the broker is down or the endpoint is not deployed yet.
@@ -165,6 +171,21 @@ if dec.ShouldBlockTool() {
 	// mesh deny under enforce
 }
 _ = dec.Summary() // e.g. "allow source=mesh mode=enforce"
+```
+
+## Catalog (data products)
+
+Fail-open discovery of governed data products. Tries mesh `/v1/catalog/*` then portal
+`/v17|/v16` federation paths (404 → next; all fail → `Source=fail-open`).
+
+```go
+res := nc.ListCatalog(ctx, "") // optional query; "operational"|"knowledge"|"analytical" also sets mesh_layer=
+fmt.Printf("source=%s products=%d\n", res.Source, len(res.Products))
+fmt.Print(iomeshclient.FormatCatalog(res))
+
+p, meta := nc.GetCatalogProduct(ctx, "engineering-github-events")
+_ = p
+_ = meta // Source mesh|portal|fail-open; Detail is path or error note
 ```
 
 ## Security

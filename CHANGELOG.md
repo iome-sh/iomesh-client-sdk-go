@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`ListCatalog` / `GetCatalogProduct`** — fail-open catalog plane (mesh `/v1/catalog/*` then portal `/v17|/v16` federation); multi-shape decode; `CatalogProduct` (+ Normalize); `FormatCatalog` / `FormatProductDetail` (iomesh-tui parity, s291; named `CatalogProduct` to avoid clash with registry `DataProduct`)
+- **`WaitReady`** — poll `Ready` (optional `RequireHealth`) until success or context done; default interval 500ms
+
 ## [0.8.0] — 2026-07-19
 
 Minor release: EvaluatePolicy fail-open mesh policy helper. Compatible with `v0.7.x`.
