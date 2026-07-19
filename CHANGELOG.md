@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] — 2026-07-19
+
+Minor release: CreateStream and EnsureStream return *StreamInfo (pre-1.0 signature change).
+
 ### Changed
 
 - **`CreateStream` / `EnsureStream`** — now return `(*StreamInfo, error)` instead of `error` only. On 201, decodes stream metadata from the response body; on 409 conflict, best-effort `GetStream` (returns info if found, else `(nil, nil)` success without metadata). Same for `MeshSDK.EnsureStream`. **Breaking for pre-1.0 callers** that assigned a single return value — update to two return values (s300)
@@ -125,7 +129,8 @@ Minor release: aion/iomesh-tui memory + multi-tenant header parity. Compatible w
 - Docs: public naming policy for packages, env, and headers.
 - Removed package `aionclient` and legacy `X-Aion-*` / `AION_*` aliases.
 
-[Unreleased]: https://github.com/iome-sh/iomesh-client-sdk-go/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/iome-sh/iomesh-client-sdk-go/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.14.0
 [0.13.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.13.0
 [0.12.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.12.0
 [0.11.0]: https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.11.0
