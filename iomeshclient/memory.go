@@ -181,6 +181,46 @@ func (c *Client) PublishMemoryIngest(ctx context.Context, tenantID string, env M
 	return c.Publish(ctx, streamMemoryIngest, subject, payload)
 }
 
+// DualWriteMemoryOptions controls DualWriteMemoryTurn.
+type DualWriteMemoryOptions struct {
+	// Sync also performs IngestMemoryTurn against SyncClient (fail-open).
+	// When false, only async MEMORY_INGEST publish runs.
+	Sync bool
+	// SyncClient is the client used for sync ingest (memory sidecar URL).
+	// When nil and Sync is true, the receiver client is used (same endpoint as mesh).
+	SyncClient *Client
+}
+
+// DualWriteMemoryResult is the outcome of DualWriteMemoryTurn.
+// Async failure is returned as the function error; sync failures are fail-open in SyncErr.
+type DualWriteMemoryResult struct {
+	Async   *PubAck
+	Sync    *MemoryIngestResponse
+	SyncErr error
+}
+
+// DualWriteMemoryTurn publishes async MEMORY_INGEST (required path) and optionally
+// sync POST /v1|/v5/memory/ingest (Palace write) with fail-open semantics matching
+// iomesh-tui agent dual_write: stream durable first; sidecar best-effort.
+func (c *Client) DualWriteMemoryTurn(ctx context.Context, tenantID string, env MemoryEnvelope, opts DualWriteMemoryOptions) (*DualWriteMemoryResult, error) {
+	ack, err := c.PublishMemoryIngest(ctx, tenantID, env)
+	if err != nil {
+		return nil, err
+	}
+	out := &DualWriteMemoryResult{Async: ack}
+	if !opts.Sync {
+		return out, nil
+	}
+	syncC := opts.SyncClient
+	if syncC == nil {
+		syncC = c
+	}
+	resp, syncErr := syncC.IngestMemoryTurn(ctx, tenantID, env)
+	out.Sync = resp
+	out.SyncErr = syncErr
+	return out, nil
+}
+
 // RequestMemoryRecall publishes an async memory_recall request to MEMORY_RPC.
 // For session correlation, use RequestMemoryRecallFull. For sync hits, use RetrieveMemory.
 func (c *Client) RequestMemoryRecall(ctx context.Context, tenantID, query string, limit int) (*PubAck, error) {

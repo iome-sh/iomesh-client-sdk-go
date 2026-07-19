@@ -497,3 +497,94 @@ func TestIngestMemoryTurnValidation(t *testing.T) {
 		t.Fatal("expected content required")
 	}
 }
+
+func TestDualWriteMemoryTurn_AsyncOnly(t *testing.T) {
+	var published int
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /v1/streams/MEMORY_INGEST/publish", func(w http.ResponseWriter, r *http.Request) {
+		published++
+		_ = json.NewEncoder(w).Encode(map[string]any{"stream": "MEMORY_INGEST", "seq": 1})
+	})
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: ts.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := nc.DualWriteMemoryTurn(context.Background(), "dept.x", iomeshclient.MemoryEnvelope{
+		Role: "user", Content: "note", SessionID: "s1", SessionSeq: 1,
+	}, iomeshclient.DualWriteMemoryOptions{Sync: false})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Async == nil || res.Async.Seq != 1 || res.Sync != nil || res.SyncErr != nil {
+		t.Fatalf("%+v", res)
+	}
+	if published != 1 {
+		t.Fatalf("published=%d", published)
+	}
+}
+
+func TestDualWriteMemoryTurn_AsyncAndSync(t *testing.T) {
+	var mu sync.Mutex
+	var syncHits, asyncHits int
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /v1/streams/MEMORY_INGEST/publish", func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		asyncHits++
+		mu.Unlock()
+		_ = json.NewEncoder(w).Encode(map[string]any{"stream": "MEMORY_INGEST", "seq": 3})
+	})
+	mux.HandleFunc("POST /v1/memory/ingest", func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		syncHits++
+		mu.Unlock()
+		_ = json.NewEncoder(w).Encode(map[string]any{"status": "ok", "memory_id": "m1"})
+	})
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: ts.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := nc.DualWriteMemoryTurn(context.Background(), "dept.x", iomeshclient.MemoryEnvelope{
+		Role: "assistant", Content: "dual", SessionID: "s2",
+	}, iomeshclient.DualWriteMemoryOptions{Sync: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Async == nil || res.Async.Seq != 3 {
+		t.Fatalf("async=%+v", res.Async)
+	}
+	if res.SyncErr != nil || res.Sync == nil || res.Sync.MemoryID != "m1" {
+		t.Fatalf("sync=%+v err=%v", res.Sync, res.SyncErr)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if asyncHits != 1 || syncHits != 1 {
+		t.Fatalf("async=%d sync=%d", asyncHits, syncHits)
+	}
+}
+
+func TestDualWriteMemoryTurn_SyncFailOpen(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /v1/streams/MEMORY_INGEST/publish", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"stream": "MEMORY_INGEST", "seq": 2})
+	})
+	// no sync ingest routes → fail-open SyncErr
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: ts.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := nc.DualWriteMemoryTurn(context.Background(), "dept.x", iomeshclient.MemoryEnvelope{
+		Content: "x",
+	}, iomeshclient.DualWriteMemoryOptions{Sync: true})
+	if err != nil {
+		t.Fatalf("async must succeed: %v", err)
+	}
+	if res.Async == nil || res.SyncErr == nil {
+		t.Fatalf("expected SyncErr fail-open, got %+v", res)
+	}
+}

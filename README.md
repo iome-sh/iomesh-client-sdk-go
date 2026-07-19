@@ -97,7 +97,8 @@ offset, err := kc.Produce(ctx, "mesh.finance.events", 0, []byte("key"), []byte(`
 
 | API | Path | Notes |
 |-----|------|--------|
-| `PublishMemoryIngest` | `MEMORY_INGEST` publish | Async dual-write; temporal fields on `MemoryEnvelope` |
+| `PublishMemoryIngest` | `MEMORY_INGEST` publish | Async stream dual-write; temporal fields on `MemoryEnvelope` |
+| `DualWriteMemoryTurn` | async + optional sync | Stream first; optional fail-open `IngestMemoryTurn` (sidecar) |
 | `RequestMemoryRecall` / `RequestMemoryRecallFull` | `MEMORY_RPC` publish | Async; Full adds `session_id` correlation |
 | `RetrieveMemory` | `POST /v1` then `/v5/memory/retrieve` | Sync hits; empty query OK if `session_id` set |
 | `IngestMemoryTurn` | `POST /v1` then `/v5/memory/ingest` | Sync Palace turn write |
@@ -111,10 +112,17 @@ hits, err := nc.RetrieveMemory(ctx, iomeshclient.MemoryRetrieveRequest{
 	Limit:     8,
 })
 // hits.Path is "/v1/memory/retrieve" or "/v5/memory/retrieve"
+
+// Dual-write: durable stream + optional Palace sync (fail-open on sync)
+mesh, _ := iomeshclient.Connect(iomeshclient.Options{URL: os.Getenv("IOMESH_URL")}, /* tenant/org… */)
+palace, _ := iomeshclient.Connect(iomeshclient.Options{URL: os.Getenv("IOMESH_MEMORY_ENDPOINT")})
+res, err := mesh.DualWriteMemoryTurn(ctx, "dept.research", iomeshclient.MemoryEnvelope{
+	Role: "user", Content: "decision notes", SessionID: "sess-1", SessionSeq: 1,
+}, iomeshclient.DualWriteMemoryOptions{Sync: true, SyncClient: palace})
+// res.Async is PubAck; res.SyncErr is nil on Palace success (or set when fail-open)
 ```
 
 The agent harness ([iomesh-tui](https://github.com/iome-sh/iomesh-tui)) mirrors these surfaces without depending on this module (lean public HTTP).
-
 ## Metering (dept streams)
 
 ```go

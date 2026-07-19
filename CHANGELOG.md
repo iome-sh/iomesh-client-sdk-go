@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`DualWriteMemoryTurn`** — async `MEMORY_INGEST` plus optional fail-open sync `IngestMemoryTurn` (iomesh-tui dual_write semantics; optional SyncClient for sidecar URL)
+- README dual-write usage notes
+
 ## [0.4.0] — 2026-07-19
 
 Minor release: dept metering emit helpers + stage dogfood example. Compatible with `v0.3.x`.
