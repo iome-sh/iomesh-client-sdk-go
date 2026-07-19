@@ -62,17 +62,30 @@ func main() {
 	sessionID := tenant + ".sdk-dogfood"
 	now := time.Now().UTC().Format(time.RFC3339)
 
-	// 1) Dual-write style async ingest
-	if _, err := mesh.PublishMemoryIngest(ctx, tenant, iomeshclient.MemoryEnvelope{
+	// 1) Dual-write: async MEMORY_INGEST + optional sync Palace ingest (fail-open)
+	env := iomeshclient.MemoryEnvelope{
 		Role:       "tool",
 		Content:    "iomesh-client-sdk-go memory-metering-dogfood",
 		SessionID:  sessionID,
 		SessionSeq: 1,
 		EventTime:  now,
-	}); err != nil {
-		log.Printf("WARN PublishMemoryIngest: %v", err)
+	}
+	dw, err := mesh.DualWriteMemoryTurn(ctx, tenant, env, iomeshclient.DualWriteMemoryOptions{
+		Sync:       memoryBase != base,
+		SyncClient: memory,
+	})
+	if err != nil {
+		log.Printf("WARN DualWriteMemoryTurn async: %v", err)
 	} else {
-		fmt.Println("PASS PublishMemoryIngest session_id=" + sessionID)
+		fmt.Printf("PASS DualWriteMemoryTurn async_seq=%d", dw.Async.Seq)
+		if memoryBase != base {
+			if dw.SyncErr != nil {
+				fmt.Printf(" sync=FAIL-OPEN (%v)", dw.SyncErr)
+			} else {
+				fmt.Printf(" sync=ok")
+			}
+		}
+		fmt.Println(" session_id=" + sessionID)
 	}
 
 	// 2) Async recall with session correlation
