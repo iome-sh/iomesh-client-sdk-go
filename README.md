@@ -19,7 +19,7 @@ Official open-source tooling from [IOMesh](https://iome.sh) (**IOMesh Technology
 > **Package:** `iomeshclient`  
 > **Env prefix:** `IOMESH_*`  
 > **Wire headers:** `X-IOMesh-Tenant`, `X-IOMesh-Org`, `X-IOMesh-Workspace`, …  
-> **Status:** public OSS **v0.23.x** (pre-1.0). Memory M2/M3 + multi-tenant headers + dual-write/metering + Health/Ready/WaitReady + catalog plane + EvaluatePolicy + QueryContext + ConnectionStatus + ListStreams/GetStream/DeleteStream/ListStreamMessages + CreateStream/EnsureStream `*StreamInfo` + FormatStreams/FormatStreamDetail + CreateConsumer/EnsureConsumer `*ConsumerInfo` + ConsumerFetch/ConsumerAck/ConsumerNack + PullSubscribe `FetchContext`/`AckContext`/`NackContext` + `DefaultFetchMaxWait` + FormatMsg/FormatConsumerInfo + KV CreateBucket/EnsureBucket `*BucketInfo` + Put `*PutResult` + FormatBucketInfo/FormatKVEntry/FormatKVKeys/FormatPutResult aligned with [iomesh-tui](https://github.com/iome-sh/iomesh-tui).  
+> **Status:** public OSS **v0.23.x** (pre-1.0). Memory M2/M3 + multi-tenant headers + dual-write/metering + Health/Ready/WaitReady + catalog plane + EvaluatePolicy + QueryContext + ConnectionStatus + ListStreams/GetStream/DeleteStream/ListStreamMessages + CreateStream/EnsureStream `*StreamInfo` + FormatStreams/FormatStreamDetail + CreateConsumer/EnsureConsumer `*ConsumerInfo` + ConsumerFetch/ConsumerAck/ConsumerNack + PullSubscribe `FetchContext`/`AckContext`/`NackContext` + `DefaultFetchMaxWait` + FormatMsg/FormatMsgs/FormatConsumerInfo + KV CreateBucket/EnsureBucket `*BucketInfo` + Put `*PutResult` + FormatBucketInfo/FormatKVEntry/FormatKVKeys/FormatPutResult aligned with [iomesh-tui](https://github.com/iome-sh/iomesh-tui).  
 > **User-Agent:** `iomesh-client-sdk-go/<Version>` (override with `WithUserAgent`).
 
 ## Requirements
@@ -110,7 +110,7 @@ offset, err := kc.Produce(ctx, "mesh.finance.events", 0, []byte("key"), []byte(`
 | `CreateConsumer` / `EnsureConsumer` | `POST /v1/streams/{stream}/consumers` | Returns `*ConsumerInfo`; 409 conflict → success with Stream/Name only. EnsureConsumer is an idempotent alias |
 | `ConsumerFetch` / `ConsumerAck` / `ConsumerNack` | `POST …/fetch\|ack\|nack` | One-shot ops without holding a `Subscription`; path-escape stream/consumer; Fetch wires `Msg.Ack`/`Msg.Nack` via ephemeral sub |
 | `Publish` / `PullSubscribe` | stream publish / consumer | `PullSubscribe` uses `CreateConsumer` then returns `*Subscription` with `ConsumerInfo()`; `FetchContext`/`AckContext`/`NackContext` (or `Fetch`/`Ack`/`Nack` → `context.Background()`); default long-poll `DefaultFetchMaxWait` (5s) / `MaxWait`; path segments escaped |
-| `FormatMsg` / `FormatConsumerInfo` | — | Pure operator helpers for one message / consumer detail (no network I/O) |
+| `FormatMsg` / `FormatMsgs` / `FormatConsumerInfo` | — | Pure operator helpers for one message / batch / consumer detail (no network I/O) |
 | `Pub` | `POST /v1/pub` | Ephemeral fire-and-forget |
 
 ```go
@@ -169,7 +169,19 @@ if err != nil {
 }
 // batch[i].Ack() / Nack(), or: sub.AckContext(ctx, seqs...); sub.NackContext(ctx, seqs...)
 // Fetch/Ack/Nack remain as Background wrappers for simple call sites.
-fmt.Print(iomeshclient.FormatMsg(batch[0])) // seq / subject / bytes
+fmt.Print(iomeshclient.FormatMsg(batch[0]))  // one message: seq / subject / bytes
+fmt.Print(iomeshclient.FormatMsgs(batch))    // batch: count header + one line per msg
+
+// Pull loop (FetchContext → FormatMsgs → AckContext)
+// for {
+//     batch, err := sub.FetchContext(ctx, 10)
+//     if err != nil { log.Fatal(err) }
+//     if len(batch) == 0 { continue }
+//     fmt.Print(iomeshclient.FormatMsgs(batch))
+//     seqs := make([]uint64, len(batch))
+//     for i, m := range batch { seqs[i] = m.Seq() }
+//     if err := sub.AckContext(ctx, seqs...); err != nil { log.Fatal(err) }
+// }
 
 // One-shot consumer ops (no long-lived Subscription)
 msgs, err := nc.ConsumerFetch(ctx, "EVENTS", "worker-1", 10)

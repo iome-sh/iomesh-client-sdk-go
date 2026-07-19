@@ -42,6 +42,18 @@ func FormatMsg(m *Msg) string {
 	return fmt.Sprintf("iomesh msg seq=%d subject=%s bytes=%d\n", m.Seq(), m.Subject(), len(m.Data()))
 }
 
+// FormatMsgs renders multiple fetched messages for operator logs.
+// Pure helper with no network I/O. nil/empty → "iomesh msgs count=0\n";
+// otherwise a count header plus one FormatMsg line per element.
+func FormatMsgs(msgs []*Msg) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "iomesh msgs count=%d\n", len(msgs))
+	for _, m := range msgs {
+		b.WriteString(FormatMsg(m))
+	}
+	return b.String()
+}
+
 // FormatConsumerInfo is a multi-line view for one durable consumer (operator / CLI style).
 // Pure helper with no network I/O. filter_subject is omitted when empty.
 func FormatConsumerInfo(info ConsumerInfo) string {

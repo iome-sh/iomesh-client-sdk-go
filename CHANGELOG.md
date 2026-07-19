@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`FormatMsgs`** — pure operator helper for a batch of fetched messages (`count` header + one `FormatMsg` line per message; nil/empty → `count=0`)
+- **Docs** — godoc `ExampleFormatMsgs` / pull-loop example; README pull-loop snippet (`FetchContext` + `FormatMsgs` + `AckContext`)
+
 ## [0.23.0] — 2026-07-19
 
 Minor release: Subscription FetchContext, AckContext, NackContext.

@@ -609,6 +609,69 @@ func TestFormatMsg(t *testing.T) {
 	}
 }
 
+func TestFormatMsgs_Empty(t *testing.T) {
+	if out := iomeshclient.FormatMsgs(nil); out != "iomesh msgs count=0\n" {
+		t.Fatalf("nil=%q", out)
+	}
+	if out := iomeshclient.FormatMsgs([]*iomeshclient.Msg{}); out != "iomesh msgs count=0\n" {
+		t.Fatalf("empty=%q", out)
+	}
+}
+
+func TestFormatMsgs_Multi(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"messages": []map[string]any{
+				{
+					"stream":  "S",
+					"seq":     1,
+					"subject": "dept.events.a",
+					"payload": base64.StdEncoding.EncodeToString([]byte("hi")),
+					"headers": map[string]string{},
+				},
+				{
+					"stream":  "S",
+					"seq":     2,
+					"subject": "dept.events.b",
+					"payload": base64.StdEncoding.EncodeToString([]byte("xyz")),
+					"headers": map[string]string{},
+				},
+			},
+		})
+	}))
+	defer srv.Close()
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	msgs, err := nc.ConsumerFetch(context.Background(), "S", "c", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(msgs) != 2 {
+		t.Fatalf("len=%d", len(msgs))
+	}
+	out := iomeshclient.FormatMsgs(msgs)
+	if !strings.HasPrefix(out, "iomesh msgs count=2\n") {
+		t.Fatalf("header=%q", out)
+	}
+	for _, want := range []string{
+		"seq=1", "subject=dept.events.a", "bytes=2",
+		"seq=2", "subject=dept.events.b", "bytes=3",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing %q in %q", want, out)
+		}
+	}
+	// Each message line is FormatMsg output.
+	if !strings.Contains(out, iomeshclient.FormatMsg(msgs[0])) {
+		t.Fatalf("missing FormatMsg[0] in %q", out)
+	}
+	if !strings.Contains(out, iomeshclient.FormatMsg(msgs[1])) {
+		t.Fatalf("missing FormatMsg[1] in %q", out)
+	}
+}
+
 func TestConsumerAck_PathAndBody(t *testing.T) {
 	var gotMethod, gotPath string
 	var gotBody map[string]any
