@@ -11,6 +11,15 @@ Thanks for improving the I/O Mesh Go client SDK.
 3. **Tests required** — unit tests for pure logic; use `httptest` for HTTP client behavior. No live broker credentials in CI.  
 4. **Security** — follow [SECURITY.md](SECURITY.md); no credentials in fixtures.  
 
+## Public repository policy
+
+This is a **public** OSS repository. Keep the surface free of private-process leakage:
+
+1. **No private ledger / SR&ED serials** — do not put internal continuum tokens such as `(s###)` in PR titles, commit messages, or CHANGELOG bullets.  
+2. **No private monorepo paths** — do not reference unpublished internal trees, private package import paths, or non-public endpoints that are not part of the documented I/O Mesh broker/platform surface.  
+3. **Prefer public product language** — say **I/O Mesh broker/platform** (and public products like [iomesh-tui](https://github.com/iome-sh/iomesh-tui)) rather than private monorepo codenames. Historical public API renames (e.g. removed package `aionclient`) may remain in CHANGELOG as factual history.  
+4. **`dogfood` is a public smoke label only** — names such as `examples/memory-metering-dogfood` mean stage/smoke exercise against a broker; they are not private program identifiers.  
+
 ## Workflow
 
 ```bash

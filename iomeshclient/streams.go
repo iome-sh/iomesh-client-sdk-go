@@ -29,7 +29,7 @@ type StreamConfig struct {
 }
 
 // StreamInfo is broker stream metadata from GET /v1/streams and GET /v1/streams/{name}.
-// Wire shape matches aion streamResponse (name, subjects, stats, retention knobs).
+// Wire shape matches the broker stream response (name, subjects, stats, retention knobs).
 type StreamInfo struct {
 	Name        string    `json:"name"`
 	Subjects    []string  `json:"subjects"`
@@ -45,7 +45,7 @@ type StreamInfo struct {
 }
 
 // CreateStream registers a stream via POST /v1/streams.
-// On 201, decodes StreamInfo from the response body (aion streamResponse).
+// On 201, decodes StreamInfo from the response body (broker stream response).
 // On 409 conflict, treats as success and best-effort GETs the stream
 // (may return nil info if get fails).
 func (c *Client) CreateStream(ctx context.Context, cfg StreamConfig) (*StreamInfo, error) {

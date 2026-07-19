@@ -83,7 +83,7 @@ func WithOrg(orgID string) ConnectOpt {
 }
 
 // WithWorkspace sets X-IOMesh-Workspace on all HTTP requests (multi-tenant metering / entitlements).
-// Parity with iomesh-tui mesh client and aion WorkspaceHeader.
+// Parity with iomesh-tui mesh client and I/O Mesh workspace header.
 func WithWorkspace(workspaceID string) ConnectOpt {
 	return func(o *connectOpts) {
 		o.workspace = strings.TrimSpace(workspaceID)
