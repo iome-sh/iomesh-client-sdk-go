@@ -184,3 +184,33 @@ func Example_streamLifecycle() {
 	// NAME                         MSGS    FIRST     LAST  PART RETENTION  SUBJECTS
 	// EVENTS                          0        0        0     0            dept.events.>
 }
+
+// ExampleFormatMsgs shows the empty-batch header for operator logs (no network).
+// Live usage: batch, err := sub.FetchContext(ctx, 10); fmt.Print(FormatMsgs(batch)).
+func ExampleFormatMsgs() {
+	fmt.Print(iomeshclient.FormatMsgs(nil))
+	// Output:
+	// iomesh msgs count=0
+}
+
+// Example_pullLoop documents the durable pull fetch → format → ack pattern.
+// Network omitted: call shape only (examples stay deterministic for godoc).
+func Example_pullLoop() {
+	// sub, err := nc.PullSubscribe(ctx, iomeshclient.PullSubscribeConfig{
+	//     Stream: "EVENTS", Consumer: "worker-1", Filter: "dept.events.>",
+	// })
+	// for {
+	//     batch, err := sub.FetchContext(ctx, 10, iomeshclient.MaxWait(2*time.Second))
+	//     if err != nil { … }
+	//     if len(batch) == 0 { continue } // idle long-poll
+	//     fmt.Print(iomeshclient.FormatMsgs(batch))
+	//     seqs := make([]uint64, len(batch))
+	//     for i, m := range batch { seqs[i] = m.Seq() }
+	//     if err := sub.AckContext(ctx, seqs...); err != nil { … }
+	// }
+
+	// Format empty batch (pure, no I/O):
+	fmt.Print(iomeshclient.FormatMsgs(nil))
+	// Output:
+	// iomesh msgs count=0
+}
