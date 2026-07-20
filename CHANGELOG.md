@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.40.0] — 2026-07-20
+
+Minor release: pull-loop WaitReady preflight.
+
 ### Added
 
 - **Example** `examples/pull-loop` — optional `IOMESH_WAIT_READY_MS` WaitReady preflight after ConnectionStatus (budget ms; interval 500ms; `PASS WaitReady elapsed_ms=N` / `WARN WaitReady: … elapsed_ms=N`; banner `wait_ready_ms=N`; hard-fail under `IOMESH_STRICT=1` like Health)
+
 
 ## [0.39.0] — 2026-07-20
 
