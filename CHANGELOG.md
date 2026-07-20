@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.44.0] — 2026-07-20
+
+Minor release: pull-loop SUMMARY WaitReady knobs.
+
 ### Added
 
 - **Example** `examples/pull-loop` — `SUMMARY` always emits WaitReady knobs `wait_ready_ms=W wait_interval_ms=I wait_require_health=B` (budget / effective interval / require-health; `0` / `false` when WaitReady off so scrapers see knobs unused; when on, interval is the effective poll ms from `IOMESH_WAIT_INTERVAL_MS`)
