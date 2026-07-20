@@ -7,10 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.31.0] — 2026-07-20
+
+Minor release: DeleteConsumer and pull-loop cleanup.
+
 ### Added
 
 - **`DeleteConsumer`** — `DELETE /v1/streams/{stream}/consumers/{name}` (204 success; path-escaped segments; empty stream/name / nil client → error; non-2xx → `*APIError`)
 - **Example** `examples/pull-loop` — optional `IOMESH_DELETE_CONSUMER=1` best-effort cleanup after fetch loops (`PASS DeleteConsumer` / warn-only on fail)
+
 
 ## [0.30.0] — 2026-07-20
 
