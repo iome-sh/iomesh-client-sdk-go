@@ -28,6 +28,10 @@
 //	export IOMESH_ACK=1             # optional
 //	go run ./examples/pull-loop
 //
+// Always prints before RESULT=done:
+//
+//	SUMMARY cycles_completed=N fetch_total=M duration_ms=D
+//
 // Consumer filter defaults (resolveConsumerFilter):
 //  1. IOMESH_SUBJECT if set (operator-chosen; used even if ensure is on)
 //  2. When IOMESH_ENSURE_STREAM=1: stream.> (matches EnsureStream subjects)
@@ -40,6 +44,7 @@
 //  4. Else stream+".demo"
 //
 // IOMESH_LOOPS fetch cycles then exit 0 (default one cycle). Errors after connect are warn-only.
+// SUMMARY is always printed (cycles_completed / fetch_total / duration_ms wall clock).
 package main
 
 import (
@@ -91,6 +96,9 @@ func main() {
 	if key := os.Getenv("IOMESH_API_KEY"); key != "" {
 		opts = append(opts, iomeshclient.WithBearerToken(key))
 	}
+
+	// Wall clock for SUMMARY duration_ms (after connect opts resolved).
+	start := time.Now()
 
 	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: base}, opts...)
 	if err != nil {
@@ -150,7 +158,7 @@ func main() {
 	})
 	if err != nil {
 		log.Printf("WARN PullSubscribe stream=%s consumer=%s: %v", stream, consumer, err)
-		fmt.Println("RESULT=done")
+		printPullLoopDone(0, 0, start)
 		return
 	}
 	fmt.Print(iomeshclient.FormatConsumerInfo(sub.ConsumerInfo()))
@@ -173,12 +181,16 @@ func main() {
 
 	// 3) Fetch cycles (FetchContext → FormatMsgs → optional AckContext); default one cycle.
 	maxWait := iomeshclient.MaxWait(time.Duration(maxWaitMS) * time.Millisecond)
+	cyclesCompleted := 0
+	fetchTotal := 0
 	for cycle := 1; cycle <= loops; cycle++ {
 		msgs, err := sub.FetchContext(ctx, batch, maxWait)
 		if err != nil {
 			log.Printf("WARN FetchContext cycle=%d: %v", cycle, err)
 			break
 		}
+		cyclesCompleted++
+		fetchTotal += len(msgs)
 		fmt.Print(iomeshclient.FormatMsgs(msgs))
 		fmt.Printf("PASS FetchContext cycle=%d count=%d\n", cycle, len(msgs))
 
@@ -199,7 +211,24 @@ func main() {
 		}
 	}
 
+	printPullLoopDone(cyclesCompleted, fetchTotal, start)
+}
+
+// printPullLoopDone emits SUMMARY then RESULT=done using wall-clock duration since start.
+func printPullLoopDone(cyclesCompleted, fetchTotal int, start time.Time) {
+	durationMS := int(time.Since(start).Milliseconds())
+	fmt.Println(formatPullLoopSummary(cyclesCompleted, fetchTotal, durationMS))
 	fmt.Println("RESULT=done")
+}
+
+// formatPullLoopSummary returns the stage-smoke SUMMARY line for pull-loop.
+// durationMS is clamped to >= 0. Pure helper (no I/O).
+func formatPullLoopSummary(cyclesCompleted, fetchTotal, durationMS int) string {
+	if durationMS < 0 {
+		durationMS = 0
+	}
+	return fmt.Sprintf("SUMMARY cycles_completed=%d fetch_total=%d duration_ms=%d",
+		cyclesCompleted, fetchTotal, durationMS)
 }
 
 // parseLoops returns fetch cycle count from an env value.
