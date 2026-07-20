@@ -42,7 +42,7 @@ func (c *Client) Ready(ctx context.Context) error {
 	return fmt.Errorf("iomeshclient: ready: http 404")
 }
 
-// WaitReadyOptions configures WaitReady polling.
+// WaitReadyOptions configures WaitReady / WaitReadyElapsed polling.
 type WaitReadyOptions struct {
 	// Interval between probe attempts. Default 500ms when zero or negative.
 	Interval time.Duration
@@ -54,9 +54,20 @@ type WaitReadyOptions struct {
 // When RequireHealth is set, Health must also succeed on the same attempt.
 // Returns the last probe error wrapped with ctx.Err() when the deadline expires,
 // or ctx.Err() if cancelled with no prior probe error.
+// Implemented via WaitReadyElapsed (elapsed discarded).
 func (c *Client) WaitReady(ctx context.Context, opts WaitReadyOptions) error {
+	_, err := c.WaitReadyElapsed(ctx, opts)
+	return err
+}
+
+// WaitReadyElapsed is like WaitReady but also returns how long waiting took
+// (until success or error). On success, elapsed is wall time until the first
+// successful probe. On error or cancel, elapsed is time until failure.
+// Nil client returns (0, error). Elapsed is always >= 0.
+func (c *Client) WaitReadyElapsed(ctx context.Context, opts WaitReadyOptions) (elapsed time.Duration, err error) {
+	start := time.Now()
 	if c == nil {
-		return fmt.Errorf("iomeshclient: nil client")
+		return 0, fmt.Errorf("iomeshclient: nil client")
 	}
 	if ctx == nil {
 		ctx = context.Background()
@@ -69,10 +80,11 @@ func (c *Client) WaitReady(ctx context.Context, opts WaitReadyOptions) error {
 	var last error
 	for {
 		if err := ctx.Err(); err != nil {
+			elapsed = time.Since(start)
 			if last != nil {
-				return fmt.Errorf("iomeshclient: wait ready: %w (last: %v)", err, last)
+				return elapsed, fmt.Errorf("iomeshclient: wait ready: %w (last: %v)", err, last)
 			}
-			return fmt.Errorf("iomeshclient: wait ready: %w", err)
+			return elapsed, fmt.Errorf("iomeshclient: wait ready: %w", err)
 		}
 
 		err := c.Ready(ctx)
@@ -80,7 +92,7 @@ func (c *Client) WaitReady(ctx context.Context, opts WaitReadyOptions) error {
 			err = c.Health(ctx)
 		}
 		if err == nil {
-			return nil
+			return time.Since(start), nil
 		}
 		last = err
 
@@ -88,10 +100,11 @@ func (c *Client) WaitReady(ctx context.Context, opts WaitReadyOptions) error {
 		select {
 		case <-ctx.Done():
 			timer.Stop()
+			elapsed = time.Since(start)
 			if last != nil {
-				return fmt.Errorf("iomeshclient: wait ready: %w (last: %v)", ctx.Err(), last)
+				return elapsed, fmt.Errorf("iomeshclient: wait ready: %w (last: %v)", ctx.Err(), last)
 			}
-			return fmt.Errorf("iomeshclient: wait ready: %w", ctx.Err())
+			return elapsed, fmt.Errorf("iomeshclient: wait ready: %w", ctx.Err())
 		case <-timer.C:
 		}
 	}

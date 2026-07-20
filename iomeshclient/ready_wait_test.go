@@ -139,3 +139,77 @@ func TestWaitReady_NilClient(t *testing.T) {
 		t.Fatalf("err=%v", err)
 	}
 }
+
+func TestWaitReadyElapsed_SucceedsAfterNFailures(t *testing.T) {
+	var n atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/ready" {
+			http.NotFound(w, r)
+			return
+		}
+		if n.Add(1) < 3 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	elapsed, err := nc.WaitReadyElapsed(ctx, iomeshclient.WaitReadyOptions{Interval: 20 * time.Millisecond})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if elapsed < 0 {
+		t.Fatalf("elapsed=%v want >= 0", elapsed)
+	}
+	// Two failed probes + interval sleeps before success → typically >0.
+	if elapsed == 0 {
+		t.Fatalf("elapsed=%v want > 0 after delayed success", elapsed)
+	}
+	if got := n.Load(); got < 3 {
+		t.Fatalf("attempts=%d", got)
+	}
+}
+
+func TestWaitReadyElapsed_TimeoutFails(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 80*time.Millisecond)
+	defer cancel()
+	elapsed, err := nc.WaitReadyElapsed(ctx, iomeshclient.WaitReadyOptions{Interval: 15 * time.Millisecond})
+	if err == nil {
+		t.Fatal("expected timeout error")
+	}
+	if elapsed <= 0 {
+		t.Fatalf("elapsed=%v want > 0 on timeout", elapsed)
+	}
+	if !strings.Contains(err.Error(), "deadline") && !strings.Contains(err.Error(), "canceled") {
+		if ctx.Err() == nil {
+			t.Fatalf("err=%v", err)
+		}
+	}
+}
+
+func TestWaitReadyElapsed_NilClient(t *testing.T) {
+	var c *iomeshclient.Client
+	elapsed, err := c.WaitReadyElapsed(context.Background(), iomeshclient.WaitReadyOptions{})
+	if err == nil || !strings.Contains(err.Error(), "nil client") {
+		t.Fatalf("err=%v", err)
+	}
+	if elapsed != 0 {
+		t.Fatalf("elapsed=%v want 0", elapsed)
+	}
+}

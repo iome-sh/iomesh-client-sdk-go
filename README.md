@@ -334,6 +334,8 @@ if err := nc.WaitReady(ctx, iomeshclient.WaitReadyOptions{
 	Interval: 500 * time.Millisecond, // default when zero
 	// RequireHealth: true,
 }); err != nil { /* still not ready */ }
+// Or capture wait latency (wall time until success or error):
+// elapsed, err := nc.WaitReadyElapsed(ctx, iomeshclient.WaitReadyOptions{Interval: 500 * time.Millisecond})
 
 // Optional remote policy (POST /v1/policy/evaluate). Mode is per-call.
 // Transport / 404 / non-OK are fail-open (Allow=true) so agent DX is not blocked
