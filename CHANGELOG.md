@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`Subscription.Delete`** — context-aware wrapper that removes the durable consumer via `DeleteConsumer` (stream/name from the subscription; nil subscription / nil client → error)
+- **Example** `examples/pull-loop` — `IOMESH_DELETE_CONSUMER=1` now uses `sub.Delete` after fetch loops
+
 ## [0.32.0] — 2026-07-20
 
 Minor release: pull-loop publish-each cycle.

@@ -20,7 +20,7 @@
 //	IOMESH_PUBLISH_EACH   set to 1 to Publish one message at the start of each cycle
 //	IOMESH_PUB_SUBJECT    publish subject override (see resolvePublishSubject priority)
 //	IOMESH_ACK            set to 1 to AckContext fetched sequences each cycle
-//	IOMESH_DELETE_CONSUMER set to 1 for best-effort DeleteConsumer after fetch loops
+//	IOMESH_DELETE_CONSUMER set to 1 for best-effort sub.Delete after fetch loops
 //
 // Publish semantics:
 //
@@ -223,12 +223,12 @@ func main() {
 		}
 	}
 
-	// 4) Optional best-effort DeleteConsumer after fetch loops (warn-only on fail)
+	// 4) Optional best-effort sub.Delete after fetch loops (warn-only on fail)
 	if doDeleteConsumer {
-		if err := nc.DeleteConsumer(ctx, stream, consumer); err != nil {
-			log.Printf("WARN DeleteConsumer stream=%s consumer=%s: %v", stream, consumer, err)
+		if err := sub.Delete(ctx); err != nil {
+			log.Printf("WARN Delete stream=%s consumer=%s: %v", stream, consumer, err)
 		} else {
-			fmt.Printf("PASS DeleteConsumer stream=%s consumer=%s\n", stream, consumer)
+			fmt.Printf("PASS Delete stream=%s consumer=%s\n", stream, consumer)
 		}
 	}
 

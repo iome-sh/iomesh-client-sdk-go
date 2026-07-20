@@ -110,7 +110,7 @@ offset, err := kc.Produce(ctx, "mesh.finance.events", 0, []byte("key"), []byte(`
 | `CreateConsumer` / `EnsureConsumer` | `POST /v1/streams/{stream}/consumers` | Returns `*ConsumerInfo`; 409 conflict → success with Stream/Name only. EnsureConsumer is an idempotent alias |
 | `DeleteConsumer` | `DELETE /v1/streams/{stream}/consumers/{name}` | 204 success; 404 → `*APIError`; destructive — opt-in cleanup (e.g. pull-loop `IOMESH_DELETE_CONSUMER=1`) |
 | `ConsumerFetch` / `ConsumerAck` / `ConsumerNack` | `POST …/fetch\|ack\|nack` | One-shot ops without holding a `Subscription`; path-escape stream/consumer; Fetch wires `Msg.Ack`/`Msg.Nack` via ephemeral sub |
-| `Publish` / `PullSubscribe` | stream publish / consumer | `PullSubscribe` uses `CreateConsumer` then returns `*Subscription` with `ConsumerInfo()`; `FetchContext`/`AckContext`/`NackContext` (or `Fetch`/`Ack`/`Nack` → `context.Background()`); default long-poll `DefaultFetchMaxWait` (5s) / `MaxWait`; path segments escaped |
+| `Publish` / `PullSubscribe` | stream publish / consumer | `PullSubscribe` uses `CreateConsumer` then returns `*Subscription` with `ConsumerInfo()`; `FetchContext`/`AckContext`/`NackContext` (or `Fetch`/`Ack`/`Nack` → `context.Background()`); `Delete(ctx)` removes the durable consumer via `DeleteConsumer`; default long-poll `DefaultFetchMaxWait` (5s) / `MaxWait`; path segments escaped |
 | `FormatMsg` / `FormatMsgs` / `FormatConsumerInfo` | — | Pure operator helpers for one message / batch / consumer detail (no network I/O) |
 | `Pub` | `POST /v1/pub` | Ephemeral fire-and-forget |
 
@@ -158,7 +158,7 @@ if err := nc.DeleteConsumer(ctx, "EVENTS", "worker-1"); err != nil {
 	log.Fatal(err) // *iomeshclient.APIError on 404 / non-2xx
 }
 
-// PullSubscribe: CreateConsumer + subscription handle for Fetch/Ack/Nack
+// PullSubscribe: CreateConsumer + subscription handle for Fetch/Ack/Nack/Delete
 sub, err := nc.PullSubscribe(ctx, iomeshclient.PullSubscribeConfig{
 	Stream: "EVENTS", Consumer: "worker-1", Filter: "dept.events.>",
 })
@@ -177,6 +177,12 @@ if err != nil {
 // Fetch/Ack/Nack remain as Background wrappers for simple call sites.
 fmt.Print(iomeshclient.FormatMsg(batch[0]))  // one message: seq / subject / bytes
 fmt.Print(iomeshclient.FormatMsgs(batch))    // batch: count header + one line per msg
+
+// Delete removes the durable consumer (same as DeleteConsumer with stream/name from sub).
+// Destructive — opt-in only (e.g. IOMESH_DELETE_CONSUMER=1 in pull-loop).
+if err := sub.Delete(ctx); err != nil {
+	log.Fatal(err)
+}
 
 // Pull loop (FetchContext → FormatMsgs → AckContext)
 // for {
@@ -293,14 +299,14 @@ export IOMESH_CONSUMER=sdk-pull-loop
 # export IOMESH_PUBLISH_EACH=1   # publish one message at the start of each cycle
 # export IOMESH_LOOPS=3          # multi-fetch cycles (default 1, max 100)
 # export IOMESH_ACK=1            # ack fetched sequences each cycle
-# export IOMESH_DELETE_CONSUMER=1  # best-effort DeleteConsumer after fetch loops
+# export IOMESH_DELETE_CONSUMER=1  # best-effort sub.Delete after fetch loops
 go run ./examples/pull-loop
 # ends with:
 # SUMMARY cycles_completed=N fetch_total=M duration_ms=D
 # RESULT=done
 ```
 
-With `IOMESH_ENSURE_STREAM=1`, the consumer filter defaults to `stream.>` (matching EnsureStream subjects) and with `IOMESH_PUBLISH=1` / `IOMESH_PUBLISH_EACH=1` the default publish subject is `stream.sdk-pull-loop` so Publish is accepted without setting `IOMESH_PUB_SUBJECT`. Override filter/pub with `IOMESH_SUBJECT` / `IOMESH_PUB_SUBJECT`. `IOMESH_PUBLISH=1` alone publishes once before the loop; `IOMESH_PUBLISH_EACH=1` publishes at the start of each cycle (and skips the pre-loop publish when both are set, so the first cycle is not double-published). Set `IOMESH_DELETE_CONSUMER=1` for best-effort `DeleteConsumer` after fetch loops (`PASS` / warn-only). Always prints `SUMMARY` (cycle/fetch counts + wall-clock `duration_ms`) before `RESULT=done`.
+With `IOMESH_ENSURE_STREAM=1`, the consumer filter defaults to `stream.>` (matching EnsureStream subjects) and with `IOMESH_PUBLISH=1` / `IOMESH_PUBLISH_EACH=1` the default publish subject is `stream.sdk-pull-loop` so Publish is accepted without setting `IOMESH_PUB_SUBJECT`. Override filter/pub with `IOMESH_SUBJECT` / `IOMESH_PUB_SUBJECT`. `IOMESH_PUBLISH=1` alone publishes once before the loop; `IOMESH_PUBLISH_EACH=1` publishes at the start of each cycle (and skips the pre-loop publish when both are set, so the first cycle is not double-published). Set `IOMESH_DELETE_CONSUMER=1` for best-effort `sub.Delete` after fetch loops (`PASS` / warn-only). Always prints `SUMMARY` (cycle/fetch counts + wall-clock `duration_ms`) before `RESULT=done`.
 
 See [`examples/pull-loop/`](examples/pull-loop/) for env flags (`IOMESH_BATCH`, `IOMESH_MAX_WAIT_MS`, `IOMESH_LOOPS`, `IOMESH_SUBJECT`, `IOMESH_PUBLISH`, `IOMESH_PUBLISH_EACH`, `IOMESH_DELETE_CONSUMER`, …).
 

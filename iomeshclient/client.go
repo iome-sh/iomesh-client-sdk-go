@@ -485,6 +485,15 @@ func (s *Subscription) Nack(seqs ...uint64) error {
 	return s.NackContext(context.Background(), seqs...)
 }
 
+// Delete removes the durable consumer via DeleteConsumer (stream/name from subscription).
+// Nil subscription / nil client → error.
+func (s *Subscription) Delete(ctx context.Context) error {
+	if s == nil || s.client == nil {
+		return errors.New("iomeshclient: nil subscription")
+	}
+	return s.client.DeleteConsumer(ctx, s.stream, s.consumer)
+}
+
 // Unsubscribe is a no-op for durable consumers in the PoC HTTP client.
 func (s *Subscription) Unsubscribe() error {
 	return nil

@@ -302,6 +302,104 @@ func TestDeleteConsumer_PathEscape(t *testing.T) {
 	}
 }
 
+func TestSubscription_Delete_OK204(t *testing.T) {
+	var gotMethod, gotPath string
+	var createHits, deleteHits int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/streams/EVENTS/consumers":
+			createHits++
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"stream": "EVENTS",
+				"name":   "worker-1",
+			})
+		case r.Method == http.MethodDelete && r.URL.Path == "/v1/streams/EVENTS/consumers/worker-1":
+			deleteHits++
+			gotMethod = r.Method
+			gotPath = r.URL.Path
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sub, err := nc.PullSubscribe(context.Background(), iomeshclient.PullSubscribeConfig{
+		Stream:   "EVENTS",
+		Consumer: "worker-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sub.Delete(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if createHits != 1 || deleteHits != 1 {
+		t.Fatalf("createHits=%d deleteHits=%d", createHits, deleteHits)
+	}
+	if gotMethod != http.MethodDelete {
+		t.Fatalf("method=%q", gotMethod)
+	}
+	if gotPath != "/v1/streams/EVENTS/consumers/worker-1" {
+		t.Fatalf("path=%q", gotPath)
+	}
+}
+
+func TestSubscription_Delete_NilSubscription(t *testing.T) {
+	var sub *iomeshclient.Subscription
+	err := sub.Delete(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "nil subscription") {
+		t.Fatalf("err=%v", err)
+	}
+
+	// Non-nil handle with nil client (e.g. zero value).
+	sub = &iomeshclient.Subscription{}
+	err = sub.Delete(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "nil subscription") {
+		t.Fatalf("nil client err=%v", err)
+	}
+}
+
+func TestSubscription_Delete_PathEscape(t *testing.T) {
+	var gotPath string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/consumers"):
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(map[string]any{"stream": "a/b", "name": "c/d"})
+		case r.Method == http.MethodDelete:
+			gotPath = r.URL.EscapedPath()
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sub, err := nc.PullSubscribe(context.Background(), iomeshclient.PullSubscribeConfig{
+		Stream:   "a/b",
+		Consumer: "c/d",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sub.Delete(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if gotPath != "/v1/streams/a%2Fb/consumers/c%2Fd" {
+		t.Fatalf("path=%q want escaped stream and name", gotPath)
+	}
+}
+
 func TestPullSubscribe_201SetsConsumerInfo(t *testing.T) {
 	var gotMethod, gotPath string
 	var gotBody map[string]any
