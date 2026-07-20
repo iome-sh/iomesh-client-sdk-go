@@ -48,15 +48,17 @@ func TestConnectionStatus_HealthAndReadyOK(t *testing.T) {
 	if !s.ReadyOK || s.ReadyErr != "" {
 		t.Fatalf("ReadyOK=%v ReadyErr=%q", s.ReadyOK, s.ReadyErr)
 	}
-	if s.HealthMS < 0 || s.ReadyMS < 0 {
-		t.Fatalf("latencies must be >=0: health_ms=%d ready_ms=%d", s.HealthMS, s.ReadyMS)
+	if s.HealthMS < 0 || s.ReadyMS < 0 || s.DurationMS < 0 {
+		t.Fatalf("latencies must be >=0: health_ms=%d ready_ms=%d duration_ms=%d",
+			s.HealthMS, s.ReadyMS, s.DurationMS)
 	}
 
 	human := iomeshclient.FormatConnectionStatus(s)
 	if !strings.Contains(human, "health=ok") || !strings.Contains(human, "ready=ok") {
 		t.Fatalf("FormatConnectionStatus=%q", human)
 	}
-	if !strings.Contains(human, "health_ms=") || !strings.Contains(human, "ready_ms=") {
+	if !strings.Contains(human, "health_ms=") || !strings.Contains(human, "ready_ms=") ||
+		!strings.Contains(human, "duration_ms=") {
 		t.Fatalf("FormatConnectionStatus missing latencies: %q", human)
 	}
 }
@@ -91,8 +93,9 @@ func TestConnectionStatus_HealthFailReadyOK(t *testing.T) {
 	if !s.ReadyOK || s.ReadyErr != "" {
 		t.Fatalf("ReadyOK=%v ReadyErr=%q", s.ReadyOK, s.ReadyErr)
 	}
-	if s.HealthMS < 0 || s.ReadyMS < 0 {
-		t.Fatalf("latencies must be >=0: health_ms=%d ready_ms=%d", s.HealthMS, s.ReadyMS)
+	if s.HealthMS < 0 || s.ReadyMS < 0 || s.DurationMS < 0 {
+		t.Fatalf("latencies must be >=0: health_ms=%d ready_ms=%d duration_ms=%d",
+			s.HealthMS, s.ReadyMS, s.DurationMS)
 	}
 	// Both probes must run even when Health fails.
 	hasHealth, hasReady := false, false
@@ -112,7 +115,8 @@ func TestConnectionStatus_HealthFailReadyOK(t *testing.T) {
 	if !strings.Contains(human, "health=FAIL") || !strings.Contains(human, "ready=ok") {
 		t.Fatalf("FormatConnectionStatus=%q", human)
 	}
-	if !strings.Contains(human, "health_ms=") || !strings.Contains(human, "ready_ms=") {
+	if !strings.Contains(human, "health_ms=") || !strings.Contains(human, "ready_ms=") ||
+		!strings.Contains(human, "duration_ms=") {
 		t.Fatalf("FormatConnectionStatus missing latencies: %q", human)
 	}
 }
@@ -142,12 +146,13 @@ func TestConnectionStatus_ProbeLatencyMeasured(t *testing.T) {
 	}
 	// httptest sleep should register as non-zero wall time on most machines.
 	// Allow 0 only if the clock is coarser than delay; still require >= 0.
-	if s.HealthMS < 0 || s.ReadyMS < 0 {
-		t.Fatalf("latencies must be >=0: health_ms=%d ready_ms=%d", s.HealthMS, s.ReadyMS)
+	if s.HealthMS < 0 || s.ReadyMS < 0 || s.DurationMS < 0 {
+		t.Fatalf("latencies must be >=0: health_ms=%d ready_ms=%d duration_ms=%d",
+			s.HealthMS, s.ReadyMS, s.DurationMS)
 	}
-	if s.HealthMS == 0 && s.ReadyMS == 0 {
-		// Extremely coarse clock is rare; soft-fail only if both zero after sleep.
-		t.Logf("warning: both latencies 0 after %v sleep (clock granularity?)", delay)
+	if s.HealthMS == 0 && s.ReadyMS == 0 && s.DurationMS == 0 {
+		// Extremely coarse clock is rare; soft-fail only if all zero after sleep.
+		t.Logf("warning: all latencies 0 after %v sleep (clock granularity?)", delay)
 	}
 
 	js := iomeshclient.FormatConnectionStatusJSON(s)
@@ -163,16 +168,22 @@ func TestConnectionStatus_ProbeLatencyMeasured(t *testing.T) {
 	if !ok {
 		t.Fatalf("JSON missing ready_ms: %s", js)
 	}
-	if int(hm) != s.HealthMS || int(rm) != s.ReadyMS {
-		t.Fatalf("JSON latencies health_ms=%v ready_ms=%v want %d %d\n%s",
-			parsed["health_ms"], parsed["ready_ms"], s.HealthMS, s.ReadyMS, js)
+	dm, ok := parsed["duration_ms"].(float64)
+	if !ok {
+		t.Fatalf("JSON missing duration_ms: %s", js)
 	}
-	if hm < 0 || rm < 0 {
+	if int(hm) != s.HealthMS || int(rm) != s.ReadyMS || int(dm) != s.DurationMS {
+		t.Fatalf("JSON latencies health_ms=%v ready_ms=%v duration_ms=%v want %d %d %d\n%s",
+			parsed["health_ms"], parsed["ready_ms"], parsed["duration_ms"],
+			s.HealthMS, s.ReadyMS, s.DurationMS, js)
+	}
+	if hm < 0 || rm < 0 || dm < 0 {
 		t.Fatalf("JSON latencies must be >=0: %s", js)
 	}
 
 	human := iomeshclient.FormatConnectionStatus(s)
-	if !strings.Contains(human, "health_ms=") || !strings.Contains(human, "ready_ms=") {
+	if !strings.Contains(human, "health_ms=") || !strings.Contains(human, "ready_ms=") ||
+		!strings.Contains(human, "duration_ms=") {
 		t.Fatalf("FormatConnectionStatus missing latencies: %q", human)
 	}
 }
@@ -189,11 +200,13 @@ func TestConnectionStatus_NilClient(t *testing.T) {
 	if s.BaseURL != "" || s.UserAgent != "" {
 		t.Fatalf("expected empty identity fields: %+v", s)
 	}
-	if s.HealthMS != 0 || s.ReadyMS != 0 {
-		t.Fatalf("nil client latencies want 0: health_ms=%d ready_ms=%d", s.HealthMS, s.ReadyMS)
+	if s.HealthMS != 0 || s.ReadyMS != 0 || s.DurationMS != 0 {
+		t.Fatalf("nil client latencies want 0: health_ms=%d ready_ms=%d duration_ms=%d",
+			s.HealthMS, s.ReadyMS, s.DurationMS)
 	}
 	human := iomeshclient.FormatConnectionStatus(s)
-	if !strings.Contains(human, "health_ms=0") || !strings.Contains(human, "ready_ms=0") {
+	if !strings.Contains(human, "health_ms=0") || !strings.Contains(human, "ready_ms=0") ||
+		!strings.Contains(human, "duration_ms=0") {
 		t.Fatalf("FormatConnectionStatus nil zeros: %q", human)
 	}
 }
@@ -227,6 +240,9 @@ func TestConnectionStatus_JSONContainsBaseURLAndUserAgent(t *testing.T) {
 	if !strings.Contains(js, `"ready_ms"`) {
 		t.Fatalf("JSON missing ready_ms: %s", js)
 	}
+	if !strings.Contains(js, `"duration_ms"`) {
+		t.Fatalf("JSON missing duration_ms: %s", js)
+	}
 	if !strings.HasSuffix(js, "\n") {
 		t.Fatal("JSON should end with newline")
 	}
@@ -245,16 +261,22 @@ func TestConnectionStatus_JSONContainsBaseURLAndUserAgent(t *testing.T) {
 	if _, ok := parsed["ready_ms"].(float64); !ok {
 		t.Fatalf("ready_ms missing or wrong type: %v\n%s", parsed["ready_ms"], js)
 	}
+	if _, ok := parsed["duration_ms"].(float64); !ok {
+		t.Fatalf("duration_ms missing or wrong type: %v\n%s", parsed["duration_ms"], js)
+	}
 	if n := int(parsed["health_ms"].(float64)); n < 0 {
 		t.Fatalf("health_ms=%d want >=0", n)
 	}
 	if n := int(parsed["ready_ms"].(float64)); n < 0 {
 		t.Fatalf("ready_ms=%d want >=0", n)
 	}
+	if n := int(parsed["duration_ms"].(float64)); n < 0 {
+		t.Fatalf("duration_ms=%d want >=0", n)
+	}
 }
 
 func TestFormatConnectionStatus_AlwaysEmitsLatencies(t *testing.T) {
-	// Zero latencies (not run / default struct) still print health_ms= and ready_ms=.
+	// Zero latencies (not run / default struct) still print health_ms=, ready_ms=, duration_ms=.
 	human := iomeshclient.FormatConnectionStatus(iomeshclient.ConnectionStatus{
 		BaseURL:   "http://127.0.0.1:8422",
 		UserAgent: "iomesh-client-sdk-go/test",
@@ -267,13 +289,18 @@ func TestFormatConnectionStatus_AlwaysEmitsLatencies(t *testing.T) {
 	if !strings.Contains(human, "ready_ms=0") {
 		t.Fatalf("missing ready_ms=0: %q", human)
 	}
+	if !strings.Contains(human, "duration_ms=0") {
+		t.Fatalf("missing duration_ms=0: %q", human)
+	}
 
 	human2 := iomeshclient.FormatConnectionStatus(iomeshclient.ConnectionStatus{
-		BaseURL:  "http://x",
-		HealthMS: 12,
-		ReadyMS:  34,
+		BaseURL:    "http://x",
+		HealthMS:   12,
+		ReadyMS:    34,
+		DurationMS: 50,
 	})
-	if !strings.Contains(human2, "health_ms=12") || !strings.Contains(human2, "ready_ms=34") {
+	if !strings.Contains(human2, "health_ms=12") || !strings.Contains(human2, "ready_ms=34") ||
+		!strings.Contains(human2, "duration_ms=50") {
 		t.Fatalf("expected explicit latencies: %q", human2)
 	}
 }
