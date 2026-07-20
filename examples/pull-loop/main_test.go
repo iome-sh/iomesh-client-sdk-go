@@ -2,6 +2,34 @@ package main
 
 import "testing"
 
+func TestEnvStrict(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		env  string
+		want bool
+	}{
+		{name: "exact 1", env: "1", want: true},
+		{name: "empty", env: "", want: false},
+		{name: "zero", env: "0", want: false},
+		{name: "true string", env: "true", want: false},
+		{name: "yes", env: "yes", want: false},
+		{name: "whitespace 1", env: " 1 ", want: false},
+		{name: "trailing newline", env: "1\n", want: false},
+		{name: "TRUE", env: "TRUE", want: false},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := envStrict(tc.env)
+			if got != tc.want {
+				t.Fatalf("envStrict(%q) = %v, want %v", tc.env, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestWantPublishEach(t *testing.T) {
 	t.Parallel()
 	cases := []struct {

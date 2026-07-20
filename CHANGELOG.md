@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Example** `examples/pull-loop` — optional `IOMESH_STRICT=1` exits non-zero (1) after `SUMMARY` when stage smoke hard failures occur (Health/Ready not OK, EnsureStream, PullSubscribe, Publish when requested, FetchContext, DeleteConsumer when requested); default remains warn-only + exit 0
+
 ## [0.35.0] — 2026-07-20
 
 Minor release: ConnectionStatus health/ready probe latencies.
