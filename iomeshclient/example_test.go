@@ -74,7 +74,9 @@ func ExampleFormatConnectionStatus() {
 	// base_url=http://127.0.0.1:8422
 	// user_agent=iomesh-client-sdk-go/0.26.0
 	// health=ok
+	// health_ms=0
 	// ready=ok
+	// ready_ms=0
 }
 
 // ExampleFormatContextSnippet shows prompt injection formatting after QueryContext (no network).

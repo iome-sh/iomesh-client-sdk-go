@@ -322,9 +322,11 @@ if err := nc.Health(ctx); err != nil { /* broker down */ }
 if err := nc.Ready(ctx); err != nil { /* optional readiness path missing */ }
 
 // One-shot identity + Health + Ready (fail-open; never panics). Both probes always run.
+// Always includes health_ms / ready_ms (probe wall time ms; 0 when nil client / not run).
 st := nc.ConnectionStatus(ctx)
 fmt.Print(iomeshclient.FormatConnectionStatus(st))
 // or: fmt.Print(iomeshclient.FormatConnectionStatusJSON(st))
+
 
 // Poll until Ready (optional Health) or ctx deadline.
 if err := nc.WaitReady(ctx, iomeshclient.WaitReadyOptions{
