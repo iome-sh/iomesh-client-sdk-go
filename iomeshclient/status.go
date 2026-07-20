@@ -24,6 +24,9 @@ type ConnectionStatus struct {
 	ReadyErr string `json:"ready_err,omitempty"`
 	// ReadyMS is Ready probe latency in milliseconds (always emitted; 0 when nil client / not run).
 	ReadyMS int `json:"ready_ms"`
+	// DurationMS is wall-clock latency for the full Health+Ready probe path in milliseconds
+	// (always emitted; 0 when nil client / not run).
+	DurationMS int `json:"duration_ms"`
 }
 
 // elapsedMS converts a duration to non-negative milliseconds for probe evidence.
@@ -36,9 +39,10 @@ func elapsedMS(d time.Duration) int {
 }
 
 // ConnectionStatus probes Health then Ready (fail-open fields; never panics).
-// Nil client → empty with HealthErr/ReadyErr "nil client" (HealthMS/ReadyMS stay 0).
+// Nil client → empty with HealthErr/ReadyErr "nil client" (HealthMS/ReadyMS/DurationMS stay 0).
 // Does not short-circuit Ready when Health fails — both probes always run.
-// Probe wall times are always set as HealthMS / ReadyMS (>= 0).
+// Probe wall times are always set as HealthMS / ReadyMS / DurationMS (>= 0).
+// DurationMS is wall clock for the full Health+Ready path (start before Health, stop after Ready).
 func (c *Client) ConnectionStatus(ctx context.Context) ConnectionStatus {
 	if c == nil {
 		return ConnectionStatus{
@@ -61,6 +65,8 @@ func (c *Client) ConnectionStatus(ctx context.Context) ConnectionStatus {
 		s.UserAgent = defaultUserAgent
 	}
 
+	start := time.Now()
+
 	t0 := time.Now()
 	if err := c.Health(ctx); err != nil {
 		s.HealthOK = false
@@ -79,11 +85,13 @@ func (c *Client) ConnectionStatus(ctx context.Context) ConnectionStatus {
 	}
 	s.ReadyMS = elapsedMS(time.Since(t1))
 
+	s.DurationMS = elapsedMS(time.Since(start))
+
 	return s
 }
 
 // FormatConnectionStatus returns a human multi-line summary of ConnectionStatus.
-// Always emits health_ms and ready_ms (including 0).
+// Always emits health_ms, ready_ms, and duration_ms (including 0).
 func FormatConnectionStatus(s ConnectionStatus) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "base_url=%s\n", s.BaseURL)
@@ -117,6 +125,7 @@ func FormatConnectionStatus(s ConnectionStatus) string {
 		b.WriteByte('\n')
 	}
 	fmt.Fprintf(&b, "ready_ms=%d\n", s.ReadyMS)
+	fmt.Fprintf(&b, "duration_ms=%d\n", s.DurationMS)
 	return b.String()
 }
 

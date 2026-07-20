@@ -77,6 +77,7 @@ func ExampleFormatConnectionStatus() {
 	// health_ms=0
 	// ready=ok
 	// ready_ms=0
+	// duration_ms=0
 }
 
 // ExampleFormatContextSnippet shows prompt injection formatting after QueryContext (no network).
