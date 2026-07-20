@@ -2,6 +2,64 @@ package main
 
 import "testing"
 
+func TestResolveConsumerFilter(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name         string
+		subjectEnv   string
+		ensureStream bool
+		want         string
+	}{
+		{
+			name:       "explicit subject wins",
+			subjectEnv: "tenant.events",
+			want:       "tenant.events",
+		},
+		{
+			name:         "explicit subject wins even when ensure on",
+			subjectEnv:   "tenant.events",
+			ensureStream: true,
+			want:         "tenant.events",
+		},
+		{
+			name:         "ensure defaults to stream.>",
+			ensureStream: true,
+			want:         "stream.>",
+		},
+		{
+			name: "empty without ensure",
+			want: "",
+		},
+		{
+			name:         "trim subject",
+			subjectEnv:   "  orders.>  ",
+			ensureStream: true,
+			want:         "orders.>",
+		},
+		{
+			name:         "whitespace-only subject falls through to ensure default",
+			subjectEnv:   "   ",
+			ensureStream: true,
+			want:         "stream.>",
+		},
+		{
+			name:       "whitespace-only subject without ensure is empty",
+			subjectEnv: "   ",
+			want:       "",
+		},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := resolveConsumerFilter(tc.subjectEnv, tc.ensureStream)
+			if got != tc.want {
+				t.Fatalf("resolveConsumerFilter(%q, %v) = %q, want %q", tc.subjectEnv, tc.ensureStream, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestResolvePublishSubject(t *testing.T) {
 	t.Parallel()
 	cases := []struct {

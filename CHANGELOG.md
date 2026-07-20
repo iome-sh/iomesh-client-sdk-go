@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Example** `examples/pull-loop` — when `IOMESH_ENSURE_STREAM=1` and `IOMESH_SUBJECT` is unset, the durable pull consumer filter defaults to `stream.>` (matching EnsureStream subjects) so pull is scoped consistently with the ensure-aware default publish subject `stream.sdk-pull-loop`. Explicit `IOMESH_SUBJECT` still wins.
+
 ## [0.27.0] — 2026-07-19
 
 Minor release: pull-loop ensure-aware default publish subject.
