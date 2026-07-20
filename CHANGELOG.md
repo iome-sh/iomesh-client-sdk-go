@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.42.0] — 2026-07-20
+
+Minor release: pull-loop WaitReady require-health env.
+
 ### Added
 
 - **Example** `examples/pull-loop` — optional `IOMESH_WAIT_REQUIRE_HEALTH=1` so WaitReady preflight (when `IOMESH_WAIT_READY_MS>0`) uses `WaitReadyOptions{RequireHealth: true}`; banner `wait_require_health=%v`; PASS/WARN lines include `require_health=%v`; default false
+
 
 ## [0.41.0] — 2026-07-20
 
