@@ -52,6 +52,9 @@ func TestConnectionStatus_HealthAndReadyOK(t *testing.T) {
 		t.Fatalf("latencies must be >=0: health_ms=%d ready_ms=%d duration_ms=%d",
 			s.HealthMS, s.ReadyMS, s.DurationMS)
 	}
+	if s.Result != "ok" {
+		t.Fatalf("Result=%q want ok", s.Result)
+	}
 
 	human := iomeshclient.FormatConnectionStatus(s)
 	if !strings.Contains(human, "health=ok") || !strings.Contains(human, "ready=ok") {
@@ -60,6 +63,9 @@ func TestConnectionStatus_HealthAndReadyOK(t *testing.T) {
 	if !strings.Contains(human, "health_ms=") || !strings.Contains(human, "ready_ms=") ||
 		!strings.Contains(human, "duration_ms=") {
 		t.Fatalf("FormatConnectionStatus missing latencies: %q", human)
+	}
+	if !strings.Contains(human, "result=ok") {
+		t.Fatalf("FormatConnectionStatus missing result=ok: %q", human)
 	}
 }
 
@@ -97,6 +103,9 @@ func TestConnectionStatus_HealthFailReadyOK(t *testing.T) {
 		t.Fatalf("latencies must be >=0: health_ms=%d ready_ms=%d duration_ms=%d",
 			s.HealthMS, s.ReadyMS, s.DurationMS)
 	}
+	if s.Result != "err" {
+		t.Fatalf("Result=%q want err (health fail)", s.Result)
+	}
 	// Both probes must run even when Health fails.
 	hasHealth, hasReady := false, false
 	for _, p := range paths {
@@ -118,6 +127,9 @@ func TestConnectionStatus_HealthFailReadyOK(t *testing.T) {
 	if !strings.Contains(human, "health_ms=") || !strings.Contains(human, "ready_ms=") ||
 		!strings.Contains(human, "duration_ms=") {
 		t.Fatalf("FormatConnectionStatus missing latencies: %q", human)
+	}
+	if !strings.Contains(human, "result=err") {
+		t.Fatalf("FormatConnectionStatus missing result=err: %q", human)
 	}
 }
 
@@ -204,10 +216,16 @@ func TestConnectionStatus_NilClient(t *testing.T) {
 		t.Fatalf("nil client latencies want 0: health_ms=%d ready_ms=%d duration_ms=%d",
 			s.HealthMS, s.ReadyMS, s.DurationMS)
 	}
+	if s.Result != "err" {
+		t.Fatalf("Result=%q want err (nil client)", s.Result)
+	}
 	human := iomeshclient.FormatConnectionStatus(s)
 	if !strings.Contains(human, "health_ms=0") || !strings.Contains(human, "ready_ms=0") ||
 		!strings.Contains(human, "duration_ms=0") {
 		t.Fatalf("FormatConnectionStatus nil zeros: %q", human)
+	}
+	if !strings.Contains(human, "result=err") {
+		t.Fatalf("FormatConnectionStatus nil missing result=err: %q", human)
 	}
 }
 
@@ -243,6 +261,9 @@ func TestConnectionStatus_JSONContainsBaseURLAndUserAgent(t *testing.T) {
 	if !strings.Contains(js, `"duration_ms"`) {
 		t.Fatalf("JSON missing duration_ms: %s", js)
 	}
+	if !strings.Contains(js, `"result"`) {
+		t.Fatalf("JSON missing result: %s", js)
+	}
 	if !strings.HasSuffix(js, "\n") {
 		t.Fatal("JSON should end with newline")
 	}
@@ -273,6 +294,13 @@ func TestConnectionStatus_JSONContainsBaseURLAndUserAgent(t *testing.T) {
 	if n := int(parsed["duration_ms"].(float64)); n < 0 {
 		t.Fatalf("duration_ms=%d want >=0", n)
 	}
+	res, ok := parsed["result"].(string)
+	if !ok || (res != "ok" && res != "err") {
+		t.Fatalf("result missing or invalid: %v\n%s", parsed["result"], js)
+	}
+	if res != s.Result {
+		t.Fatalf("JSON result=%q want %q", res, s.Result)
+	}
 }
 
 func TestFormatConnectionStatus_AlwaysEmitsLatencies(t *testing.T) {
@@ -292,6 +320,9 @@ func TestFormatConnectionStatus_AlwaysEmitsLatencies(t *testing.T) {
 	if !strings.Contains(human, "duration_ms=0") {
 		t.Fatalf("missing duration_ms=0: %q", human)
 	}
+	if !strings.Contains(human, "result=ok") {
+		t.Fatalf("missing result=ok: %q", human)
+	}
 
 	human2 := iomeshclient.FormatConnectionStatus(iomeshclient.ConnectionStatus{
 		BaseURL:    "http://x",
@@ -302,5 +333,23 @@ func TestFormatConnectionStatus_AlwaysEmitsLatencies(t *testing.T) {
 	if !strings.Contains(human2, "health_ms=12") || !strings.Contains(human2, "ready_ms=34") ||
 		!strings.Contains(human2, "duration_ms=50") {
 		t.Fatalf("expected explicit latencies: %q", human2)
+	}
+	if !strings.Contains(human2, "result=err") {
+		t.Fatalf("missing result=err when probes not OK: %q", human2)
+	}
+}
+
+func TestAggregateConnectionResult(t *testing.T) {
+	if got := iomeshclient.AggregateConnectionResult(true, true); got != "ok" {
+		t.Fatalf("both OK: got %q want ok", got)
+	}
+	if got := iomeshclient.AggregateConnectionResult(false, true); got != "err" {
+		t.Fatalf("health fail: got %q want err", got)
+	}
+	if got := iomeshclient.AggregateConnectionResult(true, false); got != "err" {
+		t.Fatalf("ready fail: got %q want err", got)
+	}
+	if got := iomeshclient.AggregateConnectionResult(false, false); got != "err" {
+		t.Fatalf("both fail: got %q want err", got)
 	}
 }
