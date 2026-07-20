@@ -1,5 +1,6 @@
 // Command pull-loop is a stage smoke for public SDK durable pull consumer
-// (PullSubscribe → optional Publish → N× FetchContext → FormatMsgs → optional AckContext).
+// (PullSubscribe → optional pre-loop Publish → N× (optional per-cycle Publish →
+// FetchContext → FormatMsgs → optional AckContext)).
 //
 // Env:
 //
@@ -15,16 +16,25 @@
 //	IOMESH_MAX_WAIT_MS    long-poll max wait ms (default 2000)
 //	IOMESH_LOOPS          fetch cycle count (default 1; clamped to 1..100)
 //	IOMESH_ENSURE_STREAM  set to 1 to EnsureStream with subject stream.>
-//	IOMESH_PUBLISH        set to 1 to Publish one message before fetch
+//	IOMESH_PUBLISH        set to 1 to Publish one message before the fetch loop
+//	IOMESH_PUBLISH_EACH   set to 1 to Publish one message at the start of each cycle
 //	IOMESH_PUB_SUBJECT    publish subject override (see resolvePublishSubject priority)
 //	IOMESH_ACK            set to 1 to AckContext fetched sequences each cycle
 //	IOMESH_DELETE_CONSUMER set to 1 for best-effort DeleteConsumer after fetch loops
+//
+// Publish semantics:
+//
+//	IOMESH_PUBLISH=1 only          → one publish before the fetch loop (current default)
+//	IOMESH_PUBLISH_EACH=1          → publish at the start of each cycle (including first)
+//	both set                       → EACH wins for cycles; pre-loop single publish is skipped
+//	                                 so the first cycle is not double-published
 //
 // Usage:
 //
 //	export IOMESH_URL=http://127.0.0.1:8422
 //	export IOMESH_ENSURE_STREAM=1   # optional; defaults filter stream.> and pub under stream.>
-//	export IOMESH_PUBLISH=1         # optional self-contained publish before fetch
+//	export IOMESH_PUBLISH=1         # optional one-shot publish before the fetch loop
+//	export IOMESH_PUBLISH_EACH=1    # optional publish at start of each cycle (self-contained multi-fetch)
 //	export IOMESH_LOOPS=3           # optional multi-fetch cycles (default 1)
 //	export IOMESH_ACK=1             # optional
 //	export IOMESH_DELETE_CONSUMER=1 # optional cleanup after fetch loops
@@ -79,6 +89,7 @@ func main() {
 		maxWaitMS = 2000
 	}
 	doPublish := os.Getenv("IOMESH_PUBLISH") == "1"
+	publishEach := wantPublishEach(os.Getenv("IOMESH_PUBLISH_EACH"))
 	ensureStream := os.Getenv("IOMESH_ENSURE_STREAM") == "1"
 	doAck := os.Getenv("IOMESH_ACK") == "1"
 	doDeleteConsumer := os.Getenv("IOMESH_DELETE_CONSUMER") == "1"
@@ -114,10 +125,11 @@ func main() {
 	defer cancel()
 
 	fmt.Printf("sdk=%s user-agent=iomesh-client-sdk-go/%s\n", iomeshclient.Version, iomeshclient.Version)
-	fmt.Printf("stream=%s consumer=%s batch=%d max_wait_ms=%d loops=%d filter=%q ensure_stream=%v publish=%v pub_subject=%q ack=%v delete_consumer=%v\n",
+	fmt.Printf("stream=%s consumer=%s batch=%d max_wait_ms=%d loops=%d filter=%q ensure_stream=%v publish=%v publish_each=%v pub_subject=%q ack=%v delete_consumer=%v\n",
 		stream, consumer, batch, maxWaitMS, loops, filter,
 		ensureStream,
 		doPublish,
+		publishEach,
 		pubSubject,
 		doAck,
 		doDeleteConsumer,
@@ -168,26 +180,22 @@ func main() {
 	fmt.Print(iomeshclient.FormatConsumerInfo(sub.ConsumerInfo()))
 	fmt.Printf("PASS PullSubscribe stream=%s consumer=%s\n", stream, consumer)
 
-	// 2b) Optional self-contained Publish before fetch (warn-only on fail)
-	if doPublish {
-		payload := []byte(fmt.Sprintf(`{"source":"sdk-pull-loop","ts":%d}`, time.Now().Unix()))
-		ack, err := nc.Publish(ctx, stream, pubSubject, payload)
-		if err != nil {
-			log.Printf("WARN Publish stream=%s subject=%s: %v", stream, pubSubject, err)
-		} else {
-			fmt.Printf("PASS Publish stream=%s subject=%s", stream, pubSubject)
-			if ack != nil {
-				fmt.Printf(" seq=%d", ack.Seq)
-			}
-			fmt.Println()
-		}
+	// 2b) Optional one-shot Publish before the fetch loop (warn-only on fail).
+	// Skipped when IOMESH_PUBLISH_EACH=1 so the first cycle is not double-published.
+	if doPublish && !publishEach {
+		publishDemo(ctx, nc, stream, pubSubject)
 	}
 
-	// 3) Fetch cycles (FetchContext → FormatMsgs → optional AckContext); default one cycle.
+	// 3) Fetch cycles (optional per-cycle Publish → FetchContext → FormatMsgs → optional AckContext).
 	maxWait := iomeshclient.MaxWait(time.Duration(maxWaitMS) * time.Millisecond)
 	cyclesCompleted := 0
 	fetchTotal := 0
 	for cycle := 1; cycle <= loops; cycle++ {
+		// Per-cycle publish before fetch (warn-only on fail; still fetch).
+		if publishEach {
+			publishDemo(ctx, nc, stream, pubSubject)
+		}
+
 		msgs, err := sub.FetchContext(ctx, batch, maxWait)
 		if err != nil {
 			log.Printf("WARN FetchContext cycle=%d: %v", cycle, err)
@@ -227,11 +235,32 @@ func main() {
 	printPullLoopDone(cyclesCompleted, fetchTotal, start)
 }
 
+// publishDemo publishes one self-contained demo payload (warn-only on fail).
+func publishDemo(ctx context.Context, nc *iomeshclient.Client, stream, pubSubject string) {
+	payload := []byte(fmt.Sprintf(`{"source":"sdk-pull-loop","ts":%d}`, time.Now().Unix()))
+	ack, err := nc.Publish(ctx, stream, pubSubject, payload)
+	if err != nil {
+		log.Printf("WARN Publish stream=%s subject=%s: %v", stream, pubSubject, err)
+		return
+	}
+	fmt.Printf("PASS Publish stream=%s subject=%s", stream, pubSubject)
+	if ack != nil {
+		fmt.Printf(" seq=%d", ack.Seq)
+	}
+	fmt.Println()
+}
+
 // printPullLoopDone emits SUMMARY then RESULT=done using wall-clock duration since start.
 func printPullLoopDone(cyclesCompleted, fetchTotal int, start time.Time) {
 	durationMS := int(time.Since(start).Milliseconds())
 	fmt.Println(formatPullLoopSummary(cyclesCompleted, fetchTotal, durationMS))
 	fmt.Println("RESULT=done")
+}
+
+// wantPublishEach reports whether IOMESH_PUBLISH_EACH enables per-cycle publish.
+// Only the exact value "1" is truthy (matches other pull-loop flag env convention).
+func wantPublishEach(env string) bool {
+	return env == "1"
 }
 
 // formatPullLoopSummary returns the stage-smoke SUMMARY line for pull-loop.

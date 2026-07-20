@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Example** `examples/pull-loop` — optional `IOMESH_PUBLISH_EACH=1` publishes one message at the start of each fetch cycle (self-contained multi-fetch smoke); when set, pre-loop `IOMESH_PUBLISH` is skipped so the first cycle is not double-published; status banner includes `publish_each=`
+
 ## [0.31.0] — 2026-07-20
 
 Minor release: DeleteConsumer and pull-loop cleanup.
