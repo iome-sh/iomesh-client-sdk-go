@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Example** `examples/pull-loop` — optional `IOMESH_LOOPS` multi-fetch cycles (default 1, max 100); each cycle `FetchContext` → `FormatMsgs` → optional `AckContext`; fetch error is warn-and-break with `RESULT=done`
+
 ## [0.28.0] — 2026-07-20
 
 Minor release: pull-loop ensure-aware default consumer filter.

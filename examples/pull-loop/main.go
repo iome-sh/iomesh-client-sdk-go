@@ -1,5 +1,5 @@
 // Command pull-loop is a stage smoke for public SDK durable pull consumer
-// (PullSubscribe → optional Publish → FetchContext → FormatMsgs → optional AckContext).
+// (PullSubscribe → optional Publish → N× FetchContext → FormatMsgs → optional AckContext).
 //
 // Env:
 //
@@ -13,16 +13,18 @@
 //	IOMESH_SUBJECT        optional filter_subject for the consumer (see resolveConsumerFilter)
 //	IOMESH_BATCH          fetch batch size (default 5)
 //	IOMESH_MAX_WAIT_MS    long-poll max wait ms (default 2000)
+//	IOMESH_LOOPS          fetch cycle count (default 1; clamped to 1..100)
 //	IOMESH_ENSURE_STREAM  set to 1 to EnsureStream with subject stream.>
 //	IOMESH_PUBLISH        set to 1 to Publish one message before fetch
 //	IOMESH_PUB_SUBJECT    publish subject override (see resolvePublishSubject priority)
-//	IOMESH_ACK            set to 1 to AckContext fetched sequences
+//	IOMESH_ACK            set to 1 to AckContext fetched sequences each cycle
 //
 // Usage:
 //
 //	export IOMESH_URL=http://127.0.0.1:8422
 //	export IOMESH_ENSURE_STREAM=1   # optional; defaults filter stream.> and pub under stream.>
 //	export IOMESH_PUBLISH=1         # optional self-contained publish before fetch
+//	export IOMESH_LOOPS=3           # optional multi-fetch cycles (default 1)
 //	export IOMESH_ACK=1             # optional
 //	go run ./examples/pull-loop
 //
@@ -37,7 +39,7 @@
 //  3. Else tenant+".sdk-pull-loop" if tenant set
 //  4. Else stream+".demo"
 //
-// One fetch cycle then exit 0. Errors after connect are warn-only.
+// IOMESH_LOOPS fetch cycles then exit 0 (default one cycle). Errors after connect are warn-only.
 package main
 
 import (
@@ -71,6 +73,8 @@ func main() {
 	}
 	doPublish := os.Getenv("IOMESH_PUBLISH") == "1"
 	ensureStream := os.Getenv("IOMESH_ENSURE_STREAM") == "1"
+	doAck := os.Getenv("IOMESH_ACK") == "1"
+	loops := parseLoops(os.Getenv("IOMESH_LOOPS"), 1)
 	// Resolve filter after subjectEnv so ensure-default stream.> is not passed as a publish subject.
 	filter := resolveConsumerFilter(subjectEnv, ensureStream)
 	pubSubject := publishSubject(subjectEnv, tenant, stream, ensureStream)
@@ -93,18 +97,18 @@ func main() {
 		log.Fatalf("connect: %v", err)
 	}
 
-	// Budget: connect/status + optional ensure + create + optional pub + one long-poll fetch + optional ack.
-	timeout := time.Duration(maxWaitMS)*time.Millisecond + 20*time.Second
+	// Budget: connect/status + optional ensure + create + optional pub + N long-poll fetches + optional ack.
+	timeout := time.Duration(maxWaitMS)*time.Millisecond*time.Duration(loops) + 20*time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	fmt.Printf("sdk=%s user-agent=iomesh-client-sdk-go/%s\n", iomeshclient.Version, iomeshclient.Version)
-	fmt.Printf("stream=%s consumer=%s batch=%d max_wait_ms=%d filter=%q ensure_stream=%v publish=%v pub_subject=%q ack=%v\n",
-		stream, consumer, batch, maxWaitMS, filter,
+	fmt.Printf("stream=%s consumer=%s batch=%d max_wait_ms=%d loops=%d filter=%q ensure_stream=%v publish=%v pub_subject=%q ack=%v\n",
+		stream, consumer, batch, maxWaitMS, loops, filter,
 		ensureStream,
 		doPublish,
 		pubSubject,
-		os.Getenv("IOMESH_ACK") == "1",
+		doAck,
 	)
 
 	// 0) ConnectionStatus snapshot (identity + Health + Ready; fail-open)
@@ -167,33 +171,53 @@ func main() {
 		}
 	}
 
-	// 3) One fetch cycle (FetchContext → FormatMsgs → optional AckContext)
-	msgs, err := sub.FetchContext(ctx, batch, iomeshclient.MaxWait(time.Duration(maxWaitMS)*time.Millisecond))
-	if err != nil {
-		log.Printf("WARN FetchContext: %v", err)
-		fmt.Println("RESULT=done")
-		return
-	}
-	fmt.Print(iomeshclient.FormatMsgs(msgs))
-	fmt.Printf("PASS FetchContext count=%d\n", len(msgs))
-
-	if os.Getenv("IOMESH_ACK") == "1" && len(msgs) > 0 {
-		seqs := make([]uint64, 0, len(msgs))
-		for _, m := range msgs {
-			if m != nil {
-				seqs = append(seqs, m.Seq())
-			}
+	// 3) Fetch cycles (FetchContext → FormatMsgs → optional AckContext); default one cycle.
+	maxWait := iomeshclient.MaxWait(time.Duration(maxWaitMS) * time.Millisecond)
+	for cycle := 1; cycle <= loops; cycle++ {
+		msgs, err := sub.FetchContext(ctx, batch, maxWait)
+		if err != nil {
+			log.Printf("WARN FetchContext cycle=%d: %v", cycle, err)
+			break
 		}
-		if len(seqs) == 0 {
-			log.Printf("WARN AckContext: no sequences")
-		} else if err := sub.AckContext(ctx, seqs...); err != nil {
-			log.Printf("WARN AckContext: %v", err)
-		} else {
-			fmt.Printf("PASS AckContext seqs=%v\n", seqs)
+		fmt.Print(iomeshclient.FormatMsgs(msgs))
+		fmt.Printf("PASS FetchContext cycle=%d count=%d\n", cycle, len(msgs))
+
+		if doAck && len(msgs) > 0 {
+			seqs := make([]uint64, 0, len(msgs))
+			for _, m := range msgs {
+				if m != nil {
+					seqs = append(seqs, m.Seq())
+				}
+			}
+			if len(seqs) == 0 {
+				log.Printf("WARN AckContext cycle=%d: no sequences", cycle)
+			} else if err := sub.AckContext(ctx, seqs...); err != nil {
+				log.Printf("WARN AckContext cycle=%d: %v", cycle, err)
+			} else {
+				fmt.Printf("PASS AckContext cycle=%d seqs=%v\n", cycle, seqs)
+			}
 		}
 	}
 
 	fmt.Println("RESULT=done")
+}
+
+// parseLoops returns fetch cycle count from an env value.
+// Empty or invalid → def (then clamped). Result is always in [1, 100].
+func parseLoops(env string, def int) int {
+	n := def
+	if v := strings.TrimSpace(env); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil {
+			n = parsed
+		}
+	}
+	if n < 1 {
+		return 1
+	}
+	if n > 100 {
+		return 100
+	}
+	return n
 }
 
 // publishSubject resolves the publish subject from env and flags.
