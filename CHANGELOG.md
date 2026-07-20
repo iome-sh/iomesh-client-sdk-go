@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.35.0] — 2026-07-20
+
+Minor release: ConnectionStatus health/ready probe latencies.
+
 ### Added
 
 - **`ConnectionStatus` probe latencies** — always-emitted `health_ms` / `ready_ms` (Health and Ready wall time in ms; `0` for nil client / not run); `FormatConnectionStatus` prints `health_ms=N` / `ready_ms=N` for operator/CI evidence
+
 
 ## [0.34.0] — 2026-07-20
 
