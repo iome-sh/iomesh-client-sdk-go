@@ -21,6 +21,8 @@
 //	IOMESH_PUB_SUBJECT    publish subject override (see resolvePublishSubject priority)
 //	IOMESH_ACK            set to 1 to AckContext fetched sequences each cycle
 //	IOMESH_DELETE_CONSUMER set to 1 for best-effort sub.Delete after fetch loops
+//	IOMESH_WAIT_READY_MS  optional WaitReady preflight budget ms after ConnectionStatus
+//	                      (0/unset = skip; invalid → 0; clamped to max 120000)
 //	IOMESH_STRICT         set to 1 for non-zero exit (1) on stage smoke hard failures
 //
 // Publish semantics:
@@ -39,6 +41,7 @@
 //	export IOMESH_LOOPS=3           # optional multi-fetch cycles (default 1)
 //	export IOMESH_ACK=1             # optional
 //	export IOMESH_DELETE_CONSUMER=1 # optional cleanup after fetch loops
+//	export IOMESH_WAIT_READY_MS=5000 # optional WaitReady preflight budget (ms)
 //	export IOMESH_STRICT=1          # optional; exit 1 after SUMMARY on hard stage failures
 //	go run ./examples/pull-loop
 //
@@ -59,10 +62,10 @@
 //
 // Default (IOMESH_STRICT unset): warn-only after connect + exit 0 with RESULT=done / SUMMARY.
 // IOMESH_STRICT=1: still prints SUMMARY when possible, then exit 1 if any hard stage failure:
-// Health not OK, Ready not OK, EnsureStream error, PullSubscribe error, Publish error
-// (when IOMESH_PUBLISH / IOMESH_PUBLISH_EACH requested), FetchContext error, or
-// DeleteConsumer/sub.Delete error (when IOMESH_DELETE_CONSUMER=1). Connect failure already
-// uses log.Fatal (exit non-zero).
+// Health not OK, Ready not OK, WaitReady error (when IOMESH_WAIT_READY_MS>0), EnsureStream error,
+// PullSubscribe error, Publish error (when IOMESH_PUBLISH / IOMESH_PUBLISH_EACH requested),
+// FetchContext error, or DeleteConsumer/sub.Delete error (when IOMESH_DELETE_CONSUMER=1).
+// Connect failure already uses log.Fatal (exit non-zero).
 package main
 
 import (
@@ -100,6 +103,7 @@ func main() {
 	doAck := os.Getenv("IOMESH_ACK") == "1"
 	doDeleteConsumer := os.Getenv("IOMESH_DELETE_CONSUMER") == "1"
 	strict := envStrict(os.Getenv("IOMESH_STRICT"))
+	waitReadyMS := parseWaitReadyMS(os.Getenv("IOMESH_WAIT_READY_MS"))
 	loops := parseLoops(os.Getenv("IOMESH_LOOPS"), 1)
 	// Resolve filter after subjectEnv so ensure-default stream.> is not passed as a publish subject.
 	filter := resolveConsumerFilter(subjectEnv, ensureStream)
@@ -127,13 +131,16 @@ func main() {
 		log.Fatalf("connect: %v", err)
 	}
 
-	// Budget: connect/status + optional ensure + create + optional pub + N long-poll fetches + optional ack.
+	// Budget: connect/status + optional WaitReady + ensure + create + optional pub + N long-poll fetches + optional ack.
 	timeout := time.Duration(maxWaitMS)*time.Millisecond*time.Duration(loops) + 20*time.Second
+	if waitReadyMS > 0 {
+		timeout += time.Duration(waitReadyMS) * time.Millisecond
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	fmt.Printf("sdk=%s user-agent=iomesh-client-sdk-go/%s\n", iomeshclient.Version, iomeshclient.Version)
-	fmt.Printf("stream=%s consumer=%s batch=%d max_wait_ms=%d loops=%d filter=%q ensure_stream=%v publish=%v publish_each=%v pub_subject=%q ack=%v delete_consumer=%v strict=%v\n",
+	fmt.Printf("stream=%s consumer=%s batch=%d max_wait_ms=%d loops=%d filter=%q ensure_stream=%v publish=%v publish_each=%v pub_subject=%q ack=%v delete_consumer=%v wait_ready_ms=%d strict=%v\n",
 		stream, consumer, batch, maxWaitMS, loops, filter,
 		ensureStream,
 		doPublish,
@@ -141,6 +148,7 @@ func main() {
 		pubSubject,
 		doAck,
 		doDeleteConsumer,
+		waitReadyMS,
 		strict,
 	)
 
@@ -158,6 +166,27 @@ func main() {
 		failed = true
 	} else {
 		fmt.Println("PASS Ready")
+	}
+
+	// 0b) Optional WaitReady preflight (after status, before EnsureStream).
+	// When IOMESH_WAIT_READY_MS>0: poll Ready with budget ms; interval 500ms.
+	// Failure is warn-only by default; under IOMESH_STRICT=1 sets failed (like Health).
+	if waitReadyMS > 0 {
+		wrCtx, wrCancel := context.WithTimeout(ctx, time.Duration(waitReadyMS)*time.Millisecond)
+		elapsed, wrErr := nc.WaitReadyElapsed(wrCtx, iomeshclient.WaitReadyOptions{
+			Interval: 500 * time.Millisecond,
+		})
+		wrCancel()
+		elapsedMS := int(elapsed.Milliseconds())
+		if elapsedMS < 0 {
+			elapsedMS = 0
+		}
+		if wrErr != nil {
+			log.Printf("WARN WaitReady: %v elapsed_ms=%d", wrErr, elapsedMS)
+			failed = true
+		} else {
+			fmt.Printf("PASS WaitReady elapsed_ms=%d\n", elapsedMS)
+		}
 	}
 
 	// 1) Optional EnsureStream (subject stream.>)
@@ -322,6 +351,27 @@ func parseLoops(env string, def int) int {
 	}
 	if n > 100 {
 		return 100
+	}
+	return n
+}
+
+// maxWaitReadyMS is the upper clamp for IOMESH_WAIT_READY_MS (2 minutes).
+const maxWaitReadyMS = 120000
+
+// parseWaitReadyMS returns the WaitReady budget in milliseconds from an env value.
+// Empty, non-positive, or invalid → 0 (skip WaitReady). Values above maxWaitReadyMS
+// are clamped. Pure helper (no I/O).
+func parseWaitReadyMS(env string) int {
+	v := strings.TrimSpace(env)
+	if v == "" {
+		return 0
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n <= 0 {
+		return 0
+	}
+	if n > maxWaitReadyMS {
+		return maxWaitReadyMS
 	}
 	return n
 }

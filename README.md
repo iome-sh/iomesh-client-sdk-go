@@ -195,7 +195,7 @@ if err := sub.Delete(ctx); err != nil {
 //     for i, m := range batch { seqs[i] = m.Seq() }
 //     if err := sub.AckContext(ctx, seqs...); err != nil { log.Fatal(err) }
 // }
-// Runnable stage smoke: examples/pull-loop (IOMESH_URL, optional IOMESH_ENSURE_STREAM / IOMESH_PUBLISH / IOMESH_PUBLISH_EACH / IOMESH_LOOPS / IOMESH_ACK / IOMESH_DELETE_CONSUMER / IOMESH_STRICT;
+// Runnable stage smoke: examples/pull-loop (IOMESH_URL, optional IOMESH_ENSURE_STREAM / IOMESH_PUBLISH / IOMESH_PUBLISH_EACH / IOMESH_LOOPS / IOMESH_ACK / IOMESH_DELETE_CONSUMER / IOMESH_WAIT_READY_MS / IOMESH_STRICT;
 // with ENSURE_STREAM=1, default filter is stream.> and pub subject is stream.sdk-pull-loop)
 
 // One-shot consumer ops (no long-lived Subscription)
@@ -301,6 +301,7 @@ export IOMESH_CONSUMER=sdk-pull-loop
 # export IOMESH_LOOPS=3          # multi-fetch cycles (default 1, max 100)
 # export IOMESH_ACK=1            # ack fetched sequences each cycle
 # export IOMESH_DELETE_CONSUMER=1  # best-effort sub.Delete after fetch loops
+# export IOMESH_WAIT_READY_MS=5000  # optional WaitReady preflight budget (ms) after ConnectionStatus
 # export IOMESH_STRICT=1         # exit 1 after SUMMARY on hard stage failures
 go run ./examples/pull-loop
 # ends with:
@@ -308,9 +309,9 @@ go run ./examples/pull-loop
 # RESULT=done
 ```
 
-With `IOMESH_ENSURE_STREAM=1`, the consumer filter defaults to `stream.>` (matching EnsureStream subjects) and with `IOMESH_PUBLISH=1` / `IOMESH_PUBLISH_EACH=1` the default publish subject is `stream.sdk-pull-loop` so Publish is accepted without setting `IOMESH_PUB_SUBJECT`. Override filter/pub with `IOMESH_SUBJECT` / `IOMESH_PUB_SUBJECT`. `IOMESH_PUBLISH=1` alone publishes once before the loop; `IOMESH_PUBLISH_EACH=1` publishes at the start of each cycle (and skips the pre-loop publish when both are set, so the first cycle is not double-published). Set `IOMESH_DELETE_CONSUMER=1` for best-effort `sub.Delete` after fetch loops (`PASS` / warn-only). Always prints `SUMMARY` (cycle/fetch counts + wall-clock `duration_ms`) before `RESULT=done`. Set `IOMESH_STRICT=1` so hard stage failures (Health/Ready not OK, EnsureStream, PullSubscribe, Publish when requested, FetchContext, DeleteConsumer when requested) exit non-zero (1) after `SUMMARY`; default remains warn-only + exit 0.
+With `IOMESH_ENSURE_STREAM=1`, the consumer filter defaults to `stream.>` (matching EnsureStream subjects) and with `IOMESH_PUBLISH=1` / `IOMESH_PUBLISH_EACH=1` the default publish subject is `stream.sdk-pull-loop` so Publish is accepted without setting `IOMESH_PUB_SUBJECT`. Override filter/pub with `IOMESH_SUBJECT` / `IOMESH_PUB_SUBJECT`. `IOMESH_PUBLISH=1` alone publishes once before the loop; `IOMESH_PUBLISH_EACH=1` publishes at the start of each cycle (and skips the pre-loop publish when both are set, so the first cycle is not double-published). Set `IOMESH_DELETE_CONSUMER=1` for best-effort `sub.Delete` after fetch loops (`PASS` / warn-only). Set `IOMESH_WAIT_READY_MS=N` (N>0) for an optional `WaitReadyElapsed` preflight after ConnectionStatus (budget N ms, poll interval 500ms; prints `PASS WaitReady elapsed_ms=…` or `WARN WaitReady: … elapsed_ms=…`; banner shows `wait_ready_ms=N`, `0` when off). Always prints `SUMMARY` (cycle/fetch counts + wall-clock `duration_ms`) before `RESULT=done`. Set `IOMESH_STRICT=1` so hard stage failures (Health/Ready not OK, WaitReady when requested, EnsureStream, PullSubscribe, Publish when requested, FetchContext, DeleteConsumer when requested) exit non-zero (1) after `SUMMARY`; default remains warn-only + exit 0.
 
-See [`examples/pull-loop/`](examples/pull-loop/) for env flags (`IOMESH_BATCH`, `IOMESH_MAX_WAIT_MS`, `IOMESH_LOOPS`, `IOMESH_SUBJECT`, `IOMESH_PUBLISH`, `IOMESH_PUBLISH_EACH`, `IOMESH_DELETE_CONSUMER`, `IOMESH_STRICT`, …).
+See [`examples/pull-loop/`](examples/pull-loop/) for env flags (`IOMESH_BATCH`, `IOMESH_MAX_WAIT_MS`, `IOMESH_LOOPS`, `IOMESH_SUBJECT`, `IOMESH_PUBLISH`, `IOMESH_PUBLISH_EACH`, `IOMESH_DELETE_CONSUMER`, `IOMESH_WAIT_READY_MS`, `IOMESH_STRICT`, …).
 
 ## Diagnostics
 
