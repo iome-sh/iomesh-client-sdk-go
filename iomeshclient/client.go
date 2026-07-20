@@ -278,6 +278,25 @@ func (c *Client) EnsureConsumer(ctx context.Context, cfg CreateConsumerConfig) (
 	return c.CreateConsumer(ctx, cfg)
 }
 
+// DeleteConsumer removes a durable pull consumer via
+// DELETE /v1/streams/{stream}/consumers/{name}.
+// Empty stream/name / nil client → error. Non-2xx → *APIError (404 if missing).
+// 204 No Content is success (doJSON handles empty body on 2xx).
+// Stream and name path segments are url.PathEscape'd.
+func (c *Client) DeleteConsumer(ctx context.Context, stream, name string) error {
+	if c == nil {
+		return errors.New("iomeshclient: nil client")
+	}
+	stream = strings.TrimSpace(stream)
+	name = strings.TrimSpace(name)
+	if stream == "" || name == "" {
+		return errors.New("iomeshclient: stream and name required")
+	}
+
+	path := "/v1/streams/" + url.PathEscape(stream) + "/consumers/" + url.PathEscape(name)
+	return c.doJSON(ctx, http.MethodDelete, path, nil, nil)
+}
+
 // PullSubscribe registers (or reuses) a durable consumer and returns a subscription handle.
 // Uses CreateConsumer: on 201, full ConsumerInfo from the body; on 409, Stream/Name only.
 // Stream path segment is url.PathEscape'd.
