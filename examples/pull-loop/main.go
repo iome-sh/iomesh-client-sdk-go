@@ -10,7 +10,7 @@
 //	IOMESH_API_KEY        optional Bearer
 //	IOMESH_STREAM         stream name (default EVENTS)
 //	IOMESH_CONSUMER       durable consumer name (default sdk-pull-loop)
-//	IOMESH_SUBJECT        optional filter_subject for the consumer
+//	IOMESH_SUBJECT        optional filter_subject for the consumer (see resolveConsumerFilter)
 //	IOMESH_BATCH          fetch batch size (default 5)
 //	IOMESH_MAX_WAIT_MS    long-poll max wait ms (default 2000)
 //	IOMESH_ENSURE_STREAM  set to 1 to EnsureStream with subject stream.>
@@ -21,13 +21,18 @@
 // Usage:
 //
 //	export IOMESH_URL=http://127.0.0.1:8422
-//	export IOMESH_ENSURE_STREAM=1   # optional; also defaults pub subject under stream.>
+//	export IOMESH_ENSURE_STREAM=1   # optional; defaults filter stream.> and pub under stream.>
 //	export IOMESH_PUBLISH=1         # optional self-contained publish before fetch
 //	export IOMESH_ACK=1             # optional
 //	go run ./examples/pull-loop
 //
+// Consumer filter defaults (resolveConsumerFilter):
+//  1. IOMESH_SUBJECT if set (operator-chosen; used even if ensure is on)
+//  2. When IOMESH_ENSURE_STREAM=1: stream.> (matches EnsureStream subjects)
+//  3. Else empty (no filter / all subjects on stream)
+//
 // Publish subject defaults (when IOMESH_PUB_SUBJECT unset):
-//  1. IOMESH_SUBJECT / filter if set (operator-chosen; used even if ensure is on)
+//  1. IOMESH_SUBJECT if set (operator-chosen; used even if ensure is on)
 //  2. When IOMESH_ENSURE_STREAM=1: stream.sdk-pull-loop (matches EnsureStream subjects stream.>)
 //  3. Else tenant+".sdk-pull-loop" if tenant set
 //  4. Else stream+".demo"
@@ -55,7 +60,7 @@ func main() {
 	tenant := env("IOMESH_TENANT", "demo.tenant")
 	stream := env("IOMESH_STREAM", "EVENTS")
 	consumer := env("IOMESH_CONSUMER", "sdk-pull-loop")
-	filter := strings.TrimSpace(os.Getenv("IOMESH_SUBJECT"))
+	subjectEnv := strings.TrimSpace(os.Getenv("IOMESH_SUBJECT"))
 	batch := envInt("IOMESH_BATCH", 5)
 	maxWaitMS := envInt("IOMESH_MAX_WAIT_MS", 2000)
 	if batch <= 0 {
@@ -66,7 +71,9 @@ func main() {
 	}
 	doPublish := os.Getenv("IOMESH_PUBLISH") == "1"
 	ensureStream := os.Getenv("IOMESH_ENSURE_STREAM") == "1"
-	pubSubject := publishSubject(filter, tenant, stream, ensureStream)
+	// Resolve filter after subjectEnv so ensure-default stream.> is not passed as a publish subject.
+	filter := resolveConsumerFilter(subjectEnv, ensureStream)
+	pubSubject := publishSubject(subjectEnv, tenant, stream, ensureStream)
 
 	opts := []iomeshclient.ConnectOpt{
 		iomeshclient.WithTenant(tenant),
@@ -190,9 +197,25 @@ func main() {
 }
 
 // publishSubject resolves the publish subject from env and flags.
+// subjectEnv is the raw IOMESH_SUBJECT (not the resolved consumer filter) so an ensure-default
+// filter of stream.> does not become the publish subject.
 // See resolvePublishSubject for priority.
-func publishSubject(filter, tenant, stream string, ensureStream bool) string {
-	return resolvePublishSubject(os.Getenv("IOMESH_PUB_SUBJECT"), filter, tenant, stream, ensureStream)
+func publishSubject(subjectEnv, tenant, stream string, ensureStream bool) string {
+	return resolvePublishSubject(os.Getenv("IOMESH_PUB_SUBJECT"), subjectEnv, tenant, stream, ensureStream)
+}
+
+// resolveConsumerFilter picks a durable pull consumer filter_subject:
+//  1. subjectEnv (IOMESH_SUBJECT) if set — operator-chosen even when ensure is on
+//  2. when ensureStream: "stream.>" (matches EnsureStream subjects)
+//  3. else empty (no filter / all subjects on stream)
+func resolveConsumerFilter(subjectEnv string, ensureStream bool) string {
+	if s := strings.TrimSpace(subjectEnv); s != "" {
+		return s
+	}
+	if ensureStream {
+		return "stream.>"
+	}
+	return ""
 }
 
 // resolvePublishSubject picks a publish subject in priority order:
@@ -201,6 +224,8 @@ func publishSubject(filter, tenant, stream string, ensureStream bool) string {
 //  3. when ensureStream: "stream.sdk-pull-loop" (under EnsureStream subjects stream.>)
 //  4. tenant+".sdk-pull-loop" if tenant set
 //  5. stream+".demo"
+//
+// filter is the raw IOMESH_SUBJECT, not resolveConsumerFilter's ensure default (stream.>).
 func resolvePublishSubject(pubSubject, filter, tenant, stream string, ensureStream bool) string {
 	if s := strings.TrimSpace(pubSubject); s != "" {
 		return s
