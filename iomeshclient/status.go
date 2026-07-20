@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // ConnectionStatus is a fail-open snapshot of client identity + probes.
@@ -17,13 +18,27 @@ type ConnectionStatus struct {
 	UserAgent string `json:"user_agent"`
 	HealthOK  bool   `json:"health_ok"`
 	HealthErr string `json:"health_err,omitempty"`
-	ReadyOK   bool   `json:"ready_ok"`
-	ReadyErr  string `json:"ready_err,omitempty"`
+	// HealthMS is Health probe latency in milliseconds (always emitted; 0 when nil client / not run).
+	HealthMS int    `json:"health_ms"`
+	ReadyOK  bool   `json:"ready_ok"`
+	ReadyErr string `json:"ready_err,omitempty"`
+	// ReadyMS is Ready probe latency in milliseconds (always emitted; 0 when nil client / not run).
+	ReadyMS int `json:"ready_ms"`
+}
+
+// elapsedMS converts a duration to non-negative milliseconds for probe evidence.
+func elapsedMS(d time.Duration) int {
+	ms := int(d.Milliseconds())
+	if ms < 0 {
+		return 0
+	}
+	return ms
 }
 
 // ConnectionStatus probes Health then Ready (fail-open fields; never panics).
-// Nil client → empty with HealthErr/ReadyErr "nil client".
+// Nil client → empty with HealthErr/ReadyErr "nil client" (HealthMS/ReadyMS stay 0).
 // Does not short-circuit Ready when Health fails — both probes always run.
+// Probe wall times are always set as HealthMS / ReadyMS (>= 0).
 func (c *Client) ConnectionStatus(ctx context.Context) ConnectionStatus {
 	if c == nil {
 		return ConnectionStatus{
@@ -46,24 +61,29 @@ func (c *Client) ConnectionStatus(ctx context.Context) ConnectionStatus {
 		s.UserAgent = defaultUserAgent
 	}
 
+	t0 := time.Now()
 	if err := c.Health(ctx); err != nil {
 		s.HealthOK = false
 		s.HealthErr = err.Error()
 	} else {
 		s.HealthOK = true
 	}
+	s.HealthMS = elapsedMS(time.Since(t0))
 
+	t1 := time.Now()
 	if err := c.Ready(ctx); err != nil {
 		s.ReadyOK = false
 		s.ReadyErr = err.Error()
 	} else {
 		s.ReadyOK = true
 	}
+	s.ReadyMS = elapsedMS(time.Since(t1))
 
 	return s
 }
 
 // FormatConnectionStatus returns a human multi-line summary of ConnectionStatus.
+// Always emits health_ms and ready_ms (including 0).
 func FormatConnectionStatus(s ConnectionStatus) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "base_url=%s\n", s.BaseURL)
@@ -86,6 +106,7 @@ func FormatConnectionStatus(s ConnectionStatus) string {
 		}
 		b.WriteByte('\n')
 	}
+	fmt.Fprintf(&b, "health_ms=%d\n", s.HealthMS)
 	if s.ReadyOK {
 		b.WriteString("ready=ok\n")
 	} else {
@@ -95,6 +116,7 @@ func FormatConnectionStatus(s ConnectionStatus) string {
 		}
 		b.WriteByte('\n')
 	}
+	fmt.Fprintf(&b, "ready_ms=%d\n", s.ReadyMS)
 	return b.String()
 }
 
@@ -102,7 +124,7 @@ func FormatConnectionStatus(s ConnectionStatus) string {
 func FormatConnectionStatusJSON(s ConnectionStatus) string {
 	raw, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
-		// ConnectionStatus is all strings/bools; marshal failure is unexpected.
+		// ConnectionStatus is simple value types; marshal failure is unexpected.
 		return "{}\n"
 	}
 	return string(raw) + "\n"
