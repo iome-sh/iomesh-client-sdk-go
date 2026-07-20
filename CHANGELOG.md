@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Example** `examples/pull-loop` — under `IOMESH_STRICT=1`, ConnectionStatus hard-fail uses aggregate `result=err` once (still prints per-probe PASS/WARN Health/Ready detail; `WARN ConnectionStatus result=err` when aggregate is err)
+
 ## [0.40.0] — 2026-07-20
 
 Minor release: pull-loop WaitReady preflight.

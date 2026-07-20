@@ -30,6 +30,32 @@ func TestEnvStrict(t *testing.T) {
 	}
 }
 
+func TestStatusResultFailed(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name   string
+		result string
+		want   bool
+	}{
+		{name: "err is failed", result: "err", want: true},
+		{name: "ok is not failed", result: "ok", want: false},
+		{name: "empty is not failed", result: "", want: false},
+		{name: "unknown is not failed", result: "unknown", want: false},
+		{name: "ERR uppercase is not failed", result: "ERR", want: false},
+		{name: "whitespace err is not failed", result: " err ", want: false},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := statusResultFailed(tc.result)
+			if got != tc.want {
+				t.Fatalf("statusResultFailed(%q) = %v, want %v", tc.result, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestWantPublishEach(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
