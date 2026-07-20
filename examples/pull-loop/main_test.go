@@ -5,11 +5,11 @@ import "testing"
 func TestFormatPullLoopSummary(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
-		name             string
-		cyclesCompleted  int
-		fetchTotal       int
-		durationMS       int
-		want             string
+		name            string
+		cyclesCompleted int
+		fetchTotal      int
+		durationMS      int
+		want            string
 	}{
 		{
 			name:            "zeroes",
