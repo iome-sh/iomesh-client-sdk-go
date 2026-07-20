@@ -2,6 +2,57 @@ package main
 
 import "testing"
 
+func TestFormatPullLoopSummary(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name             string
+		cyclesCompleted  int
+		fetchTotal       int
+		durationMS       int
+		want             string
+	}{
+		{
+			name:            "zeroes",
+			cyclesCompleted: 0,
+			fetchTotal:      0,
+			durationMS:      0,
+			want:            "SUMMARY cycles_completed=0 fetch_total=0 duration_ms=0",
+		},
+		{
+			name:            "typical success",
+			cyclesCompleted: 3,
+			fetchTotal:      12,
+			durationMS:      4500,
+			want:            "SUMMARY cycles_completed=3 fetch_total=12 duration_ms=4500",
+		},
+		{
+			name:            "single cycle empty fetch",
+			cyclesCompleted: 1,
+			fetchTotal:      0,
+			durationMS:      2001,
+			want:            "SUMMARY cycles_completed=1 fetch_total=0 duration_ms=2001",
+		},
+		{
+			name:            "negative duration clamps to zero",
+			cyclesCompleted: 1,
+			fetchTotal:      5,
+			durationMS:      -10,
+			want:            "SUMMARY cycles_completed=1 fetch_total=5 duration_ms=0",
+		},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := formatPullLoopSummary(tc.cyclesCompleted, tc.fetchTotal, tc.durationMS)
+			if got != tc.want {
+				t.Fatalf("formatPullLoopSummary(%d, %d, %d) = %q, want %q",
+					tc.cyclesCompleted, tc.fetchTotal, tc.durationMS, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestParseLoops(t *testing.T) {
 	t.Parallel()
 	cases := []struct {

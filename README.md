@@ -287,9 +287,12 @@ export IOMESH_CONSUMER=sdk-pull-loop
 # export IOMESH_LOOPS=3          # multi-fetch cycles (default 1, max 100)
 # export IOMESH_ACK=1            # ack fetched sequences each cycle
 go run ./examples/pull-loop
+# ends with:
+# SUMMARY cycles_completed=N fetch_total=M duration_ms=D
+# RESULT=done
 ```
 
-With `IOMESH_ENSURE_STREAM=1`, the consumer filter defaults to `stream.>` (matching EnsureStream subjects) and with `IOMESH_PUBLISH=1` the default publish subject is `stream.sdk-pull-loop` so Publish is accepted without setting `IOMESH_PUB_SUBJECT`. Override filter/pub with `IOMESH_SUBJECT` / `IOMESH_PUB_SUBJECT`.
+With `IOMESH_ENSURE_STREAM=1`, the consumer filter defaults to `stream.>` (matching EnsureStream subjects) and with `IOMESH_PUBLISH=1` the default publish subject is `stream.sdk-pull-loop` so Publish is accepted without setting `IOMESH_PUB_SUBJECT`. Override filter/pub with `IOMESH_SUBJECT` / `IOMESH_PUB_SUBJECT`. Always prints `SUMMARY` (cycle/fetch counts + wall-clock `duration_ms`) before `RESULT=done`.
 
 See [`examples/pull-loop/`](examples/pull-loop/) for env flags (`IOMESH_BATCH`, `IOMESH_MAX_WAIT_MS`, `IOMESH_LOOPS`, `IOMESH_SUBJECT`, `IOMESH_PUBLISH`, …).
 

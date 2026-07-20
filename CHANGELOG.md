@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Example** `examples/pull-loop` — wall-clock `SUMMARY cycles_completed=N fetch_total=M duration_ms=D` before `RESULT=done` for stage smoke evidence (always printed)
+
 ## [0.29.0] — 2026-07-20
 
 Minor release: pull-loop multi-fetch loops.
