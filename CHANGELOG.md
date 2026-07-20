@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Example** `examples/pull-loop` — `SUMMARY` always emits hard-fail flag `failed=true|false` (same boolean used for `IOMESH_STRICT` exit) so scrapers see stage smoke failures even when non-strict (exit 0)
+
 ## [0.44.0] — 2026-07-20
 
 Minor release: pull-loop SUMMARY WaitReady knobs.
