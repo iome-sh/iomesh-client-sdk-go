@@ -24,6 +24,7 @@
 //	IOMESH_WAIT_READY_MS  optional WaitReady preflight budget ms after ConnectionStatus
 //	                      (0/unset = skip; invalid → 0; clamped to max 120000)
 //	IOMESH_STRICT         set to 1 for non-zero exit (1) on stage smoke hard failures
+//	                      (ConnectionStatus probe aggregate uses result=err; see STRICT note)
 //
 // Publish semantics:
 //
@@ -62,9 +63,10 @@
 //
 // Default (IOMESH_STRICT unset): warn-only after connect + exit 0 with RESULT=done / SUMMARY.
 // IOMESH_STRICT=1: still prints SUMMARY when possible, then exit 1 if any hard stage failure:
-// Health not OK, Ready not OK, WaitReady error (when IOMESH_WAIT_READY_MS>0), EnsureStream error,
-// PullSubscribe error, Publish error (when IOMESH_PUBLISH / IOMESH_PUBLISH_EACH requested),
-// FetchContext error, or DeleteConsumer/sub.Delete error (when IOMESH_DELETE_CONSUMER=1).
+// ConnectionStatus.result=err (Health/Ready probe aggregate; per-probe PASS/WARN still printed),
+// WaitReady error (when IOMESH_WAIT_READY_MS>0), EnsureStream error, PullSubscribe error,
+// Publish error (when IOMESH_PUBLISH / IOMESH_PUBLISH_EACH requested), FetchContext error,
+// or DeleteConsumer/sub.Delete error (when IOMESH_DELETE_CONSUMER=1).
 // Connect failure already uses log.Fatal (exit non-zero).
 package main
 
@@ -152,25 +154,28 @@ func main() {
 		strict,
 	)
 
-	// 0) ConnectionStatus snapshot (identity + Health + Ready; fail-open unless IOMESH_STRICT=1)
+	// 0) ConnectionStatus snapshot (identity + Health + Ready; fail-open unless IOMESH_STRICT=1).
+	// STRICT probe fail uses ConnectionStatus.result aggregate once (covers Health + Ready).
 	st := nc.ConnectionStatus(ctx)
 	fmt.Print(iomeshclient.FormatConnectionStatus(st))
 	if !st.HealthOK {
 		log.Printf("WARN Health: %s", st.HealthErr)
-		failed = true
 	} else {
 		fmt.Println("PASS Health GET /health")
 	}
 	if !st.ReadyOK {
 		log.Printf("WARN Ready: %s", st.ReadyErr)
-		failed = true
 	} else {
 		fmt.Println("PASS Ready")
+	}
+	if statusResultFailed(st.Result) {
+		failed = true
+		log.Printf("WARN ConnectionStatus result=err")
 	}
 
 	// 0b) Optional WaitReady preflight (after status, before EnsureStream).
 	// When IOMESH_WAIT_READY_MS>0: poll Ready with budget ms; interval 500ms.
-	// Failure is warn-only by default; under IOMESH_STRICT=1 sets failed (like Health).
+	// Failure is warn-only by default; under IOMESH_STRICT=1 sets failed.
 	if waitReadyMS > 0 {
 		wrCtx, wrCancel := context.WithTimeout(ctx, time.Duration(waitReadyMS)*time.Millisecond)
 		elapsed, wrErr := nc.WaitReadyElapsed(wrCtx, iomeshclient.WaitReadyOptions{
@@ -319,6 +324,13 @@ func printPullLoopDone(cyclesCompleted, fetchTotal int, start time.Time) {
 // Only the exact value "1" is truthy (matches other pull-loop flag env convention).
 func envStrict(v string) bool {
 	return v == "1"
+}
+
+// statusResultFailed reports whether ConnectionStatus.Result is the aggregate fail
+// signal "err". Used under IOMESH_STRICT so Health/Ready probe failures mark failed
+// once via result (per-probe PASS/WARN lines stay independent).
+func statusResultFailed(result string) bool {
+	return result == "err"
 }
 
 // wantPublishEach reports whether IOMESH_PUBLISH_EACH enables per-cycle publish.
