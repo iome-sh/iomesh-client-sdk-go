@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.37.0] — 2026-07-20
+
+Minor release: WaitReadyElapsed helper.
+
 ### Added
 
 - **`WaitReadyElapsed`** — like `WaitReady` but also returns wall-clock wait duration until success or failure (nil client → `(0, error)`; elapsed always >= 0); `WaitReady` delegates to it
+
 
 ## [0.36.0] — 2026-07-20
 
