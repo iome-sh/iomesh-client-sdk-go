@@ -53,7 +53,7 @@
 //
 // Always prints before RESULT=done:
 //
-//	SUMMARY cycles_completed=N fetch_total=M duration_ms=D
+//	SUMMARY cycles_completed=N fetch_total=M duration_ms=D wait_ready_ms=W wait_interval_ms=I wait_require_health=B
 //
 // Consumer filter defaults (resolveConsumerFilter):
 //  1. IOMESH_SUBJECT if set (operator-chosen; used even if ensure is on)
@@ -233,7 +233,7 @@ func main() {
 	if err != nil {
 		log.Printf("WARN PullSubscribe stream=%s consumer=%s: %v", stream, consumer, err)
 		failed = true
-		finishPullLoop(0, 0, start, strict, failed)
+		finishPullLoop(0, 0, start, waitReadyMS, waitIntervalMS, waitRequireHealth, strict, failed)
 		return
 	}
 	fmt.Print(iomeshclient.FormatSubscription(sub))
@@ -297,7 +297,7 @@ func main() {
 		}
 	}
 
-	finishPullLoop(cyclesCompleted, fetchTotal, start, strict, failed)
+	finishPullLoop(cyclesCompleted, fetchTotal, start, waitReadyMS, waitIntervalMS, waitRequireHealth, strict, failed)
 }
 
 // publishDemo publishes one self-contained demo payload.
@@ -318,17 +318,18 @@ func publishDemo(ctx context.Context, nc *iomeshclient.Client, stream, pubSubjec
 }
 
 // finishPullLoop emits SUMMARY then RESULT=done; under IOMESH_STRICT exits 1 when failed.
-func finishPullLoop(cyclesCompleted, fetchTotal int, start time.Time, strict, failed bool) {
-	printPullLoopDone(cyclesCompleted, fetchTotal, start)
+// WaitReady knobs are always included on SUMMARY (0/false when WaitReady off).
+func finishPullLoop(cyclesCompleted, fetchTotal int, start time.Time, waitReadyMS, waitIntervalMS int, waitRequireHealth, strict, failed bool) {
+	printPullLoopDone(cyclesCompleted, fetchTotal, start, waitReadyMS, waitIntervalMS, waitRequireHealth)
 	if strict && failed {
 		os.Exit(1)
 	}
 }
 
 // printPullLoopDone emits SUMMARY then RESULT=done using wall-clock duration since start.
-func printPullLoopDone(cyclesCompleted, fetchTotal int, start time.Time) {
+func printPullLoopDone(cyclesCompleted, fetchTotal int, start time.Time, waitReadyMS, waitIntervalMS int, waitRequireHealth bool) {
 	durationMS := int(time.Since(start).Milliseconds())
-	fmt.Println(formatPullLoopSummary(cyclesCompleted, fetchTotal, durationMS))
+	fmt.Println(formatPullLoopSummary(cyclesCompleted, fetchTotal, durationMS, waitReadyMS, waitIntervalMS, waitRequireHealth))
 	fmt.Println("RESULT=done")
 }
 
@@ -359,13 +360,23 @@ func wantPublishEach(env string) bool {
 }
 
 // formatPullLoopSummary returns the stage-smoke SUMMARY line for pull-loop.
-// durationMS is clamped to >= 0. Pure helper (no I/O).
-func formatPullLoopSummary(cyclesCompleted, fetchTotal, durationMS int) string {
+// durationMS is clamped to >= 0. WaitReady knobs are always emitted:
+// wait_ready_ms is the configured budget (0 when off); when wait is off,
+// wait_interval_ms is 0 and wait_require_health is false so scrapers see
+// "not used"; when wait is on, wait_interval_ms is the effective poll
+// interval (parseWaitIntervalMS) and wait_require_health is the RequireHealth flag.
+// Pure helper (no I/O).
+func formatPullLoopSummary(cyclesCompleted, fetchTotal, durationMS, waitReadyMS, waitIntervalMS int, waitRequireHealth bool) string {
 	if durationMS < 0 {
 		durationMS = 0
 	}
-	return fmt.Sprintf("SUMMARY cycles_completed=%d fetch_total=%d duration_ms=%d",
-		cyclesCompleted, fetchTotal, durationMS)
+	if waitReadyMS <= 0 {
+		waitReadyMS = 0
+		waitIntervalMS = 0
+		waitRequireHealth = false
+	}
+	return fmt.Sprintf("SUMMARY cycles_completed=%d fetch_total=%d duration_ms=%d wait_ready_ms=%d wait_interval_ms=%d wait_require_health=%v",
+		cyclesCompleted, fetchTotal, durationMS, waitReadyMS, waitIntervalMS, waitRequireHealth)
 }
 
 // parseLoops returns fetch cycle count from an env value.
