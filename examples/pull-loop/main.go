@@ -177,7 +177,7 @@ func main() {
 		printPullLoopDone(0, 0, start)
 		return
 	}
-	fmt.Print(iomeshclient.FormatConsumerInfo(sub.ConsumerInfo()))
+	fmt.Print(iomeshclient.FormatSubscription(sub))
 	fmt.Printf("PASS PullSubscribe stream=%s consumer=%s\n", stream, consumer)
 
 	// 2b) Optional one-shot Publish before the fetch loop (warn-only on fail).

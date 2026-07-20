@@ -1193,3 +1193,98 @@ func TestFormatConsumerInfo(t *testing.T) {
 		t.Fatalf("zero-ish info:\n%s", out)
 	}
 }
+
+func TestFormatSubscription_Nil(t *testing.T) {
+	out := iomeshclient.FormatSubscription(nil)
+	want := "iomesh subscription: nil\n"
+	if out != want {
+		t.Fatalf("got %q want %q", out, want)
+	}
+}
+
+func TestFormatSubscription_FullInfo(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/v1/streams/EVENTS/consumers" {
+			http.NotFound(w, r)
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"stream":         "EVENTS",
+			"name":           "worker-1",
+			"ack_floor":      42,
+			"pending_count":  3,
+			"filter_subject": "dept.events.>",
+		})
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sub, err := nc.PullSubscribe(context.Background(), iomeshclient.PullSubscribeConfig{
+		Stream:   "EVENTS",
+		Consumer: "worker-1",
+		Filter:   "dept.events.>",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := iomeshclient.FormatSubscription(sub)
+	for _, want := range []string{
+		"iomesh subscription",
+		"stream:          EVENTS",
+		"consumer:        worker-1",
+		"ack_floor:       42",
+		"pending_count:   3",
+		"filter_subject:  dept.events.>",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing %q in:\n%s", want, out)
+		}
+	}
+}
+
+func TestFormatSubscription_Sparse409(t *testing.T) {
+	// 409 → ConsumerInfo is Stream/Name only; FormatSubscription still shows
+	// stream/consumer from the subscription handle.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/v1/streams/EVENTS/consumers" {
+			http.NotFound(w, r)
+			return
+		}
+		w.WriteHeader(http.StatusConflict)
+		_, _ = w.Write([]byte(`{"error":"already exists"}`))
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sub, err := nc.PullSubscribe(context.Background(), iomeshclient.PullSubscribeConfig{
+		Stream:   "EVENTS",
+		Consumer: "worker-1",
+		Filter:   "dept.events.>",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := iomeshclient.FormatSubscription(sub)
+	for _, want := range []string{
+		"iomesh subscription",
+		"stream:          EVENTS",
+		"consumer:        worker-1",
+		"ack_floor:       0",
+		"pending_count:   0",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing %q in:\n%s", want, out)
+		}
+	}
+	// filter not returned on 409 path; omit empty filter_subject line
+	if strings.Contains(out, "filter_subject") {
+		t.Fatalf("expected no filter_subject line on sparse 409:\n%s", out)
+	}
+}

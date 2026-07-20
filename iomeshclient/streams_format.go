@@ -69,6 +69,28 @@ func FormatConsumerInfo(info ConsumerInfo) string {
 	return b.String()
 }
 
+// FormatSubscription renders a pull subscription handle for operator logs.
+// Pure helper with no network I/O.
+// Nil subscription → "iomesh subscription: nil\n".
+// Otherwise multi-line with stream and consumer from the Subscription handle
+// (so 409 name-only create still shows identity) plus FormatConsumerInfo body
+// fields (ack_floor, pending_count, filter_subject when non-empty).
+func FormatSubscription(s *Subscription) string {
+	if s == nil {
+		return "iomesh subscription: nil\n"
+	}
+	var b strings.Builder
+	b.WriteString("iomesh subscription\n")
+	fmt.Fprintf(&b, "stream:          %s\n", s.stream)
+	fmt.Fprintf(&b, "consumer:        %s\n", s.consumer)
+	fmt.Fprintf(&b, "ack_floor:       %d\n", s.info.AckFloor)
+	fmt.Fprintf(&b, "pending_count:   %d\n", s.info.PendingCount)
+	if s.info.FilterSubject != "" {
+		fmt.Fprintf(&b, "filter_subject:  %s\n", s.info.FilterSubject)
+	}
+	return b.String()
+}
+
 // FormatStreamDetail is a multi-line view for one stream (operator / CLI style).
 // Pure helper with no network I/O.
 func FormatStreamDetail(s StreamInfo) string {
