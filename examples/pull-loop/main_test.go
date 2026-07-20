@@ -2,6 +2,39 @@ package main
 
 import "testing"
 
+func TestParseLoops(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		env  string
+		def  int
+		want int
+	}{
+		{name: "empty uses default 1", env: "", def: 1, want: 1},
+		{name: "whitespace uses default", env: "  ", def: 1, want: 1},
+		{name: "invalid uses default", env: "abc", def: 1, want: 1},
+		{name: "explicit 1", env: "1", def: 1, want: 1},
+		{name: "explicit 3", env: "3", def: 1, want: 3},
+		{name: "zero clamps to 1", env: "0", def: 1, want: 1},
+		{name: "negative clamps to 1", env: "-5", def: 1, want: 1},
+		{name: "above max clamps to 100", env: "101", def: 1, want: 100},
+		{name: "max 100", env: "100", def: 1, want: 100},
+		{name: "default below 1 clamps", env: "", def: 0, want: 1},
+		{name: "default above 100 clamps", env: "", def: 200, want: 100},
+		{name: "trim digits", env: "  7  ", def: 1, want: 7},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := parseLoops(tc.env, tc.def)
+			if got != tc.want {
+				t.Fatalf("parseLoops(%q, %d) = %d, want %d", tc.env, tc.def, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestResolveConsumerFilter(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
