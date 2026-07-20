@@ -30,6 +30,35 @@ func TestEnvStrict(t *testing.T) {
 	}
 }
 
+func TestEnvWaitRequireHealth(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		env  string
+		want bool
+	}{
+		{name: "exact 1", env: "1", want: true},
+		{name: "empty", env: "", want: false},
+		{name: "zero", env: "0", want: false},
+		{name: "true string", env: "true", want: false},
+		{name: "yes", env: "yes", want: false},
+		{name: "whitespace 1", env: " 1 ", want: true},
+		{name: "trailing newline", env: "1\n", want: true},
+		{name: "TRUE", env: "TRUE", want: false},
+		{name: "leading tab", env: "\t1", want: true},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := envWaitRequireHealth(tc.env)
+			if got != tc.want {
+				t.Fatalf("envWaitRequireHealth(%q) = %v, want %v", tc.env, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestStatusResultFailed(t *testing.T) {
 	t.Parallel()
 	cases := []struct {

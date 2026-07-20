@@ -23,6 +23,8 @@
 //	IOMESH_DELETE_CONSUMER set to 1 for best-effort sub.Delete after fetch loops
 //	IOMESH_WAIT_READY_MS  optional WaitReady preflight budget ms after ConnectionStatus
 //	                      (0/unset = skip; invalid → 0; clamped to max 120000)
+//	IOMESH_WAIT_REQUIRE_HEALTH set to 1 so WaitReady preflight also requires Health
+//	                      (only applies when IOMESH_WAIT_READY_MS>0; default false)
 //	IOMESH_STRICT         set to 1 for non-zero exit (1) on stage smoke hard failures
 //	                      (ConnectionStatus probe aggregate uses result=err; see STRICT note)
 //
@@ -43,6 +45,7 @@
 //	export IOMESH_ACK=1             # optional
 //	export IOMESH_DELETE_CONSUMER=1 # optional cleanup after fetch loops
 //	export IOMESH_WAIT_READY_MS=5000 # optional WaitReady preflight budget (ms)
+//	export IOMESH_WAIT_REQUIRE_HEALTH=1 # optional; WaitReady also requires Health
 //	export IOMESH_STRICT=1          # optional; exit 1 after SUMMARY on hard stage failures
 //	go run ./examples/pull-loop
 //
@@ -106,6 +109,7 @@ func main() {
 	doDeleteConsumer := os.Getenv("IOMESH_DELETE_CONSUMER") == "1"
 	strict := envStrict(os.Getenv("IOMESH_STRICT"))
 	waitReadyMS := parseWaitReadyMS(os.Getenv("IOMESH_WAIT_READY_MS"))
+	waitRequireHealth := envWaitRequireHealth(os.Getenv("IOMESH_WAIT_REQUIRE_HEALTH"))
 	loops := parseLoops(os.Getenv("IOMESH_LOOPS"), 1)
 	// Resolve filter after subjectEnv so ensure-default stream.> is not passed as a publish subject.
 	filter := resolveConsumerFilter(subjectEnv, ensureStream)
@@ -142,7 +146,7 @@ func main() {
 	defer cancel()
 
 	fmt.Printf("sdk=%s user-agent=iomesh-client-sdk-go/%s\n", iomeshclient.Version, iomeshclient.Version)
-	fmt.Printf("stream=%s consumer=%s batch=%d max_wait_ms=%d loops=%d filter=%q ensure_stream=%v publish=%v publish_each=%v pub_subject=%q ack=%v delete_consumer=%v wait_ready_ms=%d strict=%v\n",
+	fmt.Printf("stream=%s consumer=%s batch=%d max_wait_ms=%d loops=%d filter=%q ensure_stream=%v publish=%v publish_each=%v pub_subject=%q ack=%v delete_consumer=%v wait_ready_ms=%d wait_require_health=%v strict=%v\n",
 		stream, consumer, batch, maxWaitMS, loops, filter,
 		ensureStream,
 		doPublish,
@@ -151,6 +155,7 @@ func main() {
 		doAck,
 		doDeleteConsumer,
 		waitReadyMS,
+		waitRequireHealth,
 		strict,
 	)
 
@@ -175,11 +180,13 @@ func main() {
 
 	// 0b) Optional WaitReady preflight (after status, before EnsureStream).
 	// When IOMESH_WAIT_READY_MS>0: poll Ready with budget ms; interval 500ms.
+	// IOMESH_WAIT_REQUIRE_HEALTH=1 sets RequireHealth (only applies when budget > 0).
 	// Failure is warn-only by default; under IOMESH_STRICT=1 sets failed.
 	if waitReadyMS > 0 {
 		wrCtx, wrCancel := context.WithTimeout(ctx, time.Duration(waitReadyMS)*time.Millisecond)
 		elapsed, wrErr := nc.WaitReadyElapsed(wrCtx, iomeshclient.WaitReadyOptions{
-			Interval: 500 * time.Millisecond,
+			Interval:      500 * time.Millisecond,
+			RequireHealth: waitRequireHealth,
 		})
 		wrCancel()
 		elapsedMS := int(elapsed.Milliseconds())
@@ -187,10 +194,10 @@ func main() {
 			elapsedMS = 0
 		}
 		if wrErr != nil {
-			log.Printf("WARN WaitReady: %v elapsed_ms=%d", wrErr, elapsedMS)
+			log.Printf("WARN WaitReady: %v elapsed_ms=%d require_health=%v", wrErr, elapsedMS, waitRequireHealth)
 			failed = true
 		} else {
-			fmt.Printf("PASS WaitReady elapsed_ms=%d\n", elapsedMS)
+			fmt.Printf("PASS WaitReady elapsed_ms=%d require_health=%v\n", elapsedMS, waitRequireHealth)
 		}
 	}
 
@@ -324,6 +331,13 @@ func printPullLoopDone(cyclesCompleted, fetchTotal int, start time.Time) {
 // Only the exact value "1" is truthy (matches other pull-loop flag env convention).
 func envStrict(v string) bool {
 	return v == "1"
+}
+
+// envWaitRequireHealth reports whether IOMESH_WAIT_REQUIRE_HEALTH enables
+// RequireHealth on the optional WaitReady preflight. True only when trimmed == "1".
+// Only applies when IOMESH_WAIT_READY_MS > 0 (default false).
+func envWaitRequireHealth(v string) bool {
+	return strings.TrimSpace(v) == "1"
 }
 
 // statusResultFailed reports whether ConnectionStatus.Result is the aggregate fail
