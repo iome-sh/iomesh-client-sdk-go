@@ -141,6 +141,38 @@ func TestParseLoops(t *testing.T) {
 	}
 }
 
+func TestParseWaitReadyMS(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		env  string
+		want int
+	}{
+		{name: "empty is zero", env: "", want: 0},
+		{name: "whitespace is zero", env: "  ", want: 0},
+		{name: "invalid is zero", env: "abc", want: 0},
+		{name: "zero is zero", env: "0", want: 0},
+		{name: "negative is zero", env: "-1", want: 0},
+		{name: "explicit 5000", env: "5000", want: 5000},
+		{name: "explicit 1", env: "1", want: 1},
+		{name: "max 120000", env: "120000", want: 120000},
+		{name: "above max clamps", env: "120001", want: 120000},
+		{name: "large clamps", env: "999999999", want: 120000},
+		{name: "trim digits", env: "  7500  ", want: 7500},
+		{name: "float invalid", env: "1.5", want: 0},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := parseWaitReadyMS(tc.env)
+			if got != tc.want {
+				t.Fatalf("parseWaitReadyMS(%q) = %d, want %d", tc.env, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestResolveConsumerFilter(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
