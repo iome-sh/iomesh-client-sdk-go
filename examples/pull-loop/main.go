@@ -18,6 +18,7 @@
 //	IOMESH_PUBLISH        set to 1 to Publish one message before fetch
 //	IOMESH_PUB_SUBJECT    publish subject override (see resolvePublishSubject priority)
 //	IOMESH_ACK            set to 1 to AckContext fetched sequences each cycle
+//	IOMESH_DELETE_CONSUMER set to 1 for best-effort DeleteConsumer after fetch loops
 //
 // Usage:
 //
@@ -26,6 +27,7 @@
 //	export IOMESH_PUBLISH=1         # optional self-contained publish before fetch
 //	export IOMESH_LOOPS=3           # optional multi-fetch cycles (default 1)
 //	export IOMESH_ACK=1             # optional
+//	export IOMESH_DELETE_CONSUMER=1 # optional cleanup after fetch loops
 //	go run ./examples/pull-loop
 //
 // Always prints before RESULT=done:
@@ -79,6 +81,7 @@ func main() {
 	doPublish := os.Getenv("IOMESH_PUBLISH") == "1"
 	ensureStream := os.Getenv("IOMESH_ENSURE_STREAM") == "1"
 	doAck := os.Getenv("IOMESH_ACK") == "1"
+	doDeleteConsumer := os.Getenv("IOMESH_DELETE_CONSUMER") == "1"
 	loops := parseLoops(os.Getenv("IOMESH_LOOPS"), 1)
 	// Resolve filter after subjectEnv so ensure-default stream.> is not passed as a publish subject.
 	filter := resolveConsumerFilter(subjectEnv, ensureStream)
@@ -111,12 +114,13 @@ func main() {
 	defer cancel()
 
 	fmt.Printf("sdk=%s user-agent=iomesh-client-sdk-go/%s\n", iomeshclient.Version, iomeshclient.Version)
-	fmt.Printf("stream=%s consumer=%s batch=%d max_wait_ms=%d loops=%d filter=%q ensure_stream=%v publish=%v pub_subject=%q ack=%v\n",
+	fmt.Printf("stream=%s consumer=%s batch=%d max_wait_ms=%d loops=%d filter=%q ensure_stream=%v publish=%v pub_subject=%q ack=%v delete_consumer=%v\n",
 		stream, consumer, batch, maxWaitMS, loops, filter,
 		ensureStream,
 		doPublish,
 		pubSubject,
 		doAck,
+		doDeleteConsumer,
 	)
 
 	// 0) ConnectionStatus snapshot (identity + Health + Ready; fail-open)
@@ -208,6 +212,15 @@ func main() {
 			} else {
 				fmt.Printf("PASS AckContext cycle=%d seqs=%v\n", cycle, seqs)
 			}
+		}
+	}
+
+	// 4) Optional best-effort DeleteConsumer after fetch loops (warn-only on fail)
+	if doDeleteConsumer {
+		if err := nc.DeleteConsumer(ctx, stream, consumer); err != nil {
+			log.Printf("WARN DeleteConsumer stream=%s consumer=%s: %v", stream, consumer, err)
+		} else {
+			fmt.Printf("PASS DeleteConsumer stream=%s consumer=%s\n", stream, consumer)
 		}
 	}
 

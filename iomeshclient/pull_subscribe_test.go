@@ -201,6 +201,107 @@ func TestCreateConsumer_PathEscape(t *testing.T) {
 	}
 }
 
+func TestDeleteConsumer_OK204AndUserAgent(t *testing.T) {
+	var gotUA, gotMethod, gotPath string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod = r.Method
+		gotPath = r.URL.Path
+		gotUA = r.Header.Get("User-Agent")
+		if r.Method != http.MethodDelete || r.URL.Path != "/v1/streams/EVENTS/consumers/worker-1" {
+			http.NotFound(w, r)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := nc.DeleteConsumer(context.Background(), "EVENTS", "worker-1"); err != nil {
+		t.Fatal(err)
+	}
+	if gotMethod != http.MethodDelete {
+		t.Fatalf("method=%q", gotMethod)
+	}
+	if gotPath != "/v1/streams/EVENTS/consumers/worker-1" {
+		t.Fatalf("path=%q", gotPath)
+	}
+	if !strings.HasPrefix(gotUA, "iomesh-client-sdk-go/") {
+		t.Fatalf("User-Agent=%q", gotUA)
+	}
+}
+
+func TestDeleteConsumer_EmptyName(t *testing.T) {
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: "http://127.0.0.1:9"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = nc.DeleteConsumer(context.Background(), "EVENTS", "  ")
+	if err == nil || !strings.Contains(err.Error(), "stream and name required") {
+		t.Fatalf("empty name err=%v", err)
+	}
+	err = nc.DeleteConsumer(context.Background(), "  ", "worker-1")
+	if err == nil || !strings.Contains(err.Error(), "stream and name required") {
+		t.Fatalf("empty stream err=%v", err)
+	}
+	err = nc.DeleteConsumer(context.Background(), "", "")
+	if err == nil || !strings.Contains(err.Error(), "stream and name required") {
+		t.Fatalf("both empty err=%v", err)
+	}
+}
+
+func TestDeleteConsumer_404APIError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"error":"consumer not found"}`))
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = nc.DeleteConsumer(context.Background(), "EVENTS", "missing")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	var apiErr *iomeshclient.APIError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
+		t.Fatalf("err=%v (want APIError 404)", err)
+	}
+}
+
+func TestDeleteConsumer_NilClient(t *testing.T) {
+	var c *iomeshclient.Client
+	err := c.DeleteConsumer(context.Background(), "EVENTS", "worker-1")
+	if err == nil || !strings.Contains(err.Error(), "nil client") {
+		t.Fatalf("err=%v", err)
+	}
+}
+
+func TestDeleteConsumer_PathEscape(t *testing.T) {
+	var gotPath string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.EscapedPath()
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := nc.DeleteConsumer(context.Background(), "a/b", "c/d"); err != nil {
+		t.Fatal(err)
+	}
+	// url.PathEscape("a/b") => "a%2Fb"; url.PathEscape("c/d") => "c%2Fd"
+	if gotPath != "/v1/streams/a%2Fb/consumers/c%2Fd" {
+		t.Fatalf("path=%q want escaped stream and name", gotPath)
+	}
+}
+
 func TestPullSubscribe_201SetsConsumerInfo(t *testing.T) {
 	var gotMethod, gotPath string
 	var gotBody map[string]any
