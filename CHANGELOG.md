@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.39.0] — 2026-07-20
+
+Minor release: ConnectionStatus aggregate result.
+
 ### Added
 
 - **`ConnectionStatus.Result`** — always-emitted aggregate `result` (`ok` when both Health and Ready OK, otherwise `err`; includes nil client); `AggregateConnectionResult` pure helper; `FormatConnectionStatus` prints `result=ok|err` after `duration_ms`
+
 
 ## [0.38.0] — 2026-07-20
 
