@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Example** `examples/pull-loop` — optional `IOMESH_WAIT_INTERVAL_MS` sets WaitReady poll interval (ms; default 500 when empty/invalid/≤0; clamp max 60000; only applied when `IOMESH_WAIT_READY_MS>0`); banner `wait_interval_ms=N`; PASS/WARN lines include `interval_ms=N`
+
 ## [0.42.0] — 2026-07-20
 
 Minor release: pull-loop WaitReady require-health env.

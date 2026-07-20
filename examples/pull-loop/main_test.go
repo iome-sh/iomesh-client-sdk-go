@@ -228,6 +228,39 @@ func TestParseWaitReadyMS(t *testing.T) {
 	}
 }
 
+func TestParseWaitIntervalMS(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		env  string
+		want int
+	}{
+		{name: "empty defaults 500", env: "", want: 500},
+		{name: "whitespace defaults 500", env: "  ", want: 500},
+		{name: "invalid defaults 500", env: "abc", want: 500},
+		{name: "zero defaults 500", env: "0", want: 500},
+		{name: "negative defaults 500", env: "-1", want: 500},
+		{name: "explicit 250", env: "250", want: 250},
+		{name: "explicit 1", env: "1", want: 1},
+		{name: "explicit 500", env: "500", want: 500},
+		{name: "max 60000", env: "60000", want: 60000},
+		{name: "above max clamps", env: "60001", want: 60000},
+		{name: "huge clamps", env: "999999999", want: 60000},
+		{name: "trim digits", env: "  250  ", want: 250},
+		{name: "float invalid defaults 500", env: "1.5", want: 500},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := parseWaitIntervalMS(tc.env)
+			if got != tc.want {
+				t.Fatalf("parseWaitIntervalMS(%q) = %d, want %d", tc.env, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestResolveConsumerFilter(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
