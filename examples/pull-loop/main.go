@@ -21,6 +21,7 @@
 //	IOMESH_PUB_SUBJECT    publish subject override (see resolvePublishSubject priority)
 //	IOMESH_ACK            set to 1 to AckContext fetched sequences each cycle
 //	IOMESH_DELETE_CONSUMER set to 1 for best-effort sub.Delete after fetch loops
+//	IOMESH_STRICT         set to 1 for non-zero exit (1) on stage smoke hard failures
 //
 // Publish semantics:
 //
@@ -38,6 +39,7 @@
 //	export IOMESH_LOOPS=3           # optional multi-fetch cycles (default 1)
 //	export IOMESH_ACK=1             # optional
 //	export IOMESH_DELETE_CONSUMER=1 # optional cleanup after fetch loops
+//	export IOMESH_STRICT=1          # optional; exit 1 after SUMMARY on hard stage failures
 //	go run ./examples/pull-loop
 //
 // Always prints before RESULT=done:
@@ -55,8 +57,12 @@
 //  3. Else tenant+".sdk-pull-loop" if tenant set
 //  4. Else stream+".demo"
 //
-// IOMESH_LOOPS fetch cycles then exit 0 (default one cycle). Errors after connect are warn-only.
-// SUMMARY is always printed (cycles_completed / fetch_total / duration_ms wall clock).
+// Default (IOMESH_STRICT unset): warn-only after connect + exit 0 with RESULT=done / SUMMARY.
+// IOMESH_STRICT=1: still prints SUMMARY when possible, then exit 1 if any hard stage failure:
+// Health not OK, Ready not OK, EnsureStream error, PullSubscribe error, Publish error
+// (when IOMESH_PUBLISH / IOMESH_PUBLISH_EACH requested), FetchContext error, or
+// DeleteConsumer/sub.Delete error (when IOMESH_DELETE_CONSUMER=1). Connect failure already
+// uses log.Fatal (exit non-zero).
 package main
 
 import (
@@ -93,6 +99,7 @@ func main() {
 	ensureStream := os.Getenv("IOMESH_ENSURE_STREAM") == "1"
 	doAck := os.Getenv("IOMESH_ACK") == "1"
 	doDeleteConsumer := os.Getenv("IOMESH_DELETE_CONSUMER") == "1"
+	strict := envStrict(os.Getenv("IOMESH_STRICT"))
 	loops := parseLoops(os.Getenv("IOMESH_LOOPS"), 1)
 	// Resolve filter after subjectEnv so ensure-default stream.> is not passed as a publish subject.
 	filter := resolveConsumerFilter(subjectEnv, ensureStream)
@@ -113,6 +120,7 @@ func main() {
 
 	// Wall clock for SUMMARY duration_ms (after connect opts resolved).
 	start := time.Now()
+	failed := false
 
 	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: base}, opts...)
 	if err != nil {
@@ -125,7 +133,7 @@ func main() {
 	defer cancel()
 
 	fmt.Printf("sdk=%s user-agent=iomesh-client-sdk-go/%s\n", iomeshclient.Version, iomeshclient.Version)
-	fmt.Printf("stream=%s consumer=%s batch=%d max_wait_ms=%d loops=%d filter=%q ensure_stream=%v publish=%v publish_each=%v pub_subject=%q ack=%v delete_consumer=%v\n",
+	fmt.Printf("stream=%s consumer=%s batch=%d max_wait_ms=%d loops=%d filter=%q ensure_stream=%v publish=%v publish_each=%v pub_subject=%q ack=%v delete_consumer=%v strict=%v\n",
 		stream, consumer, batch, maxWaitMS, loops, filter,
 		ensureStream,
 		doPublish,
@@ -133,18 +141,21 @@ func main() {
 		pubSubject,
 		doAck,
 		doDeleteConsumer,
+		strict,
 	)
 
-	// 0) ConnectionStatus snapshot (identity + Health + Ready; fail-open)
+	// 0) ConnectionStatus snapshot (identity + Health + Ready; fail-open unless IOMESH_STRICT=1)
 	st := nc.ConnectionStatus(ctx)
 	fmt.Print(iomeshclient.FormatConnectionStatus(st))
 	if !st.HealthOK {
 		log.Printf("WARN Health: %s", st.HealthErr)
+		failed = true
 	} else {
 		fmt.Println("PASS Health GET /health")
 	}
 	if !st.ReadyOK {
 		log.Printf("WARN Ready: %s", st.ReadyErr)
+		failed = true
 	} else {
 		fmt.Println("PASS Ready")
 	}
@@ -157,6 +168,7 @@ func main() {
 		})
 		if err != nil {
 			log.Printf("WARN EnsureStream stream=%s: %v", stream, err)
+			failed = true
 		} else {
 			fmt.Printf("PASS EnsureStream stream=%s", stream)
 			if info != nil {
@@ -174,16 +186,19 @@ func main() {
 	})
 	if err != nil {
 		log.Printf("WARN PullSubscribe stream=%s consumer=%s: %v", stream, consumer, err)
-		printPullLoopDone(0, 0, start)
+		failed = true
+		finishPullLoop(0, 0, start, strict, failed)
 		return
 	}
 	fmt.Print(iomeshclient.FormatSubscription(sub))
 	fmt.Printf("PASS PullSubscribe stream=%s consumer=%s\n", stream, consumer)
 
-	// 2b) Optional one-shot Publish before the fetch loop (warn-only on fail).
+	// 2b) Optional one-shot Publish before the fetch loop (warn-only on fail unless STRICT).
 	// Skipped when IOMESH_PUBLISH_EACH=1 so the first cycle is not double-published.
 	if doPublish && !publishEach {
-		publishDemo(ctx, nc, stream, pubSubject)
+		if !publishDemo(ctx, nc, stream, pubSubject) {
+			failed = true
+		}
 	}
 
 	// 3) Fetch cycles (optional per-cycle Publish → FetchContext → FormatMsgs → optional AckContext).
@@ -191,14 +206,17 @@ func main() {
 	cyclesCompleted := 0
 	fetchTotal := 0
 	for cycle := 1; cycle <= loops; cycle++ {
-		// Per-cycle publish before fetch (warn-only on fail; still fetch).
+		// Per-cycle publish before fetch (warn-only on fail unless STRICT; still fetch).
 		if publishEach {
-			publishDemo(ctx, nc, stream, pubSubject)
+			if !publishDemo(ctx, nc, stream, pubSubject) {
+				failed = true
+			}
 		}
 
 		msgs, err := sub.FetchContext(ctx, batch, maxWait)
 		if err != nil {
 			log.Printf("WARN FetchContext cycle=%d: %v", cycle, err)
+			failed = true
 			break
 		}
 		cyclesCompleted++
@@ -223,31 +241,42 @@ func main() {
 		}
 	}
 
-	// 4) Optional best-effort sub.Delete after fetch loops (warn-only on fail)
+	// 4) Optional best-effort sub.Delete after fetch loops (warn-only on fail unless STRICT)
 	if doDeleteConsumer {
 		if err := sub.Delete(ctx); err != nil {
 			log.Printf("WARN Delete stream=%s consumer=%s: %v", stream, consumer, err)
+			failed = true
 		} else {
 			fmt.Printf("PASS Delete stream=%s consumer=%s\n", stream, consumer)
 		}
 	}
 
-	printPullLoopDone(cyclesCompleted, fetchTotal, start)
+	finishPullLoop(cyclesCompleted, fetchTotal, start, strict, failed)
 }
 
-// publishDemo publishes one self-contained demo payload (warn-only on fail).
-func publishDemo(ctx context.Context, nc *iomeshclient.Client, stream, pubSubject string) {
+// publishDemo publishes one self-contained demo payload.
+// Returns false on Publish error (caller may mark failed under IOMESH_STRICT).
+func publishDemo(ctx context.Context, nc *iomeshclient.Client, stream, pubSubject string) bool {
 	payload := []byte(fmt.Sprintf(`{"source":"sdk-pull-loop","ts":%d}`, time.Now().Unix()))
 	ack, err := nc.Publish(ctx, stream, pubSubject, payload)
 	if err != nil {
 		log.Printf("WARN Publish stream=%s subject=%s: %v", stream, pubSubject, err)
-		return
+		return false
 	}
 	fmt.Printf("PASS Publish stream=%s subject=%s", stream, pubSubject)
 	if ack != nil {
 		fmt.Printf(" seq=%d", ack.Seq)
 	}
 	fmt.Println()
+	return true
+}
+
+// finishPullLoop emits SUMMARY then RESULT=done; under IOMESH_STRICT exits 1 when failed.
+func finishPullLoop(cyclesCompleted, fetchTotal int, start time.Time, strict, failed bool) {
+	printPullLoopDone(cyclesCompleted, fetchTotal, start)
+	if strict && failed {
+		os.Exit(1)
+	}
 }
 
 // printPullLoopDone emits SUMMARY then RESULT=done using wall-clock duration since start.
@@ -255,6 +284,12 @@ func printPullLoopDone(cyclesCompleted, fetchTotal int, start time.Time) {
 	durationMS := int(time.Since(start).Milliseconds())
 	fmt.Println(formatPullLoopSummary(cyclesCompleted, fetchTotal, durationMS))
 	fmt.Println("RESULT=done")
+}
+
+// envStrict reports whether IOMESH_STRICT enables hard-fail exit after SUMMARY.
+// Only the exact value "1" is truthy (matches other pull-loop flag env convention).
+func envStrict(v string) bool {
+	return v == "1"
 }
 
 // wantPublishEach reports whether IOMESH_PUBLISH_EACH enables per-cycle publish.
