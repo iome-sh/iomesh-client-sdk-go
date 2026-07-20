@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.38.0] — 2026-07-20
+
+Minor release: ConnectionStatus duration_ms wall-clock.
+
 ### Added
 
 - **`ConnectionStatus.DurationMS`** — always-emitted `duration_ms` wall clock for the full Health+Ready probe path (ms; `0` for nil client / not run); `FormatConnectionStatus` prints `duration_ms=N` after probe latencies
+
 
 ## [0.37.0] — 2026-07-20
 
