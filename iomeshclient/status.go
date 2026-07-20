@@ -27,6 +27,18 @@ type ConnectionStatus struct {
 	// DurationMS is wall-clock latency for the full Health+Ready probe path in milliseconds
 	// (always emitted; 0 when nil client / not run).
 	DurationMS int `json:"duration_ms"`
+	// Result is the aggregate probe outcome: "ok" when both HealthOK and ReadyOK are true,
+	// otherwise "err" (always emitted; includes nil client and either-probe fail).
+	Result string `json:"result"`
+}
+
+// AggregateConnectionResult returns "ok" when both probes succeeded, otherwise "err".
+// Pure helper for operators/CI and mesh status result parity.
+func AggregateConnectionResult(healthOK, readyOK bool) string {
+	if healthOK && readyOK {
+		return "ok"
+	}
+	return "err"
 }
 
 // elapsedMS converts a duration to non-negative milliseconds for probe evidence.
@@ -39,15 +51,17 @@ func elapsedMS(d time.Duration) int {
 }
 
 // ConnectionStatus probes Health then Ready (fail-open fields; never panics).
-// Nil client → empty with HealthErr/ReadyErr "nil client" (HealthMS/ReadyMS/DurationMS stay 0).
+// Nil client → empty with HealthErr/ReadyErr "nil client" (HealthMS/ReadyMS/DurationMS stay 0; Result "err").
 // Does not short-circuit Ready when Health fails — both probes always run.
 // Probe wall times are always set as HealthMS / ReadyMS / DurationMS (>= 0).
 // DurationMS is wall clock for the full Health+Ready path (start before Health, stop after Ready).
+// Result is always "ok" | "err" (both probes OK → "ok"; otherwise "err").
 func (c *Client) ConnectionStatus(ctx context.Context) ConnectionStatus {
 	if c == nil {
 		return ConnectionStatus{
 			HealthErr: "nil client",
 			ReadyErr:  "nil client",
+			Result:    AggregateConnectionResult(false, false),
 		}
 	}
 	if ctx == nil {
@@ -86,12 +100,13 @@ func (c *Client) ConnectionStatus(ctx context.Context) ConnectionStatus {
 	s.ReadyMS = elapsedMS(time.Since(t1))
 
 	s.DurationMS = elapsedMS(time.Since(start))
+	s.Result = AggregateConnectionResult(s.HealthOK, s.ReadyOK)
 
 	return s
 }
 
 // FormatConnectionStatus returns a human multi-line summary of ConnectionStatus.
-// Always emits health_ms, ready_ms, and duration_ms (including 0).
+// Always emits health_ms, ready_ms, duration_ms (including 0), and result=ok|err.
 func FormatConnectionStatus(s ConnectionStatus) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "base_url=%s\n", s.BaseURL)
@@ -126,6 +141,11 @@ func FormatConnectionStatus(s ConnectionStatus) string {
 	}
 	fmt.Fprintf(&b, "ready_ms=%d\n", s.ReadyMS)
 	fmt.Fprintf(&b, "duration_ms=%d\n", s.DurationMS)
+	result := s.Result
+	if result != "ok" && result != "err" {
+		result = AggregateConnectionResult(s.HealthOK, s.ReadyOK)
+	}
+	fmt.Fprintf(&b, "result=%s\n", result)
 	return b.String()
 }
 

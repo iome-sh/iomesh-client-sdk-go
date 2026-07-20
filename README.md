@@ -325,6 +325,7 @@ if err := nc.Ready(ctx); err != nil { /* optional readiness path missing */ }
 // One-shot identity + Health + Ready (fail-open; never panics). Both probes always run.
 // Always includes health_ms / ready_ms / duration_ms (probe wall time ms; 0 when nil client / not run).
 // duration_ms is wall clock for the full Health+Ready path.
+// result is always "ok" | "err" (both probes OK → ok; otherwise err, including nil client).
 st := nc.ConnectionStatus(ctx)
 fmt.Print(iomeshclient.FormatConnectionStatus(st))
 // or: fmt.Print(iomeshclient.FormatConnectionStatusJSON(st))
