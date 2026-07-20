@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`FormatSubscription`** — pure operator helper for a pull subscription handle (nil → `"iomesh subscription: nil\n"`; otherwise stream/consumer from the handle plus FormatConsumerInfo body fields)
+- **Example** `examples/pull-loop` — prints `FormatSubscription` after PullSubscribe
+
 ## [0.33.0] — 2026-07-20
 
 Minor release: Subscription.Delete context helper.
