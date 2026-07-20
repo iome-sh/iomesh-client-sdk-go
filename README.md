@@ -188,7 +188,7 @@ fmt.Print(iomeshclient.FormatMsgs(batch))    // batch: count header + one line p
 //     for i, m := range batch { seqs[i] = m.Seq() }
 //     if err := sub.AckContext(ctx, seqs...); err != nil { log.Fatal(err) }
 // }
-// Runnable stage smoke: examples/pull-loop (IOMESH_URL, optional IOMESH_ENSURE_STREAM / IOMESH_PUBLISH / IOMESH_LOOPS / IOMESH_ACK / IOMESH_DELETE_CONSUMER;
+// Runnable stage smoke: examples/pull-loop (IOMESH_URL, optional IOMESH_ENSURE_STREAM / IOMESH_PUBLISH / IOMESH_PUBLISH_EACH / IOMESH_LOOPS / IOMESH_ACK / IOMESH_DELETE_CONSUMER;
 // with ENSURE_STREAM=1, default filter is stream.> and pub subject is stream.sdk-pull-loop)
 
 // One-shot consumer ops (no long-lived Subscription)
@@ -289,7 +289,8 @@ export IOMESH_URL=http://127.0.0.1:8422
 export IOMESH_STREAM=EVENTS
 export IOMESH_CONSUMER=sdk-pull-loop
 # export IOMESH_ENSURE_STREAM=1  # create stream with subject stream.>
-# export IOMESH_PUBLISH=1        # publish one demo message before fetch
+# export IOMESH_PUBLISH=1        # publish one demo message before the fetch loop
+# export IOMESH_PUBLISH_EACH=1   # publish one message at the start of each cycle
 # export IOMESH_LOOPS=3          # multi-fetch cycles (default 1, max 100)
 # export IOMESH_ACK=1            # ack fetched sequences each cycle
 # export IOMESH_DELETE_CONSUMER=1  # best-effort DeleteConsumer after fetch loops
@@ -299,9 +300,9 @@ go run ./examples/pull-loop
 # RESULT=done
 ```
 
-With `IOMESH_ENSURE_STREAM=1`, the consumer filter defaults to `stream.>` (matching EnsureStream subjects) and with `IOMESH_PUBLISH=1` the default publish subject is `stream.sdk-pull-loop` so Publish is accepted without setting `IOMESH_PUB_SUBJECT`. Override filter/pub with `IOMESH_SUBJECT` / `IOMESH_PUB_SUBJECT`. Set `IOMESH_DELETE_CONSUMER=1` for best-effort `DeleteConsumer` after fetch loops (`PASS` / warn-only). Always prints `SUMMARY` (cycle/fetch counts + wall-clock `duration_ms`) before `RESULT=done`.
+With `IOMESH_ENSURE_STREAM=1`, the consumer filter defaults to `stream.>` (matching EnsureStream subjects) and with `IOMESH_PUBLISH=1` / `IOMESH_PUBLISH_EACH=1` the default publish subject is `stream.sdk-pull-loop` so Publish is accepted without setting `IOMESH_PUB_SUBJECT`. Override filter/pub with `IOMESH_SUBJECT` / `IOMESH_PUB_SUBJECT`. `IOMESH_PUBLISH=1` alone publishes once before the loop; `IOMESH_PUBLISH_EACH=1` publishes at the start of each cycle (and skips the pre-loop publish when both are set, so the first cycle is not double-published). Set `IOMESH_DELETE_CONSUMER=1` for best-effort `DeleteConsumer` after fetch loops (`PASS` / warn-only). Always prints `SUMMARY` (cycle/fetch counts + wall-clock `duration_ms`) before `RESULT=done`.
 
-See [`examples/pull-loop/`](examples/pull-loop/) for env flags (`IOMESH_BATCH`, `IOMESH_MAX_WAIT_MS`, `IOMESH_LOOPS`, `IOMESH_SUBJECT`, `IOMESH_PUBLISH`, `IOMESH_DELETE_CONSUMER`, …).
+See [`examples/pull-loop/`](examples/pull-loop/) for env flags (`IOMESH_BATCH`, `IOMESH_MAX_WAIT_MS`, `IOMESH_LOOPS`, `IOMESH_SUBJECT`, `IOMESH_PUBLISH`, `IOMESH_PUBLISH_EACH`, `IOMESH_DELETE_CONSUMER`, …).
 
 ## Diagnostics
 
