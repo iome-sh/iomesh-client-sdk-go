@@ -53,8 +53,8 @@
 //
 // Always prints before RESULT=done:
 //
-//	SUMMARY version=V user_agent=UA base_url=B tenant=T org=O workspace=W cycles_completed=N fetch_total=M duration_ms=D wait_ready_ms=W wait_interval_ms=I wait_require_health=B wait_ready_attempts=A failed=F strict=S exit_code=E
-//	RESULT=done version=V user_agent=UA base_url=B tenant=T org=O workspace=W exit_code=E
+//	SUMMARY version=V user_agent=UA base_url=B tenant=T org=O workspace=W cycles_completed=N fetch_total=M duration_ms=D wait_ready_ms=W wait_interval_ms=I wait_require_health=B wait_ready_attempts=A failed=F strict=S result=R exit_code=E
+//	RESULT=done version=V user_agent=UA base_url=B tenant=T org=O workspace=W result=R exit_code=E
 //
 // version is the SDK package Version (leading on SUMMARY; also on RESULT so
 // scrapers can key it without re-parsing the banner sdk= line). user_agent is always
@@ -68,9 +68,12 @@
 // readiness. SUMMARY and RESULT always emit tenant/org/workspace identity from
 // connect env (IOMESH_TENANT default demo.tenant; IOMESH_ORG / IOMESH_WORKSPACE empty
 // string honest when unset) so scrapers peer ConnectionStatus identity without
-// inventing readiness. RESULT keeps the RESULT=done token and always emits version,
-// user_agent, base_url, identity, and exit_code (exit_code semantics match SUMMARY:
-// 1 only when strict && failed; otherwise 0).
+// inventing readiness. SUMMARY and RESULT always emit result=ok|err derived from the
+// existing failed flag (ok when failed==false; err when failed==true), peers
+// ConnectionStatus.Result / AggregateConnectionResult without inventing readiness.
+// RESULT keeps the RESULT=done token and always emits version, user_agent, base_url,
+// identity, result, and exit_code (exit_code semantics match SUMMARY: 1 only when
+// strict && failed; otherwise 0).
 //
 // Consumer filter defaults (resolveConsumerFilter):
 //  1. IOMESH_SUBJECT if set (operator-chosen; used even if ensure is on)
@@ -344,14 +347,15 @@ func publishDemo(ctx context.Context, nc *iomeshclient.Client, stream, pubSubjec
 	return true
 }
 
-// finishPullLoop emits SUMMARY then RESULT=done version=V user_agent=UA base_url=B tenant=T org=O workspace=W exit_code=E;
+// finishPullLoop emits SUMMARY then RESULT=done version=V user_agent=UA base_url=B tenant=T org=O workspace=W result=R exit_code=E;
 // under IOMESH_STRICT exits 1 when failed.
 // version (SDK package Version), user_agent, base_url (connect mesh URL), identity
 // tenant/org/workspace, WaitReady knobs (including wait_ready_attempts), failed, strict,
-// and exit_code are always included on SUMMARY (0/false when WaitReady off; empty strings
-// honest when unset). version, user_agent, base_url, identity, and exit_code are always on
-// RESULT too; exit_code matches the process exit used after SUMMARY (1 only when
-// strict && failed; otherwise 0, including non-strict failures).
+// result (ok|err from failed), and exit_code are always included on SUMMARY (0/false when
+// WaitReady off; empty strings honest when unset). version, user_agent, base_url, identity,
+// result, and exit_code are always on RESULT too; result peers ConnectionStatus.Result
+// (ok when !failed; err when failed); exit_code matches the process exit used after
+// SUMMARY (1 only when strict && failed; otherwise 0, including non-strict failures).
 func finishPullLoop(cyclesCompleted, fetchTotal int, start time.Time, waitReadyMS, waitIntervalMS int, waitRequireHealth bool, waitReadyAttempts int, strict, failed bool, baseURL, tenant, org, workspace string) {
 	printPullLoopDone(cyclesCompleted, fetchTotal, start, waitReadyMS, waitIntervalMS, waitRequireHealth, waitReadyAttempts, failed, strict, baseURL, tenant, org, workspace)
 	if strict && failed {
@@ -359,7 +363,7 @@ func finishPullLoop(cyclesCompleted, fetchTotal int, start time.Time, waitReadyM
 	}
 }
 
-// printPullLoopDone emits SUMMARY then RESULT=done version=V user_agent=UA base_url=B tenant=T org=O workspace=W exit_code=E
+// printPullLoopDone emits SUMMARY then RESULT=done version=V user_agent=UA base_url=B tenant=T org=O workspace=W result=R exit_code=E
 // using wall-clock duration since start.
 // version is always iomeshclient.Version (leading field on SUMMARY; also on RESULT).
 // user_agent is always package default "iomesh-client-sdk-go/<Version>" (same string
@@ -367,6 +371,7 @@ func finishPullLoop(cyclesCompleted, fetchTotal int, start time.Time, waitReadyM
 // base_url is always the connect mesh URL / IOMESH_URL (same string ConnectionStatus uses
 // as base_url; after user_agent= before tenant=; empty honest when unset).
 // tenant/org/workspace are always on SUMMARY and RESULT (connect identity; empty honest when unset).
+// result is always ok|err from the failed flag (peers ConnectionStatus.Result).
 // exit_code on RESULT matches SUMMARY / process exit (1 only when strict && failed).
 func printPullLoopDone(cyclesCompleted, fetchTotal int, start time.Time, waitReadyMS, waitIntervalMS int, waitRequireHealth bool, waitReadyAttempts int, failed, strict bool, baseURL, tenant, org, workspace string) {
 	durationMS := int(time.Since(start).Milliseconds())
@@ -377,7 +382,7 @@ func printPullLoopDone(cyclesCompleted, fetchTotal int, start time.Time, waitRea
 	if strict && failed {
 		exitCode = 1
 	}
-	fmt.Println(formatPullLoopResult(exitCode, iomeshclient.Version, userAgent, baseURL, tenant, org, workspace))
+	fmt.Println(formatPullLoopResult(exitCode, failed, iomeshclient.Version, userAgent, baseURL, tenant, org, workspace))
 }
 
 // envStrict reports whether IOMESH_STRICT enables hard-fail exit after SUMMARY.
@@ -436,6 +441,8 @@ func wantPublishEach(env string) bool {
 // scrapers see hard stage-smoke failures even when non-strict (exit 0).
 // strict is always emitted (IOMESH_STRICT mode) so scrapers see whether
 // hard-fail exit was enabled without re-parsing env/banner.
+// result is always emitted after strict= before exit_code= as ok|err derived
+// from failed (pullLoopResult; peers ConnectionStatus.Result).
 // exit_code is always emitted and matches process exit after SUMMARY:
 // 1 only when strict && failed; otherwise 0 (including non-strict with failed).
 // Pure helper (no I/O); version, user_agent, base_url, and identity are parameters for testability.
@@ -453,14 +460,24 @@ func formatPullLoopSummary(cyclesCompleted, fetchTotal, durationMS, waitReadyMS,
 	if strict && failed {
 		exitCode = 1
 	}
-	return fmt.Sprintf("SUMMARY version=%s user_agent=%s base_url=%s tenant=%s org=%s workspace=%s cycles_completed=%d fetch_total=%d duration_ms=%d wait_ready_ms=%d wait_interval_ms=%d wait_require_health=%v wait_ready_attempts=%d failed=%t strict=%t exit_code=%d",
-		version, userAgent, baseURL, tenant, org, workspace, cyclesCompleted, fetchTotal, durationMS, waitReadyMS, waitIntervalMS, waitRequireHealth, waitReadyAttempts, failed, strict, exitCode)
+	return fmt.Sprintf("SUMMARY version=%s user_agent=%s base_url=%s tenant=%s org=%s workspace=%s cycles_completed=%d fetch_total=%d duration_ms=%d wait_ready_ms=%d wait_interval_ms=%d wait_require_health=%v wait_ready_attempts=%d failed=%t strict=%t result=%s exit_code=%d",
+		version, userAgent, baseURL, tenant, org, workspace, cyclesCompleted, fetchTotal, durationMS, waitReadyMS, waitIntervalMS, waitRequireHealth, waitReadyAttempts, failed, strict, pullLoopResult(failed), exitCode)
+}
+
+// pullLoopResult maps the stage-smoke failed flag to ConnectionStatus-style result.
+// Peers AggregateConnectionResult / ConnectionStatus.Result: "ok" when no hard
+// failure, "err" when failed. Pure helper (no I/O).
+func pullLoopResult(failed bool) string {
+	if failed {
+		return "err"
+	}
+	return "ok"
 }
 
 // formatPullLoopResult returns the stage-smoke RESULT line for pull-loop.
 // Field order (matches SUMMARY / peers ConnectionStatus field family):
 //
-//	RESULT=done version= user_agent= base_url= tenant= org= workspace= exit_code=
+//	RESULT=done version= user_agent= base_url= tenant= org= workspace= result= exit_code=
 //
 // Keeps the RESULT=done token for scrapers that key off it, and always emits
 // version (caller passes iomeshclient.Version; empty string still emits version=),
@@ -471,11 +488,13 @@ func formatPullLoopSummary(cyclesCompleted, fetchTotal, durationMS, waitReadyMS,
 // tenant/org/workspace after base_url= (same connect identity triple as SUMMARY;
 // empty string still emits tenant= org= workspace= when unset) so scrapers peer
 // ConnectionStatus / SUMMARY base_url, identity and user_agent without inventing
-// readiness, and exit_code with the same semantics as SUMMARY / process exit
-// (caller passes 1 only when strict && failed; otherwise 0). Pure helper (no I/O);
-// version, user_agent, base_url, and identity are parameters for testability.
-func formatPullLoopResult(exitCode int, version, userAgent, baseURL, tenant, org, workspace string) string {
-	return fmt.Sprintf("RESULT=done version=%s user_agent=%s base_url=%s tenant=%s org=%s workspace=%s exit_code=%d", version, userAgent, baseURL, tenant, org, workspace, exitCode)
+// readiness, result=ok|err after workspace= before exit_code= (derived from failed
+// via pullLoopResult; peers ConnectionStatus.Result), and exit_code with the same
+// semantics as SUMMARY / process exit (caller passes 1 only when strict && failed;
+// otherwise 0). Pure helper (no I/O); version, user_agent, base_url, identity, and
+// failed are parameters for testability.
+func formatPullLoopResult(exitCode int, failed bool, version, userAgent, baseURL, tenant, org, workspace string) string {
+	return fmt.Sprintf("RESULT=done version=%s user_agent=%s base_url=%s tenant=%s org=%s workspace=%s result=%s exit_code=%d", version, userAgent, baseURL, tenant, org, workspace, pullLoopResult(failed), exitCode)
 }
 
 // parseLoops returns fetch cycle count from an env value.
