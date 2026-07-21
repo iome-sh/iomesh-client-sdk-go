@@ -53,8 +53,8 @@
 //
 // Always prints before RESULT=done:
 //
-//	SUMMARY version=V user_agent=UA base_url=B tenant=T org=O workspace=W cycles_completed=N fetch_total=M duration_ms=D wait_ready_ms=W wait_interval_ms=I wait_require_health=B wait_ready_attempts=A failed=F strict=S result=R exit_code=E
-//	RESULT=done version=V user_agent=UA base_url=B tenant=T org=O workspace=W result=R exit_code=E
+//	SUMMARY version=V user_agent=UA base_url=B tenant=T org=O workspace=W stream=S consumer=C cycles_completed=N fetch_total=M duration_ms=D wait_ready_ms=W wait_interval_ms=I wait_require_health=B wait_ready_attempts=A failed=F strict=S result=R exit_code=E
+//	RESULT=done version=V user_agent=UA base_url=B tenant=T org=O workspace=W stream=S consumer=C result=R exit_code=E
 //
 // version is the SDK package Version (leading on SUMMARY; also on RESULT so
 // scrapers can key it without re-parsing the banner sdk= line). user_agent is always
@@ -68,12 +68,16 @@
 // readiness. SUMMARY and RESULT always emit tenant/org/workspace identity from
 // connect env (IOMESH_TENANT default demo.tenant; IOMESH_ORG / IOMESH_WORKSPACE empty
 // string honest when unset) so scrapers peer ConnectionStatus identity without
-// inventing readiness. SUMMARY and RESULT always emit result=ok|err derived from the
-// existing failed flag (ok when failed==false; err when failed==true), peers
-// ConnectionStatus.Result / AggregateConnectionResult without inventing readiness.
-// RESULT keeps the RESULT=done token and always emits version, user_agent, base_url,
-// identity, result, and exit_code (exit_code semantics match SUMMARY: 1 only when
-// strict && failed; otherwise 0).
+// inventing readiness. SUMMARY and RESULT always emit stream=S / consumer=C from
+// connect config (IOMESH_STREAM default EVENTS; IOMESH_CONSUMER default sdk-pull-loop;
+// empty string honest if truly unset) after workspace= so scrapers key the durable
+// pull target without re-parsing the banner stream=/consumer= line. SUMMARY and
+// RESULT always emit result=ok|err derived from the existing failed flag (ok when
+// failed==false; err when failed==true), peers ConnectionStatus.Result /
+// AggregateConnectionResult without inventing readiness. RESULT keeps the
+// RESULT=done token and always emits version, user_agent, base_url, identity,
+// stream, consumer, result, and exit_code (exit_code semantics match SUMMARY: 1
+// only when strict && failed; otherwise 0).
 //
 // Consumer filter defaults (resolveConsumerFilter):
 //  1. IOMESH_SUBJECT if set (operator-chosen; used even if ensure is on)
@@ -263,7 +267,7 @@ func main() {
 	if err != nil {
 		log.Printf("WARN PullSubscribe stream=%s consumer=%s: %v", stream, consumer, err)
 		failed = true
-		finishPullLoop(0, 0, start, waitReadyMS, waitIntervalMS, waitRequireHealth, waitReadyAttempts, strict, failed, base, tenant, org, workspace)
+		finishPullLoop(0, 0, start, waitReadyMS, waitIntervalMS, waitRequireHealth, waitReadyAttempts, strict, failed, base, tenant, org, workspace, stream, consumer)
 		return
 	}
 	fmt.Print(iomeshclient.FormatSubscription(sub))
@@ -327,7 +331,7 @@ func main() {
 		}
 	}
 
-	finishPullLoop(cyclesCompleted, fetchTotal, start, waitReadyMS, waitIntervalMS, waitRequireHealth, waitReadyAttempts, strict, failed, base, tenant, org, workspace)
+	finishPullLoop(cyclesCompleted, fetchTotal, start, waitReadyMS, waitIntervalMS, waitRequireHealth, waitReadyAttempts, strict, failed, base, tenant, org, workspace, stream, consumer)
 }
 
 // publishDemo publishes one self-contained demo payload.
@@ -347,23 +351,25 @@ func publishDemo(ctx context.Context, nc *iomeshclient.Client, stream, pubSubjec
 	return true
 }
 
-// finishPullLoop emits SUMMARY then RESULT=done version=V user_agent=UA base_url=B tenant=T org=O workspace=W result=R exit_code=E;
+// finishPullLoop emits SUMMARY then RESULT=done version=V user_agent=UA base_url=B tenant=T org=O workspace=W stream=S consumer=C result=R exit_code=E;
 // under IOMESH_STRICT exits 1 when failed.
 // version (SDK package Version), user_agent, base_url (connect mesh URL), identity
-// tenant/org/workspace, WaitReady knobs (including wait_ready_attempts), failed, strict,
-// result (ok|err from failed), and exit_code are always included on SUMMARY (0/false when
-// WaitReady off; empty strings honest when unset). version, user_agent, base_url, identity,
-// result, and exit_code are always on RESULT too; result peers ConnectionStatus.Result
-// (ok when !failed; err when failed); exit_code matches the process exit used after
-// SUMMARY (1 only when strict && failed; otherwise 0, including non-strict failures).
-func finishPullLoop(cyclesCompleted, fetchTotal int, start time.Time, waitReadyMS, waitIntervalMS int, waitRequireHealth bool, waitReadyAttempts int, strict, failed bool, baseURL, tenant, org, workspace string) {
-	printPullLoopDone(cyclesCompleted, fetchTotal, start, waitReadyMS, waitIntervalMS, waitRequireHealth, waitReadyAttempts, failed, strict, baseURL, tenant, org, workspace)
+// tenant/org/workspace, stream/consumer (IOMESH_STREAM / IOMESH_CONSUMER connect config),
+// WaitReady knobs (including wait_ready_attempts), failed, strict, result (ok|err from
+// failed), and exit_code are always included on SUMMARY (0/false when WaitReady off;
+// empty strings honest when unset). version, user_agent, base_url, identity, stream,
+// consumer, result, and exit_code are always on RESULT too; result peers
+// ConnectionStatus.Result (ok when !failed; err when failed); exit_code matches the
+// process exit used after SUMMARY (1 only when strict && failed; otherwise 0,
+// including non-strict failures).
+func finishPullLoop(cyclesCompleted, fetchTotal int, start time.Time, waitReadyMS, waitIntervalMS int, waitRequireHealth bool, waitReadyAttempts int, strict, failed bool, baseURL, tenant, org, workspace, stream, consumer string) {
+	printPullLoopDone(cyclesCompleted, fetchTotal, start, waitReadyMS, waitIntervalMS, waitRequireHealth, waitReadyAttempts, failed, strict, baseURL, tenant, org, workspace, stream, consumer)
 	if strict && failed {
 		os.Exit(1)
 	}
 }
 
-// printPullLoopDone emits SUMMARY then RESULT=done version=V user_agent=UA base_url=B tenant=T org=O workspace=W result=R exit_code=E
+// printPullLoopDone emits SUMMARY then RESULT=done version=V user_agent=UA base_url=B tenant=T org=O workspace=W stream=S consumer=C result=R exit_code=E
 // using wall-clock duration since start.
 // version is always iomeshclient.Version (leading field on SUMMARY; also on RESULT).
 // user_agent is always package default "iomesh-client-sdk-go/<Version>" (same string
@@ -371,18 +377,21 @@ func finishPullLoop(cyclesCompleted, fetchTotal int, start time.Time, waitReadyM
 // base_url is always the connect mesh URL / IOMESH_URL (same string ConnectionStatus uses
 // as base_url; after user_agent= before tenant=; empty honest when unset).
 // tenant/org/workspace are always on SUMMARY and RESULT (connect identity; empty honest when unset).
+// stream/consumer are always on SUMMARY and RESULT (IOMESH_STREAM / IOMESH_CONSUMER
+// connect config; defaults EVENTS / sdk-pull-loop from env(); empty honest if truly unset;
+// after workspace= before cycles_completed on SUMMARY; after workspace= before result= on RESULT).
 // result is always ok|err from the failed flag (peers ConnectionStatus.Result).
 // exit_code on RESULT matches SUMMARY / process exit (1 only when strict && failed).
-func printPullLoopDone(cyclesCompleted, fetchTotal int, start time.Time, waitReadyMS, waitIntervalMS int, waitRequireHealth bool, waitReadyAttempts int, failed, strict bool, baseURL, tenant, org, workspace string) {
+func printPullLoopDone(cyclesCompleted, fetchTotal int, start time.Time, waitReadyMS, waitIntervalMS int, waitRequireHealth bool, waitReadyAttempts int, failed, strict bool, baseURL, tenant, org, workspace, stream, consumer string) {
 	durationMS := int(time.Since(start).Milliseconds())
 	// Package default User-Agent (mirrors unexported defaultUserAgent / ConnectionStatus).
 	userAgent := "iomesh-client-sdk-go/" + iomeshclient.Version
-	fmt.Println(formatPullLoopSummary(cyclesCompleted, fetchTotal, durationMS, waitReadyMS, waitIntervalMS, waitRequireHealth, waitReadyAttempts, failed, strict, iomeshclient.Version, userAgent, baseURL, tenant, org, workspace))
+	fmt.Println(formatPullLoopSummary(cyclesCompleted, fetchTotal, durationMS, waitReadyMS, waitIntervalMS, waitRequireHealth, waitReadyAttempts, failed, strict, iomeshclient.Version, userAgent, baseURL, tenant, org, workspace, stream, consumer))
 	exitCode := 0
 	if strict && failed {
 		exitCode = 1
 	}
-	fmt.Println(formatPullLoopResult(exitCode, failed, iomeshclient.Version, userAgent, baseURL, tenant, org, workspace))
+	fmt.Println(formatPullLoopResult(exitCode, failed, iomeshclient.Version, userAgent, baseURL, tenant, org, workspace, stream, consumer))
 }
 
 // envStrict reports whether IOMESH_STRICT enables hard-fail exit after SUMMARY.
@@ -414,7 +423,7 @@ func wantPublishEach(env string) bool {
 // formatPullLoopSummary returns the stage-smoke SUMMARY line for pull-loop.
 // Field order (peers ConnectionStatus field family for scrapers):
 //
-//	version= user_agent= base_url= tenant= org= workspace= …
+//	version= user_agent= base_url= tenant= org= workspace= stream= consumer= …
 //
 // version is always emitted first (caller passes iomeshclient.Version) so scrapers
 // can key SDK version without re-parsing the banner sdk= line; empty string still
@@ -430,6 +439,11 @@ func wantPublishEach(env string) bool {
 // tenant/org/workspace are always emitted next (connect identity from IOMESH_TENANT
 // / IOMESH_ORG / IOMESH_WORKSPACE; empty string still emits tenant= org= workspace=
 // when unset) so scrapers peer ConnectionStatus identity without inventing readiness.
+// stream/consumer are always emitted after workspace= before cycles_completed=
+// (IOMESH_STREAM / IOMESH_CONSUMER connect config used by the example; defaults
+// EVENTS / sdk-pull-loop from env(); empty string still emits stream= consumer=
+// when truly unset) so scrapers key the durable pull target without re-parsing the
+// banner stream=/consumer= line.
 // durationMS is clamped to >= 0. WaitReady knobs are always emitted:
 // wait_ready_ms is the configured budget (0 when off); when wait is off,
 // wait_interval_ms is 0, wait_require_health is false, and wait_ready_attempts
@@ -445,8 +459,9 @@ func wantPublishEach(env string) bool {
 // from failed (pullLoopResult; peers ConnectionStatus.Result).
 // exit_code is always emitted and matches process exit after SUMMARY:
 // 1 only when strict && failed; otherwise 0 (including non-strict with failed).
-// Pure helper (no I/O); version, user_agent, base_url, and identity are parameters for testability.
-func formatPullLoopSummary(cyclesCompleted, fetchTotal, durationMS, waitReadyMS, waitIntervalMS int, waitRequireHealth bool, waitReadyAttempts int, failed, strict bool, version, userAgent, baseURL, tenant, org, workspace string) string {
+// Pure helper (no I/O); version, user_agent, base_url, identity, stream, and
+// consumer are parameters for testability.
+func formatPullLoopSummary(cyclesCompleted, fetchTotal, durationMS, waitReadyMS, waitIntervalMS int, waitRequireHealth bool, waitReadyAttempts int, failed, strict bool, version, userAgent, baseURL, tenant, org, workspace, stream, consumer string) string {
 	if durationMS < 0 {
 		durationMS = 0
 	}
@@ -460,8 +475,8 @@ func formatPullLoopSummary(cyclesCompleted, fetchTotal, durationMS, waitReadyMS,
 	if strict && failed {
 		exitCode = 1
 	}
-	return fmt.Sprintf("SUMMARY version=%s user_agent=%s base_url=%s tenant=%s org=%s workspace=%s cycles_completed=%d fetch_total=%d duration_ms=%d wait_ready_ms=%d wait_interval_ms=%d wait_require_health=%v wait_ready_attempts=%d failed=%t strict=%t result=%s exit_code=%d",
-		version, userAgent, baseURL, tenant, org, workspace, cyclesCompleted, fetchTotal, durationMS, waitReadyMS, waitIntervalMS, waitRequireHealth, waitReadyAttempts, failed, strict, pullLoopResult(failed), exitCode)
+	return fmt.Sprintf("SUMMARY version=%s user_agent=%s base_url=%s tenant=%s org=%s workspace=%s stream=%s consumer=%s cycles_completed=%d fetch_total=%d duration_ms=%d wait_ready_ms=%d wait_interval_ms=%d wait_require_health=%v wait_ready_attempts=%d failed=%t strict=%t result=%s exit_code=%d",
+		version, userAgent, baseURL, tenant, org, workspace, stream, consumer, cyclesCompleted, fetchTotal, durationMS, waitReadyMS, waitIntervalMS, waitRequireHealth, waitReadyAttempts, failed, strict, pullLoopResult(failed), exitCode)
 }
 
 // pullLoopResult maps the stage-smoke failed flag to ConnectionStatus-style result.
@@ -477,7 +492,7 @@ func pullLoopResult(failed bool) string {
 // formatPullLoopResult returns the stage-smoke RESULT line for pull-loop.
 // Field order (matches SUMMARY / peers ConnectionStatus field family):
 //
-//	RESULT=done version= user_agent= base_url= tenant= org= workspace= result= exit_code=
+//	RESULT=done version= user_agent= base_url= tenant= org= workspace= stream= consumer= result= exit_code=
 //
 // Keeps the RESULT=done token for scrapers that key off it, and always emits
 // version (caller passes iomeshclient.Version; empty string still emits version=),
@@ -488,13 +503,16 @@ func pullLoopResult(failed bool) string {
 // tenant/org/workspace after base_url= (same connect identity triple as SUMMARY;
 // empty string still emits tenant= org= workspace= when unset) so scrapers peer
 // ConnectionStatus / SUMMARY base_url, identity and user_agent without inventing
-// readiness, result=ok|err after workspace= before exit_code= (derived from failed
-// via pullLoopResult; peers ConnectionStatus.Result), and exit_code with the same
-// semantics as SUMMARY / process exit (caller passes 1 only when strict && failed;
-// otherwise 0). Pure helper (no I/O); version, user_agent, base_url, identity, and
-// failed are parameters for testability.
-func formatPullLoopResult(exitCode int, failed bool, version, userAgent, baseURL, tenant, org, workspace string) string {
-	return fmt.Sprintf("RESULT=done version=%s user_agent=%s base_url=%s tenant=%s org=%s workspace=%s result=%s exit_code=%d", version, userAgent, baseURL, tenant, org, workspace, pullLoopResult(failed), exitCode)
+// readiness, stream/consumer after workspace= before result= (same IOMESH_STREAM /
+// IOMESH_CONSUMER connect config as SUMMARY; empty string still emits stream=
+// consumer= when truly unset) so scrapers key the durable pull target without
+// re-parsing the banner, result=ok|err after consumer= before exit_code= (derived
+// from failed via pullLoopResult; peers ConnectionStatus.Result), and exit_code
+// with the same semantics as SUMMARY / process exit (caller passes 1 only when
+// strict && failed; otherwise 0). Pure helper (no I/O); version, user_agent,
+// base_url, identity, stream, consumer, and failed are parameters for testability.
+func formatPullLoopResult(exitCode int, failed bool, version, userAgent, baseURL, tenant, org, workspace, stream, consumer string) string {
+	return fmt.Sprintf("RESULT=done version=%s user_agent=%s base_url=%s tenant=%s org=%s workspace=%s stream=%s consumer=%s result=%s exit_code=%d", version, userAgent, baseURL, tenant, org, workspace, stream, consumer, pullLoopResult(failed), exitCode)
 }
 
 // parseLoops returns fetch cycle count from an env value.

@@ -134,6 +134,8 @@ func TestFormatPullLoopSummary(t *testing.T) {
 		tenant            string
 		org               string
 		workspace         string
+		stream            string
+		consumer          string
 		want              string
 	}{
 		{
@@ -149,7 +151,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			failed:            false,
 			strict:            false,
 			version:           "0.51.0",
-			want:              "SUMMARY version=0.51.0 user_agent= base_url= tenant= org= workspace= cycles_completed=0 fetch_total=0 duration_ms=0 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
+			want:              "SUMMARY version=0.51.0 user_agent= base_url= tenant= org= workspace= stream= consumer= cycles_completed=0 fetch_total=0 duration_ms=0 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
 		},
 		{
 			name:              "typical success wait off",
@@ -163,7 +165,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			failed:            false,
 			strict:            false,
 			version:           "0.51.0",
-			want:              "SUMMARY version=0.51.0 user_agent= base_url= tenant= org= workspace= cycles_completed=3 fetch_total=12 duration_ms=4500 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
+			want:              "SUMMARY version=0.51.0 user_agent= base_url= tenant= org= workspace= stream= consumer= cycles_completed=3 fetch_total=12 duration_ms=4500 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
 		},
 		{
 			name:              "single cycle empty fetch wait off",
@@ -177,7 +179,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			failed:            false,
 			strict:            false,
 			version:           "0.51.0",
-			want:              "SUMMARY version=0.51.0 user_agent= base_url= tenant= org= workspace= cycles_completed=1 fetch_total=0 duration_ms=2001 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
+			want:              "SUMMARY version=0.51.0 user_agent= base_url= tenant= org= workspace= stream= consumer= cycles_completed=1 fetch_total=0 duration_ms=2001 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
 		},
 		{
 			name:              "negative duration clamps to zero",
@@ -191,7 +193,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			failed:            false,
 			strict:            false,
 			version:           "0.51.0",
-			want:              "SUMMARY version=0.51.0 user_agent= base_url= tenant= org= workspace= cycles_completed=1 fetch_total=5 duration_ms=0 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
+			want:              "SUMMARY version=0.51.0 user_agent= base_url= tenant= org= workspace= stream= consumer= cycles_completed=1 fetch_total=5 duration_ms=0 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
 		},
 		{
 			name:              "wait on default interval require false attempts 1",
@@ -205,7 +207,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			failed:            false,
 			strict:            false,
 			version:           "0.51.0",
-			want:              "SUMMARY version=0.51.0 user_agent= base_url= tenant= org= workspace= cycles_completed=2 fetch_total=8 duration_ms=1200 wait_ready_ms=5000 wait_interval_ms=500 wait_require_health=false wait_ready_attempts=1 failed=false strict=false result=ok exit_code=0",
+			want:              "SUMMARY version=0.51.0 user_agent= base_url= tenant= org= workspace= stream= consumer= cycles_completed=2 fetch_total=8 duration_ms=1200 wait_ready_ms=5000 wait_interval_ms=500 wait_require_health=false wait_ready_attempts=1 failed=false strict=false result=ok exit_code=0",
 		},
 		{
 			name:              "wait on custom interval require true attempts N",
@@ -219,7 +221,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			failed:            false,
 			strict:            false,
 			version:           "0.51.0",
-			want:              "SUMMARY version=0.51.0 user_agent= base_url= tenant= org= workspace= cycles_completed=1 fetch_total=3 duration_ms=900 wait_ready_ms=3000 wait_interval_ms=250 wait_require_health=true wait_ready_attempts=4 failed=false strict=false result=ok exit_code=0",
+			want:              "SUMMARY version=0.51.0 user_agent= base_url= tenant= org= workspace= stream= consumer= cycles_completed=1 fetch_total=3 duration_ms=900 wait_ready_ms=3000 wait_interval_ms=250 wait_require_health=true wait_ready_attempts=4 failed=false strict=false result=ok exit_code=0",
 		},
 		{
 			name:              "wait on interval 1 require health attempts 2",
@@ -233,7 +235,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			failed:            false,
 			strict:            false,
 			version:           "0.51.0",
-			want:              "SUMMARY version=0.51.0 user_agent= base_url= tenant= org= workspace= cycles_completed=0 fetch_total=0 duration_ms=50 wait_ready_ms=100 wait_interval_ms=1 wait_require_health=true wait_ready_attempts=2 failed=false strict=false result=ok exit_code=0",
+			want:              "SUMMARY version=0.51.0 user_agent= base_url= tenant= org= workspace= stream= consumer= cycles_completed=0 fetch_total=0 duration_ms=50 wait_ready_ms=100 wait_interval_ms=1 wait_require_health=true wait_ready_attempts=2 failed=false strict=false result=ok exit_code=0",
 		},
 		{
 			name:              "negative wait ready treated as off zeros attempts",
@@ -247,7 +249,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			failed:            false,
 			strict:            false,
 			version:           "0.51.0",
-			want:              "SUMMARY version=0.51.0 user_agent= base_url= tenant= org= workspace= cycles_completed=1 fetch_total=1 duration_ms=10 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
+			want:              "SUMMARY version=0.51.0 user_agent= base_url= tenant= org= workspace= stream= consumer= cycles_completed=1 fetch_total=1 duration_ms=10 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
 		},
 		{
 			name:              "failed true strict false exit 0",
@@ -261,7 +263,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			failed:            true,
 			strict:            false,
 			version:           "0.51.0",
-			want:              "SUMMARY version=0.51.0 user_agent= base_url= tenant= org= workspace= cycles_completed=0 fetch_total=0 duration_ms=100 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=true strict=false result=err exit_code=0",
+			want:              "SUMMARY version=0.51.0 user_agent= base_url= tenant= org= workspace= stream= consumer= cycles_completed=0 fetch_total=0 duration_ms=100 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=true strict=false result=err exit_code=0",
 		},
 		{
 			name:              "failed true wait on strict false exit 0",
@@ -275,7 +277,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			failed:            true,
 			strict:            false,
 			version:           "0.51.0",
-			want:              "SUMMARY version=0.51.0 user_agent= base_url= tenant= org= workspace= cycles_completed=1 fetch_total=2 duration_ms=800 wait_ready_ms=2000 wait_interval_ms=250 wait_require_health=true wait_ready_attempts=5 failed=true strict=false result=err exit_code=0",
+			want:              "SUMMARY version=0.51.0 user_agent= base_url= tenant= org= workspace= stream= consumer= cycles_completed=1 fetch_total=2 duration_ms=800 wait_ready_ms=2000 wait_interval_ms=250 wait_require_health=true wait_ready_attempts=5 failed=true strict=false result=err exit_code=0",
 		},
 		{
 			name:              "strict true failed false exit 0",
@@ -289,7 +291,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			failed:            false,
 			strict:            true,
 			version:           "0.51.0",
-			want:              "SUMMARY version=0.51.0 user_agent= base_url= tenant= org= workspace= cycles_completed=2 fetch_total=4 duration_ms=600 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=true result=ok exit_code=0",
+			want:              "SUMMARY version=0.51.0 user_agent= base_url= tenant= org= workspace= stream= consumer= cycles_completed=2 fetch_total=4 duration_ms=600 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=true result=ok exit_code=0",
 		},
 		{
 			name:              "strict true failed true exit 1",
@@ -303,7 +305,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			failed:            true,
 			strict:            true,
 			version:           "0.51.0",
-			want:              "SUMMARY version=0.51.0 user_agent= base_url= tenant= org= workspace= cycles_completed=1 fetch_total=0 duration_ms=1500 wait_ready_ms=5000 wait_interval_ms=500 wait_require_health=true wait_ready_attempts=3 failed=true strict=true result=err exit_code=1",
+			want:              "SUMMARY version=0.51.0 user_agent= base_url= tenant= org= workspace= stream= consumer= cycles_completed=1 fetch_total=0 duration_ms=1500 wait_ready_ms=5000 wait_interval_ms=500 wait_require_health=true wait_ready_attempts=3 failed=true strict=true result=err exit_code=1",
 		},
 		{
 			name:              "custom version leading field",
@@ -317,7 +319,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			failed:            false,
 			strict:            false,
 			version:           "9.9.9",
-			want:              "SUMMARY version=9.9.9 user_agent= base_url= tenant= org= workspace= cycles_completed=1 fetch_total=0 duration_ms=100 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
+			want:              "SUMMARY version=9.9.9 user_agent= base_url= tenant= org= workspace= stream= consumer= cycles_completed=1 fetch_total=0 duration_ms=100 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
 		},
 		{
 			name:              "empty version still emits version=",
@@ -331,7 +333,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			failed:            false,
 			strict:            false,
 			version:           "",
-			want:              "SUMMARY version= user_agent= base_url= tenant= org= workspace= cycles_completed=0 fetch_total=0 duration_ms=0 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
+			want:              "SUMMARY version= user_agent= base_url= tenant= org= workspace= stream= consumer= cycles_completed=0 fetch_total=0 duration_ms=0 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
 		},
 
 		{
@@ -349,7 +351,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			tenant:            "dept.research",
 			org:               "org_a",
 			workspace:         "ws_1",
-			want:              "SUMMARY version=0.54.0 user_agent= base_url= tenant=dept.research org=org_a workspace=ws_1 cycles_completed=1 fetch_total=0 duration_ms=100 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
+			want:              "SUMMARY version=0.54.0 user_agent= base_url= tenant=dept.research org=org_a workspace=ws_1 stream= consumer= cycles_completed=1 fetch_total=0 duration_ms=100 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
 		},
 		{
 			name:              "empty identity still emits tenant= org= workspace=",
@@ -366,7 +368,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			tenant:            "",
 			org:               "",
 			workspace:         "",
-			want:              "SUMMARY version=0.54.0 user_agent= base_url= tenant= org= workspace= cycles_completed=0 fetch_total=0 duration_ms=0 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
+			want:              "SUMMARY version=0.54.0 user_agent= base_url= tenant= org= workspace= stream= consumer= cycles_completed=0 fetch_total=0 duration_ms=0 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
 		},
 		{
 			name:              "user_agent populated after version before tenant",
@@ -384,7 +386,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			tenant:            "dept.research",
 			org:               "org_a",
 			workspace:         "ws_1",
-			want:              "SUMMARY version=0.57.0 user_agent=iomesh-client-sdk-go/0.57.0 base_url= tenant=dept.research org=org_a workspace=ws_1 cycles_completed=1 fetch_total=0 duration_ms=100 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
+			want:              "SUMMARY version=0.57.0 user_agent=iomesh-client-sdk-go/0.57.0 base_url= tenant=dept.research org=org_a workspace=ws_1 stream= consumer= cycles_completed=1 fetch_total=0 duration_ms=100 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
 		},
 		{
 			name:              "empty user_agent still emits user_agent=",
@@ -402,7 +404,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			tenant:            "",
 			org:               "",
 			workspace:         "",
-			want:              "SUMMARY version=0.57.0 user_agent= base_url= tenant= org= workspace= cycles_completed=0 fetch_total=0 duration_ms=0 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
+			want:              "SUMMARY version=0.57.0 user_agent= base_url= tenant= org= workspace= stream= consumer= cycles_completed=0 fetch_total=0 duration_ms=0 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
 		},
 		{
 			name:              "base_url populated after user_agent before tenant",
@@ -421,7 +423,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			tenant:            "dept.research",
 			org:               "org_a",
 			workspace:         "ws_1",
-			want:              "SUMMARY version=0.58.0 user_agent=iomesh-client-sdk-go/0.58.0 base_url=http://127.0.0.1:8422 tenant=dept.research org=org_a workspace=ws_1 cycles_completed=1 fetch_total=0 duration_ms=100 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
+			want:              "SUMMARY version=0.58.0 user_agent=iomesh-client-sdk-go/0.58.0 base_url=http://127.0.0.1:8422 tenant=dept.research org=org_a workspace=ws_1 stream= consumer= cycles_completed=1 fetch_total=0 duration_ms=100 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
 		},
 		{
 			name:              "empty base_url still emits base_url=",
@@ -440,14 +442,56 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			tenant:            "",
 			org:               "",
 			workspace:         "",
-			want:              "SUMMARY version=0.58.0 user_agent= base_url= tenant= org= workspace= cycles_completed=0 fetch_total=0 duration_ms=0 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
+			want:              "SUMMARY version=0.58.0 user_agent= base_url= tenant= org= workspace= stream= consumer= cycles_completed=0 fetch_total=0 duration_ms=0 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
+		},
+		{
+			name:              "stream consumer populated after workspace before cycles",
+			cyclesCompleted:   1,
+			fetchTotal:        0,
+			durationMS:        100,
+			waitReadyMS:       0,
+			waitIntervalMS:    0,
+			waitRequireHealth: false,
+			waitReadyAttempts: 0,
+			failed:            false,
+			strict:            false,
+			version:           "0.60.0",
+			userAgent:         "iomesh-client-sdk-go/0.60.0",
+			baseURL:           "http://127.0.0.1:8422",
+			tenant:            "dept.research",
+			org:               "org_a",
+			workspace:         "ws_1",
+			stream:            "EVENTS",
+			consumer:          "sdk-pull-loop",
+			want:              "SUMMARY version=0.60.0 user_agent=iomesh-client-sdk-go/0.60.0 base_url=http://127.0.0.1:8422 tenant=dept.research org=org_a workspace=ws_1 stream=EVENTS consumer=sdk-pull-loop cycles_completed=1 fetch_total=0 duration_ms=100 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
+		},
+		{
+			name:              "empty stream consumer still emits stream= consumer=",
+			cyclesCompleted:   0,
+			fetchTotal:        0,
+			durationMS:        0,
+			waitReadyMS:       0,
+			waitIntervalMS:    0,
+			waitRequireHealth: false,
+			waitReadyAttempts: 0,
+			failed:            false,
+			strict:            false,
+			version:           "0.60.0",
+			userAgent:         "",
+			baseURL:           "",
+			tenant:            "",
+			org:               "",
+			workspace:         "",
+			stream:            "",
+			consumer:          "",
+			want:              "SUMMARY version=0.60.0 user_agent= base_url= tenant= org= workspace= stream= consumer= cycles_completed=0 fetch_total=0 duration_ms=0 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false result=ok exit_code=0",
 		},
 	}
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got := formatPullLoopSummary(tc.cyclesCompleted, tc.fetchTotal, tc.durationMS, tc.waitReadyMS, tc.waitIntervalMS, tc.waitRequireHealth, tc.waitReadyAttempts, tc.failed, tc.strict, tc.version, tc.userAgent, tc.baseURL, tc.tenant, tc.org, tc.workspace)
+			got := formatPullLoopSummary(tc.cyclesCompleted, tc.fetchTotal, tc.durationMS, tc.waitReadyMS, tc.waitIntervalMS, tc.waitRequireHealth, tc.waitReadyAttempts, tc.failed, tc.strict, tc.version, tc.userAgent, tc.baseURL, tc.tenant, tc.org, tc.workspace, tc.stream, tc.consumer)
 			if got != tc.want {
 				t.Fatalf("formatPullLoopSummary(...) = %q, want %q", got, tc.want)
 			}
@@ -458,17 +502,17 @@ func TestFormatPullLoopSummary(t *testing.T) {
 func TestFormatPullLoopSummaryAlwaysEmitsIdentity(t *testing.T) {
 	t.Parallel()
 	// Empty identity still emits keys (honest empty strings).
-	got := formatPullLoopSummary(0, 0, 0, 0, 0, false, 0, false, false, "0.54.0", "", "", "", "", "")
+	got := formatPullLoopSummary(0, 0, 0, 0, 0, false, 0, false, false, "0.54.0", "", "", "", "", "", "", "")
 	for _, key := range []string{"tenant=", "org=", "workspace="} {
 		if !strings.Contains(got, key) {
 			t.Fatalf("missing %s in %q", key, got)
 		}
 	}
-	if !strings.Contains(got, "version=0.54.0 user_agent= base_url= tenant= org= workspace= cycles_completed=") {
+	if !strings.Contains(got, "version=0.54.0 user_agent= base_url= tenant= org= workspace= stream= consumer= cycles_completed=") {
 		t.Fatalf("identity order want after version/user_agent/base_url: %q", got)
 	}
 	// Populated identity passes through; does not invent readiness / exit success.
-	got2 := formatPullLoopSummary(1, 0, 10, 0, 0, false, 0, true, true, "0.54.0", "iomesh-client-sdk-go/0.54.0", "", "dept.x", "org_a", "ws_y")
+	got2 := formatPullLoopSummary(1, 0, 10, 0, 0, false, 0, true, true, "0.54.0", "iomesh-client-sdk-go/0.54.0", "", "dept.x", "org_a", "ws_y", "", "")
 	if !strings.Contains(got2, "tenant=dept.x") || !strings.Contains(got2, "org=org_a") || !strings.Contains(got2, "workspace=ws_y") {
 		t.Fatalf("populated identity missing: %q", got2)
 	}
@@ -480,7 +524,7 @@ func TestFormatPullLoopSummaryAlwaysEmitsIdentity(t *testing.T) {
 func TestFormatPullLoopSummaryAlwaysEmitsUserAgent(t *testing.T) {
 	t.Parallel()
 	// Empty user_agent still emits key (honest empty string).
-	got := formatPullLoopSummary(0, 0, 0, 0, 0, false, 0, false, false, "0.57.0", "", "", "", "", "")
+	got := formatPullLoopSummary(0, 0, 0, 0, 0, false, 0, false, false, "0.57.0", "", "", "", "", "", "", "")
 	if !strings.Contains(got, "user_agent=") {
 		t.Fatalf("missing user_agent= in %q", got)
 	}
@@ -489,7 +533,7 @@ func TestFormatPullLoopSummaryAlwaysEmitsUserAgent(t *testing.T) {
 	}
 	// Package-default UA passes through; does not invent readiness / exit success.
 	ua := "iomesh-client-sdk-go/0.57.0"
-	got2 := formatPullLoopSummary(1, 0, 10, 0, 0, false, 0, true, true, "0.57.0", ua, "", "dept.x", "org_a", "ws_y")
+	got2 := formatPullLoopSummary(1, 0, 10, 0, 0, false, 0, true, true, "0.57.0", ua, "", "dept.x", "org_a", "ws_y", "", "")
 	if !strings.Contains(got2, "user_agent="+ua) {
 		t.Fatalf("populated user_agent missing: %q", got2)
 	}
@@ -504,7 +548,7 @@ func TestFormatPullLoopSummaryAlwaysEmitsUserAgent(t *testing.T) {
 func TestFormatPullLoopSummaryAlwaysEmitsBaseURL(t *testing.T) {
 	t.Parallel()
 	// Empty base_url still emits key (honest empty string).
-	got := formatPullLoopSummary(0, 0, 0, 0, 0, false, 0, false, false, "0.58.0", "", "", "", "", "")
+	got := formatPullLoopSummary(0, 0, 0, 0, 0, false, 0, false, false, "0.58.0", "", "", "", "", "", "", "")
 	if !strings.Contains(got, "base_url=") {
 		t.Fatalf("missing base_url= in %q", got)
 	}
@@ -514,7 +558,7 @@ func TestFormatPullLoopSummaryAlwaysEmitsBaseURL(t *testing.T) {
 	// Connect mesh URL passes through; does not invent readiness / exit success.
 	ua := "iomesh-client-sdk-go/0.58.0"
 	base := "http://127.0.0.1:8422"
-	got2 := formatPullLoopSummary(1, 0, 10, 0, 0, false, 0, true, true, "0.58.0", ua, base, "dept.x", "org_a", "ws_y")
+	got2 := formatPullLoopSummary(1, 0, 10, 0, 0, false, 0, true, true, "0.58.0", ua, base, "dept.x", "org_a", "ws_y", "", "")
 	if !strings.Contains(got2, "base_url="+base) {
 		t.Fatalf("populated base_url missing: %q", got2)
 	}
@@ -523,6 +567,33 @@ func TestFormatPullLoopSummaryAlwaysEmitsBaseURL(t *testing.T) {
 	}
 	if !strings.Contains(got2, "failed=true") || !strings.Contains(got2, "result=err") || !strings.Contains(got2, "exit_code=1") {
 		t.Fatalf("base_url must not invent success: %q", got2)
+	}
+}
+
+func TestFormatPullLoopSummaryAlwaysEmitsStreamConsumer(t *testing.T) {
+	t.Parallel()
+	// Empty stream/consumer still emit keys (honest empty strings).
+	got := formatPullLoopSummary(0, 0, 0, 0, 0, false, 0, false, false, "0.60.0", "", "", "", "", "", "", "")
+	for _, key := range []string{"stream=", "consumer="} {
+		if !strings.Contains(got, key) {
+			t.Fatalf("missing %s in %q", key, got)
+		}
+	}
+	if !strings.Contains(got, "workspace= stream= consumer= cycles_completed=") {
+		t.Fatalf("stream/consumer order want after workspace before cycles_completed: %q", got)
+	}
+	// Connect config passes through; does not invent readiness / exit success.
+	ua := "iomesh-client-sdk-go/0.60.0"
+	base := "http://127.0.0.1:8422"
+	got2 := formatPullLoopSummary(1, 0, 10, 0, 0, false, 0, true, true, "0.60.0", ua, base, "dept.x", "org_a", "ws_y", "EVENTS", "sdk-pull-loop")
+	if !strings.Contains(got2, "stream=EVENTS") || !strings.Contains(got2, "consumer=sdk-pull-loop") {
+		t.Fatalf("populated stream/consumer missing: %q", got2)
+	}
+	if !strings.Contains(got2, "workspace=ws_y stream=EVENTS consumer=sdk-pull-loop cycles_completed=") {
+		t.Fatalf("stream/consumer order want after workspace before cycles_completed: %q", got2)
+	}
+	if !strings.Contains(got2, "failed=true") || !strings.Contains(got2, "result=err") || !strings.Contains(got2, "exit_code=1") {
+		t.Fatalf("stream/consumer must not invent success: %q", got2)
 	}
 }
 
@@ -538,80 +609,103 @@ func TestFormatPullLoopResult(t *testing.T) {
 		tenant    string
 		org       string
 		workspace string
+		stream    string
+		consumer  string
 		want      string
 	}{
-		{name: "exit 0 success empty identity", exitCode: 0, failed: false, version: "0.52.0", want: "RESULT=done version=0.52.0 user_agent= base_url= tenant= org= workspace= result=ok exit_code=0"},
-		{name: "exit 1 strict failed empty identity", exitCode: 1, failed: true, version: "0.52.0", want: "RESULT=done version=0.52.0 user_agent= base_url= tenant= org= workspace= result=err exit_code=1"},
+		{name: "exit 0 success empty identity", exitCode: 0, failed: false, version: "0.52.0", want: "RESULT=done version=0.52.0 user_agent= base_url= tenant= org= workspace= stream= consumer= result=ok exit_code=0"},
+		{name: "exit 1 strict failed empty identity", exitCode: 1, failed: true, version: "0.52.0", want: "RESULT=done version=0.52.0 user_agent= base_url= tenant= org= workspace= stream= consumer= result=err exit_code=1"},
 		// same matrix as SUMMARY: scrapers pass the computed code; helper formats only
-		{name: "non-strict failed still 0 result err", exitCode: 0, failed: true, version: "0.52.0", want: "RESULT=done version=0.52.0 user_agent= base_url= tenant= org= workspace= result=err exit_code=0"},
-		{name: "strict ok still 0 result ok", exitCode: 0, failed: false, version: "0.52.0", want: "RESULT=done version=0.52.0 user_agent= base_url= tenant= org= workspace= result=ok exit_code=0"},
-		{name: "custom version", exitCode: 0, failed: false, version: "9.9.9", want: "RESULT=done version=9.9.9 user_agent= base_url= tenant= org= workspace= result=ok exit_code=0"},
-		{name: "empty version still emits version=", exitCode: 0, failed: false, version: "", want: "RESULT=done version= user_agent= base_url= tenant= org= workspace= result=ok exit_code=0"},
-		{name: "empty version with exit 1", exitCode: 1, failed: true, version: "", want: "RESULT=done version= user_agent= base_url= tenant= org= workspace= result=err exit_code=1"},
+		{name: "non-strict failed still 0 result err", exitCode: 0, failed: true, version: "0.52.0", want: "RESULT=done version=0.52.0 user_agent= base_url= tenant= org= workspace= stream= consumer= result=err exit_code=0"},
+		{name: "strict ok still 0 result ok", exitCode: 0, failed: false, version: "0.52.0", want: "RESULT=done version=0.52.0 user_agent= base_url= tenant= org= workspace= stream= consumer= result=ok exit_code=0"},
+		{name: "custom version", exitCode: 0, failed: false, version: "9.9.9", want: "RESULT=done version=9.9.9 user_agent= base_url= tenant= org= workspace= stream= consumer= result=ok exit_code=0"},
+		{name: "empty version still emits version=", exitCode: 0, failed: false, version: "", want: "RESULT=done version= user_agent= base_url= tenant= org= workspace= stream= consumer= result=ok exit_code=0"},
+		{name: "empty version with exit 1", exitCode: 1, failed: true, version: "", want: "RESULT=done version= user_agent= base_url= tenant= org= workspace= stream= consumer= result=err exit_code=1"},
 		{
 			name: "identity populated after version", exitCode: 0, failed: false, version: "0.56.0",
 			tenant: "dept.research", org: "org_a", workspace: "ws_1",
-			want: "RESULT=done version=0.56.0 user_agent= base_url= tenant=dept.research org=org_a workspace=ws_1 result=ok exit_code=0",
+			want: "RESULT=done version=0.56.0 user_agent= base_url= tenant=dept.research org=org_a workspace=ws_1 stream= consumer= result=ok exit_code=0",
 		},
 		{
 			name: "empty identity still emits tenant= org= workspace=", exitCode: 0, failed: false, version: "0.56.0",
 			tenant: "", org: "", workspace: "",
-			want: "RESULT=done version=0.56.0 user_agent= base_url= tenant= org= workspace= result=ok exit_code=0",
+			want: "RESULT=done version=0.56.0 user_agent= base_url= tenant= org= workspace= stream= consumer= result=ok exit_code=0",
 		},
 		{
 			name: "populated identity with exit 1 does not invent success", exitCode: 1, failed: true, version: "0.56.0",
 			tenant: "dept.x", org: "org_a", workspace: "ws_y",
-			want: "RESULT=done version=0.56.0 user_agent= base_url= tenant=dept.x org=org_a workspace=ws_y result=err exit_code=1",
+			want: "RESULT=done version=0.56.0 user_agent= base_url= tenant=dept.x org=org_a workspace=ws_y stream= consumer= result=err exit_code=1",
 		},
 		{
 			name: "user_agent populated after version before tenant", exitCode: 0, failed: false, version: "0.57.0",
 			userAgent: "iomesh-client-sdk-go/0.57.0",
 			tenant:    "dept.research", org: "org_a", workspace: "ws_1",
-			want: "RESULT=done version=0.57.0 user_agent=iomesh-client-sdk-go/0.57.0 base_url= tenant=dept.research org=org_a workspace=ws_1 result=ok exit_code=0",
+			want: "RESULT=done version=0.57.0 user_agent=iomesh-client-sdk-go/0.57.0 base_url= tenant=dept.research org=org_a workspace=ws_1 stream= consumer= result=ok exit_code=0",
 		},
 		{
 			name: "empty user_agent still emits user_agent=", exitCode: 0, failed: false, version: "0.57.0",
 			userAgent: "", tenant: "", org: "", workspace: "",
-			want: "RESULT=done version=0.57.0 user_agent= base_url= tenant= org= workspace= result=ok exit_code=0",
+			want: "RESULT=done version=0.57.0 user_agent= base_url= tenant= org= workspace= stream= consumer= result=ok exit_code=0",
 		},
 		{
 			name: "populated user_agent with exit 1 does not invent success", exitCode: 1, failed: true, version: "0.57.0",
 			userAgent: "iomesh-client-sdk-go/0.57.0",
 			tenant:    "dept.x", org: "org_a", workspace: "ws_y",
-			want: "RESULT=done version=0.57.0 user_agent=iomesh-client-sdk-go/0.57.0 base_url= tenant=dept.x org=org_a workspace=ws_y result=err exit_code=1",
+			want: "RESULT=done version=0.57.0 user_agent=iomesh-client-sdk-go/0.57.0 base_url= tenant=dept.x org=org_a workspace=ws_y stream= consumer= result=err exit_code=1",
 		},
 		{
 			name: "base_url populated after user_agent before tenant", exitCode: 0, failed: false, version: "0.58.0",
 			userAgent: "iomesh-client-sdk-go/0.58.0",
 			baseURL:   "http://127.0.0.1:8422",
 			tenant:    "dept.research", org: "org_a", workspace: "ws_1",
-			want: "RESULT=done version=0.58.0 user_agent=iomesh-client-sdk-go/0.58.0 base_url=http://127.0.0.1:8422 tenant=dept.research org=org_a workspace=ws_1 result=ok exit_code=0",
+			want: "RESULT=done version=0.58.0 user_agent=iomesh-client-sdk-go/0.58.0 base_url=http://127.0.0.1:8422 tenant=dept.research org=org_a workspace=ws_1 stream= consumer= result=ok exit_code=0",
 		},
 		{
 			name: "empty base_url still emits base_url=", exitCode: 0, failed: false, version: "0.58.0",
 			userAgent: "", baseURL: "", tenant: "", org: "", workspace: "",
-			want: "RESULT=done version=0.58.0 user_agent= base_url= tenant= org= workspace= result=ok exit_code=0",
+			want: "RESULT=done version=0.58.0 user_agent= base_url= tenant= org= workspace= stream= consumer= result=ok exit_code=0",
 		},
 		{
 			name: "populated base_url with exit 1 does not invent success", exitCode: 1, failed: true, version: "0.58.0",
 			userAgent: "iomesh-client-sdk-go/0.58.0",
 			baseURL:   "http://127.0.0.1:8422",
 			tenant:    "dept.x", org: "org_a", workspace: "ws_y",
-			want: "RESULT=done version=0.58.0 user_agent=iomesh-client-sdk-go/0.58.0 base_url=http://127.0.0.1:8422 tenant=dept.x org=org_a workspace=ws_y result=err exit_code=1",
+			want: "RESULT=done version=0.58.0 user_agent=iomesh-client-sdk-go/0.58.0 base_url=http://127.0.0.1:8422 tenant=dept.x org=org_a workspace=ws_y stream= consumer= result=err exit_code=1",
+		},
+		{
+			name: "stream consumer populated after workspace before result", exitCode: 0, failed: false, version: "0.60.0",
+			userAgent: "iomesh-client-sdk-go/0.60.0",
+			baseURL:   "http://127.0.0.1:8422",
+			tenant:    "dept.research", org: "org_a", workspace: "ws_1",
+			stream: "EVENTS", consumer: "sdk-pull-loop",
+			want: "RESULT=done version=0.60.0 user_agent=iomesh-client-sdk-go/0.60.0 base_url=http://127.0.0.1:8422 tenant=dept.research org=org_a workspace=ws_1 stream=EVENTS consumer=sdk-pull-loop result=ok exit_code=0",
+		},
+		{
+			name: "empty stream consumer still emits stream= consumer=", exitCode: 0, failed: false, version: "0.60.0",
+			userAgent: "", baseURL: "", tenant: "", org: "", workspace: "", stream: "", consumer: "",
+			want: "RESULT=done version=0.60.0 user_agent= base_url= tenant= org= workspace= stream= consumer= result=ok exit_code=0",
+		},
+		{
+			name: "populated stream consumer with exit 1 does not invent success", exitCode: 1, failed: true, version: "0.60.0",
+			userAgent: "iomesh-client-sdk-go/0.60.0",
+			baseURL:   "http://127.0.0.1:8422",
+			tenant:    "dept.x", org: "org_a", workspace: "ws_y",
+			stream: "ORDERS", consumer: "pull-worker",
+			want: "RESULT=done version=0.60.0 user_agent=iomesh-client-sdk-go/0.60.0 base_url=http://127.0.0.1:8422 tenant=dept.x org=org_a workspace=ws_y stream=ORDERS consumer=pull-worker result=err exit_code=1",
 		},
 	}
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got := formatPullLoopResult(tc.exitCode, tc.failed, tc.version, tc.userAgent, tc.baseURL, tc.tenant, tc.org, tc.workspace)
+			got := formatPullLoopResult(tc.exitCode, tc.failed, tc.version, tc.userAgent, tc.baseURL, tc.tenant, tc.org, tc.workspace, tc.stream, tc.consumer)
 			if got != tc.want {
 				t.Fatalf("formatPullLoopResult(...) = %q, want %q", got, tc.want)
 			}
 			if !strings.Contains(got, "version=") {
 				t.Fatalf("formatPullLoopResult(...) = %q, want always contains version=", got)
 			}
-			for _, key := range []string{"user_agent=", "base_url=", "tenant=", "org=", "workspace=", "result=", "exit_code="} {
+			for _, key := range []string{"user_agent=", "base_url=", "tenant=", "org=", "workspace=", "stream=", "consumer=", "result=", "exit_code="} {
 				if !strings.Contains(got, key) {
 					t.Fatalf("formatPullLoopResult(...) = %q, want always contains %s", got, key)
 				}
@@ -623,17 +717,17 @@ func TestFormatPullLoopResult(t *testing.T) {
 func TestFormatPullLoopResultAlwaysEmitsIdentity(t *testing.T) {
 	t.Parallel()
 	// Empty identity still emits keys (honest empty strings).
-	got := formatPullLoopResult(0, false, "0.56.0", "", "", "", "", "")
+	got := formatPullLoopResult(0, false, "0.56.0", "", "", "", "", "", "", "")
 	for _, key := range []string{"tenant=", "org=", "workspace="} {
 		if !strings.Contains(got, key) {
 			t.Fatalf("missing %s in %q", key, got)
 		}
 	}
-	if !strings.Contains(got, "version=0.56.0 user_agent= base_url= tenant= org= workspace= result=ok exit_code=") {
+	if !strings.Contains(got, "version=0.56.0 user_agent= base_url= tenant= org= workspace= stream= consumer= result=ok exit_code=") {
 		t.Fatalf("identity order want after version/user_agent/base_url: %q", got)
 	}
 	// Populated identity passes through; does not invent readiness / exit success.
-	got2 := formatPullLoopResult(1, true, "0.56.0", "iomesh-client-sdk-go/0.56.0", "", "dept.x", "org_a", "ws_y")
+	got2 := formatPullLoopResult(1, true, "0.56.0", "iomesh-client-sdk-go/0.56.0", "", "dept.x", "org_a", "ws_y", "", "")
 	if !strings.Contains(got2, "tenant=dept.x") || !strings.Contains(got2, "org=org_a") || !strings.Contains(got2, "workspace=ws_y") {
 		t.Fatalf("populated identity missing: %q", got2)
 	}
@@ -645,7 +739,7 @@ func TestFormatPullLoopResultAlwaysEmitsIdentity(t *testing.T) {
 func TestFormatPullLoopResultAlwaysEmitsUserAgent(t *testing.T) {
 	t.Parallel()
 	// Empty user_agent still emits key (honest empty string).
-	got := formatPullLoopResult(0, false, "0.57.0", "", "", "", "", "")
+	got := formatPullLoopResult(0, false, "0.57.0", "", "", "", "", "", "", "")
 	if !strings.Contains(got, "user_agent=") {
 		t.Fatalf("missing user_agent= in %q", got)
 	}
@@ -654,7 +748,7 @@ func TestFormatPullLoopResultAlwaysEmitsUserAgent(t *testing.T) {
 	}
 	// Package-default UA passes through; does not invent readiness / exit success.
 	ua := "iomesh-client-sdk-go/0.57.0"
-	got2 := formatPullLoopResult(1, true, "0.57.0", ua, "", "dept.x", "org_a", "ws_y")
+	got2 := formatPullLoopResult(1, true, "0.57.0", ua, "", "dept.x", "org_a", "ws_y", "", "")
 	if !strings.Contains(got2, "user_agent="+ua) {
 		t.Fatalf("populated user_agent missing: %q", got2)
 	}
@@ -669,7 +763,7 @@ func TestFormatPullLoopResultAlwaysEmitsUserAgent(t *testing.T) {
 func TestFormatPullLoopResultAlwaysEmitsBaseURL(t *testing.T) {
 	t.Parallel()
 	// Empty base_url still emits key (honest empty string).
-	got := formatPullLoopResult(0, false, "0.58.0", "", "", "", "", "")
+	got := formatPullLoopResult(0, false, "0.58.0", "", "", "", "", "", "", "")
 	if !strings.Contains(got, "base_url=") {
 		t.Fatalf("missing base_url= in %q", got)
 	}
@@ -679,7 +773,7 @@ func TestFormatPullLoopResultAlwaysEmitsBaseURL(t *testing.T) {
 	// Connect mesh URL passes through; does not invent readiness / exit success.
 	ua := "iomesh-client-sdk-go/0.58.0"
 	base := "http://127.0.0.1:8422"
-	got2 := formatPullLoopResult(1, true, "0.58.0", ua, base, "dept.x", "org_a", "ws_y")
+	got2 := formatPullLoopResult(1, true, "0.58.0", ua, base, "dept.x", "org_a", "ws_y", "", "")
 	if !strings.Contains(got2, "base_url="+base) {
 		t.Fatalf("populated base_url missing: %q", got2)
 	}
@@ -688,6 +782,33 @@ func TestFormatPullLoopResultAlwaysEmitsBaseURL(t *testing.T) {
 	}
 	if !strings.Contains(got2, "result=err") || !strings.Contains(got2, "exit_code=1") {
 		t.Fatalf("base_url must not invent success: %q", got2)
+	}
+}
+
+func TestFormatPullLoopResultAlwaysEmitsStreamConsumer(t *testing.T) {
+	t.Parallel()
+	// Empty stream/consumer still emit keys (honest empty strings).
+	got := formatPullLoopResult(0, false, "0.60.0", "", "", "", "", "", "", "")
+	for _, key := range []string{"stream=", "consumer="} {
+		if !strings.Contains(got, key) {
+			t.Fatalf("missing %s in %q", key, got)
+		}
+	}
+	if !strings.Contains(got, "workspace= stream= consumer= result=ok exit_code=") {
+		t.Fatalf("stream/consumer order want after workspace before result: %q", got)
+	}
+	// Connect config passes through; does not invent readiness / exit success.
+	ua := "iomesh-client-sdk-go/0.60.0"
+	base := "http://127.0.0.1:8422"
+	got2 := formatPullLoopResult(1, true, "0.60.0", ua, base, "dept.x", "org_a", "ws_y", "EVENTS", "sdk-pull-loop")
+	if !strings.Contains(got2, "stream=EVENTS") || !strings.Contains(got2, "consumer=sdk-pull-loop") {
+		t.Fatalf("populated stream/consumer missing: %q", got2)
+	}
+	if !strings.Contains(got2, "workspace=ws_y stream=EVENTS consumer=sdk-pull-loop result=err exit_code=1") {
+		t.Fatalf("stream/consumer order want after workspace before result: %q", got2)
+	}
+	if !strings.Contains(got2, "result=err") || !strings.Contains(got2, "exit_code=1") {
+		t.Fatalf("stream/consumer must not invent success: %q", got2)
 	}
 }
 
@@ -704,10 +825,10 @@ func TestFormatPullLoopResultExitCodeMatrix(t *testing.T) {
 		strict bool
 		want   string
 	}{
-		{name: "ok non-strict", failed: false, strict: false, want: "RESULT=done version=0.52.0 user_agent=iomesh-client-sdk-go/0.52.0 base_url= tenant= org= workspace= result=ok exit_code=0"},
-		{name: "failed non-strict", failed: true, strict: false, want: "RESULT=done version=0.52.0 user_agent=iomesh-client-sdk-go/0.52.0 base_url= tenant= org= workspace= result=err exit_code=0"},
-		{name: "ok strict", failed: false, strict: true, want: "RESULT=done version=0.52.0 user_agent=iomesh-client-sdk-go/0.52.0 base_url= tenant= org= workspace= result=ok exit_code=0"},
-		{name: "failed strict", failed: true, strict: true, want: "RESULT=done version=0.52.0 user_agent=iomesh-client-sdk-go/0.52.0 base_url= tenant= org= workspace= result=err exit_code=1"},
+		{name: "ok non-strict", failed: false, strict: false, want: "RESULT=done version=0.52.0 user_agent=iomesh-client-sdk-go/0.52.0 base_url= tenant= org= workspace= stream= consumer= result=ok exit_code=0"},
+		{name: "failed non-strict", failed: true, strict: false, want: "RESULT=done version=0.52.0 user_agent=iomesh-client-sdk-go/0.52.0 base_url= tenant= org= workspace= stream= consumer= result=err exit_code=0"},
+		{name: "ok strict", failed: false, strict: true, want: "RESULT=done version=0.52.0 user_agent=iomesh-client-sdk-go/0.52.0 base_url= tenant= org= workspace= stream= consumer= result=ok exit_code=0"},
+		{name: "failed strict", failed: true, strict: true, want: "RESULT=done version=0.52.0 user_agent=iomesh-client-sdk-go/0.52.0 base_url= tenant= org= workspace= stream= consumer= result=err exit_code=1"},
 	}
 	for _, tc := range cases {
 		tc := tc
@@ -717,14 +838,14 @@ func TestFormatPullLoopResultExitCodeMatrix(t *testing.T) {
 			if tc.strict && tc.failed {
 				exitCode = 1
 			}
-			got := formatPullLoopResult(exitCode, tc.failed, ver, ua, "", "", "", "")
+			got := formatPullLoopResult(exitCode, tc.failed, ver, ua, "", "", "", "", "", "")
 			if got != tc.want {
 				t.Fatalf("formatPullLoopResult(strict=%v failed=%v) = %q, want %q", tc.strict, tc.failed, got, tc.want)
 			}
 			if !strings.Contains(got, "version=") {
 				t.Fatalf("formatPullLoopResult(strict=%v failed=%v) = %q, want always contains version=", tc.strict, tc.failed, got)
 			}
-			for _, key := range []string{"user_agent=", "base_url=", "tenant=", "org=", "workspace=", "result=", "exit_code="} {
+			for _, key := range []string{"user_agent=", "base_url=", "tenant=", "org=", "workspace=", "stream=", "consumer=", "result=", "exit_code="} {
 				if !strings.Contains(got, key) {
 					t.Fatalf("formatPullLoopResult(strict=%v failed=%v) = %q, want always contains %s", tc.strict, tc.failed, got, key)
 				}
@@ -747,15 +868,15 @@ func TestPullLoopResult(t *testing.T) {
 // TestFormatPullLoopSummaryAlwaysEmitsResult covers result=ok|err from failed on SUMMARY.
 func TestFormatPullLoopSummaryAlwaysEmitsResult(t *testing.T) {
 	t.Parallel()
-	ok := formatPullLoopSummary(0, 0, 0, 0, 0, false, 0, false, false, "0.59.0", "", "", "", "", "")
+	ok := formatPullLoopSummary(0, 0, 0, 0, 0, false, 0, false, false, "0.59.0", "", "", "", "", "", "", "")
 	if !strings.Contains(ok, "failed=false strict=false result=ok exit_code=0") {
 		t.Fatalf("want result=ok after strict before exit_code: %q", ok)
 	}
-	errLine := formatPullLoopSummary(1, 0, 10, 0, 0, false, 0, true, false, "0.59.0", "", "", "", "", "")
+	errLine := formatPullLoopSummary(1, 0, 10, 0, 0, false, 0, true, false, "0.59.0", "", "", "", "", "", "", "")
 	if !strings.Contains(errLine, "failed=true strict=false result=err exit_code=0") {
 		t.Fatalf("want result=err when failed (non-strict exit 0): %q", errLine)
 	}
-	strictErr := formatPullLoopSummary(1, 0, 10, 0, 0, false, 0, true, true, "0.59.0", "", "", "", "", "")
+	strictErr := formatPullLoopSummary(1, 0, 10, 0, 0, false, 0, true, true, "0.59.0", "", "", "", "", "", "", "")
 	if !strings.Contains(strictErr, "failed=true strict=true result=err exit_code=1") {
 		t.Fatalf("want result=err when failed strict: %q", strictErr)
 	}
@@ -764,17 +885,17 @@ func TestFormatPullLoopSummaryAlwaysEmitsResult(t *testing.T) {
 // TestFormatPullLoopResultAlwaysEmitsResult covers result=ok|err from failed on RESULT.
 func TestFormatPullLoopResultAlwaysEmitsResult(t *testing.T) {
 	t.Parallel()
-	ok := formatPullLoopResult(0, false, "0.59.0", "", "", "", "", "")
-	if !strings.Contains(ok, "workspace= result=ok exit_code=0") {
+	ok := formatPullLoopResult(0, false, "0.59.0", "", "", "", "", "", "", "")
+	if !strings.Contains(ok, "workspace= stream= consumer= result=ok exit_code=0") {
 		t.Fatalf("want result=ok before exit_code: %q", ok)
 	}
 	// Non-strict failed: exit_code=0 but result=err (honest hard-fail flag).
-	errLine := formatPullLoopResult(0, true, "0.59.0", "", "", "", "", "")
-	if !strings.Contains(errLine, "workspace= result=err exit_code=0") {
+	errLine := formatPullLoopResult(0, true, "0.59.0", "", "", "", "", "", "", "")
+	if !strings.Contains(errLine, "workspace= stream= consumer= result=err exit_code=0") {
 		t.Fatalf("want result=err when failed (non-strict exit 0): %q", errLine)
 	}
-	strictErr := formatPullLoopResult(1, true, "0.59.0", "", "", "", "", "")
-	if !strings.Contains(strictErr, "workspace= result=err exit_code=1") {
+	strictErr := formatPullLoopResult(1, true, "0.59.0", "", "", "", "", "", "", "")
+	if !strings.Contains(strictErr, "workspace= stream= consumer= result=err exit_code=1") {
 		t.Fatalf("want result=err when failed strict: %q", strictErr)
 	}
 }

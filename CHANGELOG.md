@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Example** `examples/pull-loop` — `SUMMARY` and `RESULT=done` always emit `stream=S` / `consumer=C` after `workspace=` (connect config from `IOMESH_STREAM` / `IOMESH_CONSUMER`; defaults `EVENTS` / `sdk-pull-loop` from `env()`; empty string still emits `stream=` / `consumer=` if truly unset) before `cycles_completed=` (SUMMARY) / before `result=` (RESULT) so scrapers key the durable pull target without re-parsing the banner `stream=`/`consumer=` line; composes with existing identity / `result` / `exit_code` knobs
+
 ## [0.59.0] — 2026-07-21
 
 Minor release: pull-loop SUMMARY/RESULT result=ok|err.
