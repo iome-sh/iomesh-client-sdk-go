@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.53.0] — 2026-07-20
+
+Minor release: pull-loop RESULT version.
+
 ### Added
 
 - **Example** `examples/pull-loop` — `RESULT=done` always emits `version=V` (SDK package `Version` const, same as SUMMARY) so scrapers can key SDK version on the RESULT line without re-parsing SUMMARY or the banner `sdk=` line; composes with existing `exit_code=E`; empty version still emits `version=`
