@@ -54,6 +54,10 @@
 // Always prints before RESULT=done:
 //
 //	SUMMARY cycles_completed=N fetch_total=M duration_ms=D wait_ready_ms=W wait_interval_ms=I wait_require_health=B wait_ready_attempts=A failed=F strict=S exit_code=E
+//	RESULT=done exit_code=E
+//
+// RESULT keeps the RESULT=done token and always emits exit_code with the same
+// semantics as SUMMARY (1 only when strict && failed; otherwise 0).
 //
 // Consumer filter defaults (resolveConsumerFilter):
 //  1. IOMESH_SUBJECT if set (operator-chosen; used even if ensure is on)
@@ -323,10 +327,11 @@ func publishDemo(ctx context.Context, nc *iomeshclient.Client, stream, pubSubjec
 	return true
 }
 
-// finishPullLoop emits SUMMARY then RESULT=done; under IOMESH_STRICT exits 1 when failed.
+// finishPullLoop emits SUMMARY then RESULT=done exit_code=E; under IOMESH_STRICT exits 1 when failed.
 // WaitReady knobs (including wait_ready_attempts), failed, strict, and exit_code are always
-// included on SUMMARY (0/false when WaitReady off). exit_code matches the process exit used
-// after SUMMARY (1 only when strict && failed; otherwise 0, including non-strict failures).
+// included on SUMMARY (0/false when WaitReady off). exit_code is always on RESULT too and
+// matches the process exit used after SUMMARY (1 only when strict && failed; otherwise 0,
+// including non-strict failures).
 func finishPullLoop(cyclesCompleted, fetchTotal int, start time.Time, waitReadyMS, waitIntervalMS int, waitRequireHealth bool, waitReadyAttempts int, strict, failed bool) {
 	printPullLoopDone(cyclesCompleted, fetchTotal, start, waitReadyMS, waitIntervalMS, waitRequireHealth, waitReadyAttempts, failed, strict)
 	if strict && failed {
@@ -334,11 +339,16 @@ func finishPullLoop(cyclesCompleted, fetchTotal int, start time.Time, waitReadyM
 	}
 }
 
-// printPullLoopDone emits SUMMARY then RESULT=done using wall-clock duration since start.
+// printPullLoopDone emits SUMMARY then RESULT=done exit_code=E using wall-clock duration since start.
+// exit_code on RESULT matches SUMMARY / process exit (1 only when strict && failed).
 func printPullLoopDone(cyclesCompleted, fetchTotal int, start time.Time, waitReadyMS, waitIntervalMS int, waitRequireHealth bool, waitReadyAttempts int, failed, strict bool) {
 	durationMS := int(time.Since(start).Milliseconds())
 	fmt.Println(formatPullLoopSummary(cyclesCompleted, fetchTotal, durationMS, waitReadyMS, waitIntervalMS, waitRequireHealth, waitReadyAttempts, failed, strict))
-	fmt.Println("RESULT=done")
+	exitCode := 0
+	if strict && failed {
+		exitCode = 1
+	}
+	fmt.Println(formatPullLoopResult(exitCode))
 }
 
 // envStrict reports whether IOMESH_STRICT enables hard-fail exit after SUMMARY.
@@ -398,6 +408,14 @@ func formatPullLoopSummary(cyclesCompleted, fetchTotal, durationMS, waitReadyMS,
 	}
 	return fmt.Sprintf("SUMMARY cycles_completed=%d fetch_total=%d duration_ms=%d wait_ready_ms=%d wait_interval_ms=%d wait_require_health=%v wait_ready_attempts=%d failed=%t strict=%t exit_code=%d",
 		cyclesCompleted, fetchTotal, durationMS, waitReadyMS, waitIntervalMS, waitRequireHealth, waitReadyAttempts, failed, strict, exitCode)
+}
+
+// formatPullLoopResult returns the stage-smoke RESULT line for pull-loop.
+// Keeps the RESULT=done token for scrapers that key off it, and always emits
+// exit_code with the same semantics as SUMMARY / process exit (caller passes
+// 1 only when strict && failed; otherwise 0). Pure helper (no I/O).
+func formatPullLoopResult(exitCode int) string {
+	return fmt.Sprintf("RESULT=done exit_code=%d", exitCode)
 }
 
 // parseLoops returns fetch cycle count from an env value.
