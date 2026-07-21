@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Example** `examples/pull-loop` — `SUMMARY` always emits `strict=true|false` (`IOMESH_STRICT` mode) so scrapers see whether hard-fail exit was enabled without re-parsing env/banner
+
 ## [0.45.0] — 2026-07-20
 
 Minor release: pull-loop SUMMARY failed flag.
