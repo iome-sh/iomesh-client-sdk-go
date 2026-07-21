@@ -404,38 +404,83 @@ func TestFormatPullLoopSummaryAlwaysEmitsIdentity(t *testing.T) {
 func TestFormatPullLoopResult(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
-		name     string
-		exitCode int
-		version  string
-		want     string
+		name      string
+		exitCode  int
+		version   string
+		tenant    string
+		org       string
+		workspace string
+		want      string
 	}{
-		{name: "exit 0 success", exitCode: 0, version: "0.52.0", want: "RESULT=done version=0.52.0 exit_code=0"},
-		{name: "exit 1 strict failed", exitCode: 1, version: "0.52.0", want: "RESULT=done version=0.52.0 exit_code=1"},
+		{name: "exit 0 success empty identity", exitCode: 0, version: "0.52.0", want: "RESULT=done version=0.52.0 tenant= org= workspace= exit_code=0"},
+		{name: "exit 1 strict failed empty identity", exitCode: 1, version: "0.52.0", want: "RESULT=done version=0.52.0 tenant= org= workspace= exit_code=1"},
 		// same matrix as SUMMARY: scrapers pass the computed code; helper formats only
-		{name: "non-strict failed still 0", exitCode: 0, version: "0.52.0", want: "RESULT=done version=0.52.0 exit_code=0"},
-		{name: "strict ok still 0", exitCode: 0, version: "0.52.0", want: "RESULT=done version=0.52.0 exit_code=0"},
-		{name: "custom version", exitCode: 0, version: "9.9.9", want: "RESULT=done version=9.9.9 exit_code=0"},
-		{name: "empty version still emits version=", exitCode: 0, version: "", want: "RESULT=done version= exit_code=0"},
-		{name: "empty version with exit 1", exitCode: 1, version: "", want: "RESULT=done version= exit_code=1"},
+		{name: "non-strict failed still 0", exitCode: 0, version: "0.52.0", want: "RESULT=done version=0.52.0 tenant= org= workspace= exit_code=0"},
+		{name: "strict ok still 0", exitCode: 0, version: "0.52.0", want: "RESULT=done version=0.52.0 tenant= org= workspace= exit_code=0"},
+		{name: "custom version", exitCode: 0, version: "9.9.9", want: "RESULT=done version=9.9.9 tenant= org= workspace= exit_code=0"},
+		{name: "empty version still emits version=", exitCode: 0, version: "", want: "RESULT=done version= tenant= org= workspace= exit_code=0"},
+		{name: "empty version with exit 1", exitCode: 1, version: "", want: "RESULT=done version= tenant= org= workspace= exit_code=1"},
+		{
+			name: "identity populated after version", exitCode: 0, version: "0.56.0",
+			tenant: "dept.research", org: "org_a", workspace: "ws_1",
+			want: "RESULT=done version=0.56.0 tenant=dept.research org=org_a workspace=ws_1 exit_code=0",
+		},
+		{
+			name: "empty identity still emits tenant= org= workspace=", exitCode: 0, version: "0.56.0",
+			tenant: "", org: "", workspace: "",
+			want: "RESULT=done version=0.56.0 tenant= org= workspace= exit_code=0",
+		},
+		{
+			name: "populated identity with exit 1 does not invent success", exitCode: 1, version: "0.56.0",
+			tenant: "dept.x", org: "org_a", workspace: "ws_y",
+			want: "RESULT=done version=0.56.0 tenant=dept.x org=org_a workspace=ws_y exit_code=1",
+		},
 	}
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got := formatPullLoopResult(tc.exitCode, tc.version)
+			got := formatPullLoopResult(tc.exitCode, tc.version, tc.tenant, tc.org, tc.workspace)
 			if got != tc.want {
-				t.Fatalf("formatPullLoopResult(%d, %q) = %q, want %q", tc.exitCode, tc.version, got, tc.want)
+				t.Fatalf("formatPullLoopResult(...) = %q, want %q", got, tc.want)
 			}
 			if !strings.Contains(got, "version=") {
-				t.Fatalf("formatPullLoopResult(%d, %q) = %q, want always contains version=", tc.exitCode, tc.version, got)
+				t.Fatalf("formatPullLoopResult(...) = %q, want always contains version=", got)
+			}
+			for _, key := range []string{"tenant=", "org=", "workspace="} {
+				if !strings.Contains(got, key) {
+					t.Fatalf("formatPullLoopResult(...) = %q, want always contains %s", got, key)
+				}
 			}
 		})
 	}
 }
 
+func TestFormatPullLoopResultAlwaysEmitsIdentity(t *testing.T) {
+	t.Parallel()
+	// Empty identity still emits keys (honest empty strings).
+	got := formatPullLoopResult(0, "0.56.0", "", "", "")
+	for _, key := range []string{"tenant=", "org=", "workspace="} {
+		if !strings.Contains(got, key) {
+			t.Fatalf("missing %s in %q", key, got)
+		}
+	}
+	if !strings.Contains(got, "version=0.56.0 tenant= org= workspace= exit_code=") {
+		t.Fatalf("identity order want after version: %q", got)
+	}
+	// Populated identity passes through; does not invent readiness / exit success.
+	got2 := formatPullLoopResult(1, "0.56.0", "dept.x", "org_a", "ws_y")
+	if !strings.Contains(got2, "tenant=dept.x") || !strings.Contains(got2, "org=org_a") || !strings.Contains(got2, "workspace=ws_y") {
+		t.Fatalf("populated identity missing: %q", got2)
+	}
+	if !strings.Contains(got2, "exit_code=1") {
+		t.Fatalf("identity must not invent success: %q", got2)
+	}
+}
+
 // TestFormatPullLoopResultExitCodeMatrix covers the strict×failed → exit_code
 // matrix used by printPullLoopDone (same rule as SUMMARY / process exit).
-// version is always emitted alongside exit_code.
+// version and identity are always emitted alongside exit_code.
 func TestFormatPullLoopResultExitCodeMatrix(t *testing.T) {
 	t.Parallel()
 	const ver = "0.52.0"
@@ -445,10 +490,10 @@ func TestFormatPullLoopResultExitCodeMatrix(t *testing.T) {
 		strict bool
 		want   string
 	}{
-		{name: "ok non-strict", failed: false, strict: false, want: "RESULT=done version=0.52.0 exit_code=0"},
-		{name: "failed non-strict", failed: true, strict: false, want: "RESULT=done version=0.52.0 exit_code=0"},
-		{name: "ok strict", failed: false, strict: true, want: "RESULT=done version=0.52.0 exit_code=0"},
-		{name: "failed strict", failed: true, strict: true, want: "RESULT=done version=0.52.0 exit_code=1"},
+		{name: "ok non-strict", failed: false, strict: false, want: "RESULT=done version=0.52.0 tenant= org= workspace= exit_code=0"},
+		{name: "failed non-strict", failed: true, strict: false, want: "RESULT=done version=0.52.0 tenant= org= workspace= exit_code=0"},
+		{name: "ok strict", failed: false, strict: true, want: "RESULT=done version=0.52.0 tenant= org= workspace= exit_code=0"},
+		{name: "failed strict", failed: true, strict: true, want: "RESULT=done version=0.52.0 tenant= org= workspace= exit_code=1"},
 	}
 	for _, tc := range cases {
 		tc := tc
@@ -458,12 +503,17 @@ func TestFormatPullLoopResultExitCodeMatrix(t *testing.T) {
 			if tc.strict && tc.failed {
 				exitCode = 1
 			}
-			got := formatPullLoopResult(exitCode, ver)
+			got := formatPullLoopResult(exitCode, ver, "", "", "")
 			if got != tc.want {
 				t.Fatalf("formatPullLoopResult(strict=%v failed=%v) = %q, want %q", tc.strict, tc.failed, got, tc.want)
 			}
 			if !strings.Contains(got, "version=") {
 				t.Fatalf("formatPullLoopResult(strict=%v failed=%v) = %q, want always contains version=", tc.strict, tc.failed, got)
+			}
+			for _, key := range []string{"tenant=", "org=", "workspace="} {
+				if !strings.Contains(got, key) {
+					t.Fatalf("formatPullLoopResult(strict=%v failed=%v) = %q, want always contains %s", tc.strict, tc.failed, got, key)
+				}
 			}
 		})
 	}
