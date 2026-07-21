@@ -328,6 +328,7 @@ if err := nc.Ready(ctx); err != nil { /* optional readiness path missing */ }
 // One-shot identity + Health + Ready (fail-open; never panics). Both probes always run.
 // Always includes tenant / org / workspace (empty string when unset / nil client).
 // Always includes version (package Version const, including nil client).
+// Always includes health_err / ready_err (empty string when probes OK).
 // Always includes health_ms / ready_ms / duration_ms (probe wall time ms; 0 when nil client / not run).
 // duration_ms is wall clock for the full Health+Ready path.
 // result is always "ok" | "err" (both probes OK → ok; otherwise err, including nil client).

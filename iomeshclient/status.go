@@ -12,6 +12,7 @@ import (
 // Fields are always populated for operators/CI; probe failures set *OK=false and *Err.
 // Identity strings (BaseURL, Tenant, Org, Workspace, UserAgent, Version) are always
 // emitted in JSON (empty string when unset / nil client).
+// Probe error strings (HealthErr, ReadyErr) are always emitted in JSON (empty string when OK).
 type ConnectionStatus struct {
 	BaseURL string `json:"base_url"`
 	// Tenant is the multi-tenant id (always emitted; empty when unset / nil client).
@@ -22,13 +23,15 @@ type ConnectionStatus struct {
 	Workspace string `json:"workspace"`
 	UserAgent string `json:"user_agent"`
 	// Version is the SDK package version (always emitted; equals iomeshclient.Version, including nil client).
-	Version   string `json:"version"`
-	HealthOK  bool   `json:"health_ok"`
-	HealthErr string `json:"health_err,omitempty"`
+	Version  string `json:"version"`
+	HealthOK bool   `json:"health_ok"`
+	// HealthErr is the Health probe error (always emitted; empty string when OK).
+	HealthErr string `json:"health_err"`
 	// HealthMS is Health probe latency in milliseconds (always emitted; 0 when nil client / not run).
-	HealthMS int    `json:"health_ms"`
-	ReadyOK  bool   `json:"ready_ok"`
-	ReadyErr string `json:"ready_err,omitempty"`
+	HealthMS int  `json:"health_ms"`
+	ReadyOK  bool `json:"ready_ok"`
+	// ReadyErr is the Ready probe error (always emitted; empty string when OK).
+	ReadyErr string `json:"ready_err"`
 	// ReadyMS is Ready probe latency in milliseconds (always emitted; 0 when nil client / not run).
 	ReadyMS int `json:"ready_ms"`
 	// DurationMS is wall-clock latency for the full Health+Ready probe path in milliseconds
@@ -117,8 +120,9 @@ func (c *Client) ConnectionStatus(ctx context.Context) ConnectionStatus {
 }
 
 // FormatConnectionStatus returns a human multi-line summary of ConnectionStatus.
-// Always emits tenant=, org=, workspace= (including empty), version, health_ms, ready_ms,
-// duration_ms (including 0), and result=ok|err.
+// Always emits tenant=, org=, workspace= (including empty), version, health_err=, ready_err=
+// (including empty when OK), health_ms, ready_ms, duration_ms (including 0), and result=ok|err.
+// Probe status lines are health=ok|FAIL and ready=ok|FAIL; error detail is only on health_err=/ready_err=.
 func FormatConnectionStatus(s ConnectionStatus) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "base_url=%s\n", s.BaseURL)
@@ -134,22 +138,16 @@ func FormatConnectionStatus(s ConnectionStatus) string {
 	if s.HealthOK {
 		b.WriteString("health=ok\n")
 	} else {
-		fmt.Fprintf(&b, "health=FAIL")
-		if s.HealthErr != "" {
-			fmt.Fprintf(&b, " err=%s", s.HealthErr)
-		}
-		b.WriteByte('\n')
+		b.WriteString("health=FAIL\n")
 	}
+	fmt.Fprintf(&b, "health_err=%s\n", s.HealthErr)
 	fmt.Fprintf(&b, "health_ms=%d\n", s.HealthMS)
 	if s.ReadyOK {
 		b.WriteString("ready=ok\n")
 	} else {
-		fmt.Fprintf(&b, "ready=FAIL")
-		if s.ReadyErr != "" {
-			fmt.Fprintf(&b, " err=%s", s.ReadyErr)
-		}
-		b.WriteByte('\n')
+		b.WriteString("ready=FAIL\n")
 	}
+	fmt.Fprintf(&b, "ready_err=%s\n", s.ReadyErr)
 	fmt.Fprintf(&b, "ready_ms=%d\n", s.ReadyMS)
 	fmt.Fprintf(&b, "duration_ms=%d\n", s.DurationMS)
 	result := s.Result

@@ -63,6 +63,9 @@ func TestConnectionStatus_HealthAndReadyOK(t *testing.T) {
 	if !strings.Contains(human, "health=ok") || !strings.Contains(human, "ready=ok") {
 		t.Fatalf("FormatConnectionStatus=%q", human)
 	}
+	if !strings.Contains(human, "health_err=\n") || !strings.Contains(human, "ready_err=\n") {
+		t.Fatalf("FormatConnectionStatus missing empty probe errs: %q", human)
+	}
 	if !strings.Contains(human, "tenant=t1") || !strings.Contains(human, "org=o1") ||
 		!strings.Contains(human, "workspace=w1") {
 		t.Fatalf("FormatConnectionStatus missing identity: %q", human)
@@ -131,8 +134,18 @@ func TestConnectionStatus_HealthFailReadyOK(t *testing.T) {
 	}
 
 	human := iomeshclient.FormatConnectionStatus(s)
-	if !strings.Contains(human, "health=FAIL") || !strings.Contains(human, "ready=ok") {
+	if !strings.Contains(human, "health=FAIL\n") || !strings.Contains(human, "ready=ok") {
 		t.Fatalf("FormatConnectionStatus=%q", human)
+	}
+	if !strings.Contains(human, "health_err=") || !strings.Contains(human, s.HealthErr) {
+		t.Fatalf("FormatConnectionStatus missing health_err detail: %q", human)
+	}
+	if !strings.Contains(human, "ready_err=\n") {
+		t.Fatalf("FormatConnectionStatus missing empty ready_err=: %q", human)
+	}
+	// FAIL lines must not inline err= (detail lives on health_err=/ready_err= only).
+	if strings.Contains(human, "health=FAIL err=") || strings.Contains(human, "ready=FAIL err=") {
+		t.Fatalf("FormatConnectionStatus must not inline err= on status lines: %q", human)
 	}
 	if !strings.Contains(human, "health_ms=") || !strings.Contains(human, "ready_ms=") ||
 		!strings.Contains(human, "duration_ms=") {
@@ -241,6 +254,12 @@ func TestConnectionStatus_NilClient(t *testing.T) {
 		!strings.Contains(human, "duration_ms=0") {
 		t.Fatalf("FormatConnectionStatus nil zeros: %q", human)
 	}
+	if !strings.Contains(human, "health=FAIL\n") || !strings.Contains(human, "ready=FAIL\n") {
+		t.Fatalf("FormatConnectionStatus nil missing FAIL status: %q", human)
+	}
+	if !strings.Contains(human, "health_err=nil client\n") || !strings.Contains(human, "ready_err=nil client\n") {
+		t.Fatalf("FormatConnectionStatus nil missing probe errs: %q", human)
+	}
 	if !strings.Contains(human, "tenant=\n") || !strings.Contains(human, "org=\n") ||
 		!strings.Contains(human, "workspace=\n") {
 		t.Fatalf("FormatConnectionStatus nil missing empty identity: %q", human)
@@ -300,6 +319,12 @@ func TestConnectionStatus_JSONContainsBaseURLAndUserAgent(t *testing.T) {
 	if !strings.Contains(js, `"version"`) {
 		t.Fatalf("JSON missing version: %s", js)
 	}
+	if !strings.Contains(js, `"health_err"`) {
+		t.Fatalf("JSON missing health_err: %s", js)
+	}
+	if !strings.Contains(js, `"ready_err"`) {
+		t.Fatalf("JSON missing ready_err: %s", js)
+	}
 	if !strings.HasSuffix(js, "\n") {
 		t.Fatal("JSON should end with newline")
 	}
@@ -358,11 +383,26 @@ func TestConnectionStatus_JSONContainsBaseURLAndUserAgent(t *testing.T) {
 		t.Fatalf("JSON identity want empty when unset: tenant=%v org=%v workspace=%v",
 			parsed["tenant"], parsed["org"], parsed["workspace"])
 	}
+	// Probe err keys always present (empty string when OK — no omitempty).
+	for _, key := range []string{"health_err", "ready_err"} {
+		v, ok := parsed[key]
+		if !ok {
+			t.Fatalf("JSON missing always-emitted %q: %s", key, js)
+		}
+		if _, isStr := v.(string); !isStr {
+			t.Fatalf("JSON %q want string got %T: %s", key, v, js)
+		}
+	}
+	if parsed["health_err"] != "" || parsed["ready_err"] != "" {
+		t.Fatalf("JSON probe errs want empty when OK: health_err=%v ready_err=%v",
+			parsed["health_err"], parsed["ready_err"])
+	}
 }
 
 func TestFormatConnectionStatus_AlwaysEmitsLatencies(t *testing.T) {
 	// Zero latencies (not run / default struct) still print health_ms=, ready_ms=, duration_ms=.
 	// Empty identity still prints tenant= / org= / workspace=.
+	// Empty probe errs still print health_err= / ready_err=.
 	// Empty Version still prints version= package Version (fallback).
 	human := iomeshclient.FormatConnectionStatus(iomeshclient.ConnectionStatus{
 		BaseURL:   "http://127.0.0.1:8422",
@@ -378,6 +418,12 @@ func TestFormatConnectionStatus_AlwaysEmitsLatencies(t *testing.T) {
 	}
 	if !strings.Contains(human, "workspace=\n") {
 		t.Fatalf("missing workspace=: %q", human)
+	}
+	if !strings.Contains(human, "health_err=\n") {
+		t.Fatalf("missing health_err=: %q", human)
+	}
+	if !strings.Contains(human, "ready_err=\n") {
+		t.Fatalf("missing ready_err=: %q", human)
 	}
 	if !strings.Contains(human, "health_ms=0") {
 		t.Fatalf("missing health_ms=0: %q", human)
@@ -401,6 +447,8 @@ func TestFormatConnectionStatus_AlwaysEmitsLatencies(t *testing.T) {
 		Org:        "o",
 		Workspace:  "w",
 		Version:    "9.9.9",
+		HealthErr:  "connection refused",
+		ReadyErr:   "not ready",
 		HealthMS:   12,
 		ReadyMS:    34,
 		DurationMS: 50,
@@ -408,6 +456,16 @@ func TestFormatConnectionStatus_AlwaysEmitsLatencies(t *testing.T) {
 	if !strings.Contains(human2, "tenant=t\n") || !strings.Contains(human2, "org=o\n") ||
 		!strings.Contains(human2, "workspace=w\n") {
 		t.Fatalf("expected explicit identity: %q", human2)
+	}
+	if !strings.Contains(human2, "health=FAIL\n") || !strings.Contains(human2, "ready=FAIL\n") {
+		t.Fatalf("expected FAIL status lines: %q", human2)
+	}
+	if !strings.Contains(human2, "health_err=connection refused\n") ||
+		!strings.Contains(human2, "ready_err=not ready\n") {
+		t.Fatalf("expected explicit probe errs: %q", human2)
+	}
+	if strings.Contains(human2, "health=FAIL err=") || strings.Contains(human2, "ready=FAIL err=") {
+		t.Fatalf("must not inline err= on status lines: %q", human2)
 	}
 	if !strings.Contains(human2, "health_ms=12") || !strings.Contains(human2, "ready_ms=34") ||
 		!strings.Contains(human2, "duration_ms=50") {
@@ -464,6 +522,129 @@ func TestConnectionStatus_AlwaysEmitsVersion(t *testing.T) {
 	ns := nilC.ConnectionStatus(context.Background())
 	if ns.Version != iomeshclient.Version {
 		t.Fatalf("nil Version=%q want %q", ns.Version, iomeshclient.Version)
+	}
+}
+
+func TestConnectionStatus_AlwaysEmitsProbeErrs(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/health", "/ready":
+			w.WriteHeader(http.StatusOK)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	// Probes OK: empty health_err / ready_err still present in JSON + Format.
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := nc.ConnectionStatus(context.Background())
+	if s.HealthErr != "" || s.ReadyErr != "" {
+		t.Fatalf("OK probes want empty errs: HealthErr=%q ReadyErr=%q", s.HealthErr, s.ReadyErr)
+	}
+
+	js := iomeshclient.FormatConnectionStatusJSON(s)
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(js), &parsed); err != nil {
+		t.Fatalf("json: %v\n%s", err, js)
+	}
+	for _, key := range []string{"health_err", "ready_err"} {
+		v, ok := parsed[key].(string)
+		if !ok {
+			t.Fatalf("JSON %q missing or not string: %v\n%s", key, parsed[key], js)
+		}
+		if v != "" {
+			t.Fatalf("JSON %q=%q want empty\n%s", key, v, js)
+		}
+	}
+
+	human := iomeshclient.FormatConnectionStatus(s)
+	if !strings.Contains(human, "health_err=\n") || !strings.Contains(human, "ready_err=\n") {
+		t.Fatalf("Format missing empty probe err lines: %q", human)
+	}
+	if !strings.Contains(human, "health=ok\n") || !strings.Contains(human, "ready=ok\n") {
+		t.Fatalf("Format missing ok status lines: %q", human)
+	}
+
+	// Probe fail: health_err present with detail; ready_err empty when ready OK.
+	failSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/health":
+			w.WriteHeader(http.StatusServiceUnavailable)
+		case "/ready":
+			w.WriteHeader(http.StatusOK)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer failSrv.Close()
+
+	nc2, err := iomeshclient.Connect(iomeshclient.Options{URL: failSrv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s2 := nc2.ConnectionStatus(context.Background())
+	if s2.HealthErr == "" {
+		t.Fatal("health fail want non-empty HealthErr")
+	}
+	if s2.ReadyErr != "" {
+		t.Fatalf("ready OK want empty ReadyErr: %q", s2.ReadyErr)
+	}
+	js2 := iomeshclient.FormatConnectionStatusJSON(s2)
+	var parsed2 map[string]any
+	if err := json.Unmarshal([]byte(js2), &parsed2); err != nil {
+		t.Fatalf("json2: %v\n%s", err, js2)
+	}
+	he, ok := parsed2["health_err"].(string)
+	if !ok || he == "" {
+		t.Fatalf("JSON health_err missing or empty: %v\n%s", parsed2["health_err"], js2)
+	}
+	if he != s2.HealthErr {
+		t.Fatalf("JSON health_err=%q want %q", he, s2.HealthErr)
+	}
+	re, ok := parsed2["ready_err"].(string)
+	if !ok {
+		t.Fatalf("JSON ready_err missing: %v\n%s", parsed2["ready_err"], js2)
+	}
+	if re != "" {
+		t.Fatalf("JSON ready_err=%q want empty", re)
+	}
+	human2 := iomeshclient.FormatConnectionStatus(s2)
+	if !strings.Contains(human2, "health=FAIL\n") {
+		t.Fatalf("Format missing health=FAIL: %q", human2)
+	}
+	if !strings.Contains(human2, "health_err="+s2.HealthErr+"\n") {
+		t.Fatalf("Format missing health_err detail: %q", human2)
+	}
+	if !strings.Contains(human2, "ready_err=\n") {
+		t.Fatalf("Format missing empty ready_err=: %q", human2)
+	}
+	if strings.Contains(human2, "health=FAIL err=") {
+		t.Fatalf("must not inline err= on health line: %q", human2)
+	}
+
+	// Nil client: both errs "nil client" always present in JSON + Format.
+	var nilC *iomeshclient.Client
+	ns := nilC.ConnectionStatus(context.Background())
+	if ns.HealthErr != "nil client" || ns.ReadyErr != "nil client" {
+		t.Fatalf("nil errs: HealthErr=%q ReadyErr=%q", ns.HealthErr, ns.ReadyErr)
+	}
+	njs := iomeshclient.FormatConnectionStatusJSON(ns)
+	var nparsed map[string]any
+	if err := json.Unmarshal([]byte(njs), &nparsed); err != nil {
+		t.Fatalf("nil json: %v\n%s", err, njs)
+	}
+	if nparsed["health_err"] != "nil client" || nparsed["ready_err"] != "nil client" {
+		t.Fatalf("nil JSON errs: health_err=%v ready_err=%v\n%s",
+			nparsed["health_err"], nparsed["ready_err"], njs)
+	}
+	nhuman := iomeshclient.FormatConnectionStatus(ns)
+	if !strings.Contains(nhuman, "health_err=nil client\n") ||
+		!strings.Contains(nhuman, "ready_err=nil client\n") {
+		t.Fatalf("nil Format missing probe errs: %q", nhuman)
 	}
 }
 
