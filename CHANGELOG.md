@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Example** `examples/pull-loop` — `SUMMARY` and `RESULT=done` always emit `batch=N` / `max_wait_ms=M` / `loops=L` after `consumer=` (connect fetch knobs from `IOMESH_BATCH` / `IOMESH_MAX_WAIT_MS` / `IOMESH_LOOPS`; defaults 5 / 2000 / 1 after clamp; keys always present even if zero) before `cycles_completed=` (SUMMARY) / before `result=` (RESULT) so scrapers key batch/long-poll/loops without re-parsing the banner; composes with existing stream/consumer / identity / `result` / `exit_code` knobs (does not invent readiness)
+
 ## [0.60.0] — 2026-07-21
 
 Minor release: pull-loop SUMMARY/RESULT stream and consumer.
