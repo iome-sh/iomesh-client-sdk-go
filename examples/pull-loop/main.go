@@ -53,7 +53,7 @@
 //
 // Always prints before RESULT=done:
 //
-//	SUMMARY cycles_completed=N fetch_total=M duration_ms=D wait_ready_ms=W wait_interval_ms=I wait_require_health=B failed=F strict=S
+//	SUMMARY cycles_completed=N fetch_total=M duration_ms=D wait_ready_ms=W wait_interval_ms=I wait_require_health=B wait_ready_attempts=A failed=F strict=S
 //
 // Consumer filter defaults (resolveConsumerFilter):
 //  1. IOMESH_SUBJECT if set (operator-chosen; used even if ensure is on)
@@ -134,6 +134,8 @@ func main() {
 	// Wall clock for SUMMARY duration_ms (after connect opts resolved).
 	start := time.Now()
 	failed := false
+	// waitReadyAttempts is set when WaitReady preflight runs; stays 0 when wait off.
+	waitReadyAttempts := 0
 
 	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: base}, opts...)
 	if err != nil {
@@ -201,6 +203,7 @@ func main() {
 		if attempts < 0 {
 			attempts = 0
 		}
+		waitReadyAttempts = attempts
 		if wrErr != nil {
 			log.Printf("WARN WaitReady: %v elapsed_ms=%d interval_ms=%d require_health=%v attempts=%d", wrErr, elapsedMS, waitIntervalMS, waitRequireHealth, attempts)
 			failed = true
@@ -236,7 +239,7 @@ func main() {
 	if err != nil {
 		log.Printf("WARN PullSubscribe stream=%s consumer=%s: %v", stream, consumer, err)
 		failed = true
-		finishPullLoop(0, 0, start, waitReadyMS, waitIntervalMS, waitRequireHealth, strict, failed)
+		finishPullLoop(0, 0, start, waitReadyMS, waitIntervalMS, waitRequireHealth, waitReadyAttempts, strict, failed)
 		return
 	}
 	fmt.Print(iomeshclient.FormatSubscription(sub))
@@ -300,7 +303,7 @@ func main() {
 		}
 	}
 
-	finishPullLoop(cyclesCompleted, fetchTotal, start, waitReadyMS, waitIntervalMS, waitRequireHealth, strict, failed)
+	finishPullLoop(cyclesCompleted, fetchTotal, start, waitReadyMS, waitIntervalMS, waitRequireHealth, waitReadyAttempts, strict, failed)
 }
 
 // publishDemo publishes one self-contained demo payload.
@@ -321,18 +324,19 @@ func publishDemo(ctx context.Context, nc *iomeshclient.Client, stream, pubSubjec
 }
 
 // finishPullLoop emits SUMMARY then RESULT=done; under IOMESH_STRICT exits 1 when failed.
-// WaitReady knobs, failed, and strict are always included on SUMMARY (0/false when WaitReady off).
-func finishPullLoop(cyclesCompleted, fetchTotal int, start time.Time, waitReadyMS, waitIntervalMS int, waitRequireHealth, strict, failed bool) {
-	printPullLoopDone(cyclesCompleted, fetchTotal, start, waitReadyMS, waitIntervalMS, waitRequireHealth, failed, strict)
+// WaitReady knobs (including wait_ready_attempts), failed, and strict are always included
+// on SUMMARY (0/false when WaitReady off).
+func finishPullLoop(cyclesCompleted, fetchTotal int, start time.Time, waitReadyMS, waitIntervalMS int, waitRequireHealth bool, waitReadyAttempts int, strict, failed bool) {
+	printPullLoopDone(cyclesCompleted, fetchTotal, start, waitReadyMS, waitIntervalMS, waitRequireHealth, waitReadyAttempts, failed, strict)
 	if strict && failed {
 		os.Exit(1)
 	}
 }
 
 // printPullLoopDone emits SUMMARY then RESULT=done using wall-clock duration since start.
-func printPullLoopDone(cyclesCompleted, fetchTotal int, start time.Time, waitReadyMS, waitIntervalMS int, waitRequireHealth, failed, strict bool) {
+func printPullLoopDone(cyclesCompleted, fetchTotal int, start time.Time, waitReadyMS, waitIntervalMS int, waitRequireHealth bool, waitReadyAttempts int, failed, strict bool) {
 	durationMS := int(time.Since(start).Milliseconds())
-	fmt.Println(formatPullLoopSummary(cyclesCompleted, fetchTotal, durationMS, waitReadyMS, waitIntervalMS, waitRequireHealth, failed, strict))
+	fmt.Println(formatPullLoopSummary(cyclesCompleted, fetchTotal, durationMS, waitReadyMS, waitIntervalMS, waitRequireHealth, waitReadyAttempts, failed, strict))
 	fmt.Println("RESULT=done")
 }
 
@@ -365,15 +369,17 @@ func wantPublishEach(env string) bool {
 // formatPullLoopSummary returns the stage-smoke SUMMARY line for pull-loop.
 // durationMS is clamped to >= 0. WaitReady knobs are always emitted:
 // wait_ready_ms is the configured budget (0 when off); when wait is off,
-// wait_interval_ms is 0 and wait_require_health is false so scrapers see
-// "not used"; when wait is on, wait_interval_ms is the effective poll
-// interval (parseWaitIntervalMS) and wait_require_health is the RequireHealth flag.
+// wait_interval_ms is 0, wait_require_health is false, and wait_ready_attempts
+// is 0 so scrapers see "not used"; when wait is on, wait_interval_ms is the
+// effective poll interval (parseWaitIntervalMS), wait_require_health is the
+// RequireHealth flag, and wait_ready_attempts is the probe cycle count from
+// WaitReadyAttempts.
 // failed is always emitted (same boolean used for IOMESH_STRICT exit) so
 // scrapers see hard stage-smoke failures even when non-strict (exit 0).
 // strict is always emitted (IOMESH_STRICT mode) so scrapers see whether
 // hard-fail exit was enabled without re-parsing env/banner.
 // Pure helper (no I/O).
-func formatPullLoopSummary(cyclesCompleted, fetchTotal, durationMS, waitReadyMS, waitIntervalMS int, waitRequireHealth, failed, strict bool) string {
+func formatPullLoopSummary(cyclesCompleted, fetchTotal, durationMS, waitReadyMS, waitIntervalMS int, waitRequireHealth bool, waitReadyAttempts int, failed, strict bool) string {
 	if durationMS < 0 {
 		durationMS = 0
 	}
@@ -381,9 +387,10 @@ func formatPullLoopSummary(cyclesCompleted, fetchTotal, durationMS, waitReadyMS,
 		waitReadyMS = 0
 		waitIntervalMS = 0
 		waitRequireHealth = false
+		waitReadyAttempts = 0
 	}
-	return fmt.Sprintf("SUMMARY cycles_completed=%d fetch_total=%d duration_ms=%d wait_ready_ms=%d wait_interval_ms=%d wait_require_health=%v failed=%t strict=%t",
-		cyclesCompleted, fetchTotal, durationMS, waitReadyMS, waitIntervalMS, waitRequireHealth, failed, strict)
+	return fmt.Sprintf("SUMMARY cycles_completed=%d fetch_total=%d duration_ms=%d wait_ready_ms=%d wait_interval_ms=%d wait_require_health=%v wait_ready_attempts=%d failed=%t strict=%t",
+		cyclesCompleted, fetchTotal, durationMS, waitReadyMS, waitIntervalMS, waitRequireHealth, waitReadyAttempts, failed, strict)
 }
 
 // parseLoops returns fetch cycle count from an env value.
