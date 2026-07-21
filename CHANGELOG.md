@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Example** `examples/pull-loop` — `SUMMARY` always emits `tenant=T` / `org=O` / `workspace=W` (connect identity from `IOMESH_TENANT` / `IOMESH_ORG` / `IOMESH_WORKSPACE`; empty string honest when unset) after leading `version=` so scrapers peer ConnectionStatus identity without inventing readiness; composes with existing SUMMARY knobs
+
 ### Changed
 
 - **`ConnectionStatus` probe error fields** — always-emitted JSON `health_err` / `ready_err` (empty string when probes OK / not set; no `omitempty`); `FormatConnectionStatus` always prints `health_err=` / `ready_err=` after `health=` / `ready=` (empty when OK; FAIL lines no longer inline `err=` to avoid duplication). Composes with existing identity / version / latencies / result always-emit continuum
