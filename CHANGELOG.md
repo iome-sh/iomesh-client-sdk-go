@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Example** `examples/pull-loop` — `SUMMARY` and `RESULT=done` always emit `base_url=B` after `user_agent=` before `tenant=` (connect mesh URL / `IOMESH_URL`, same string ConnectionStatus uses as `base_url`; empty string still emits `base_url=` if truly unset) so scrapers peer ConnectionStatus `base_url` without inventing readiness; field order matches on SUMMARY and RESULT for scrapers (`version=` `user_agent=` `base_url=` `tenant=` …)
+
 ## [0.57.0] — 2026-07-21
 
 Minor release: pull-loop SUMMARY/RESULT user_agent always-emit.
