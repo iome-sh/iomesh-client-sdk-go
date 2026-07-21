@@ -79,8 +79,10 @@ func ExampleFormatConnectionStatus() {
 	// user_agent=iomesh-client-sdk-go/0.26.0
 	// version=0.26.0
 	// health=ok
+	// health_err=
 	// health_ms=0
 	// ready=ok
+	// ready_err=
 	// ready_ms=0
 	// duration_ms=0
 	// result=ok

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`ConnectionStatus` probe error fields** — always-emitted JSON `health_err` / `ready_err` (empty string when probes OK / not set; no `omitempty`); `FormatConnectionStatus` always prints `health_err=` / `ready_err=` after `health=` / `ready=` (empty when OK; FAIL lines no longer inline `err=` to avoid duplication). Composes with existing identity / version / latencies / result always-emit continuum
+
 ## [0.54.0] — 2026-07-21
 
 Minor release: ConnectionStatus identity always-emit.
