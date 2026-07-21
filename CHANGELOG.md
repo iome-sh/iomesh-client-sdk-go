@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.55.0] — 2026-07-21
+
+Minor release: pull-loop SUMMARY identity always-emit.
+
 ### Added
 
 - **Example** `examples/pull-loop` — `SUMMARY` always emits `tenant=T` / `org=O` / `workspace=W` (connect identity from `IOMESH_TENANT` / `IOMESH_ORG` / `IOMESH_WORKSPACE`; empty string honest when unset) after leading `version=` so scrapers peer ConnectionStatus identity without inventing readiness; composes with existing SUMMARY knobs
