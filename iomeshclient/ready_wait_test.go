@@ -213,3 +213,90 @@ func TestWaitReadyElapsed_NilClient(t *testing.T) {
 		t.Fatalf("elapsed=%v want 0", elapsed)
 	}
 }
+
+func TestWaitReadyAttempts_SucceedsAfterNFailures(t *testing.T) {
+	var n atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/ready" {
+			http.NotFound(w, r)
+			return
+		}
+		if n.Add(1) < 3 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	elapsed, attempts, err := nc.WaitReadyAttempts(ctx, iomeshclient.WaitReadyOptions{Interval: 20 * time.Millisecond})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if elapsed < 0 {
+		t.Fatalf("elapsed=%v want >= 0", elapsed)
+	}
+	if elapsed == 0 {
+		t.Fatalf("elapsed=%v want > 0 after delayed success", elapsed)
+	}
+	if attempts < 1 {
+		t.Fatalf("attempts=%d want >= 1 on success", attempts)
+	}
+	gotHits := int(n.Load())
+	if attempts != gotHits {
+		t.Fatalf("attempts=%d ready hits=%d want equal", attempts, gotHits)
+	}
+	// Two failures then success → 3 probe cycles.
+	if attempts != 3 {
+		t.Fatalf("attempts=%d want 3 (2 failures + success)", attempts)
+	}
+}
+
+func TestWaitReadyAttempts_TimeoutFails(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 80*time.Millisecond)
+	defer cancel()
+	elapsed, attempts, err := nc.WaitReadyAttempts(ctx, iomeshclient.WaitReadyOptions{Interval: 15 * time.Millisecond})
+	if err == nil {
+		t.Fatal("expected timeout error")
+	}
+	if elapsed <= 0 {
+		t.Fatalf("elapsed=%v want > 0 on timeout", elapsed)
+	}
+	if attempts < 1 {
+		t.Fatalf("attempts=%d want >= 1 on timeout", attempts)
+	}
+	if !strings.Contains(err.Error(), "deadline") && !strings.Contains(err.Error(), "canceled") {
+		if ctx.Err() == nil {
+			t.Fatalf("err=%v", err)
+		}
+	}
+}
+
+func TestWaitReadyAttempts_NilClient(t *testing.T) {
+	var c *iomeshclient.Client
+	elapsed, attempts, err := c.WaitReadyAttempts(context.Background(), iomeshclient.WaitReadyOptions{})
+	if err == nil || !strings.Contains(err.Error(), "nil client") {
+		t.Fatalf("err=%v", err)
+	}
+	if elapsed != 0 {
+		t.Fatalf("elapsed=%v want 0", elapsed)
+	}
+	if attempts != 0 {
+		t.Fatalf("attempts=%d want 0", attempts)
+	}
+}
