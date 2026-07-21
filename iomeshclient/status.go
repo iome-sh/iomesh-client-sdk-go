@@ -16,6 +16,8 @@ type ConnectionStatus struct {
 	Org       string `json:"org,omitempty"`
 	Workspace string `json:"workspace,omitempty"`
 	UserAgent string `json:"user_agent"`
+	// Version is the SDK package version (always emitted; equals iomeshclient.Version, including nil client).
+	Version   string `json:"version"`
 	HealthOK  bool   `json:"health_ok"`
 	HealthErr string `json:"health_err,omitempty"`
 	// HealthMS is Health probe latency in milliseconds (always emitted; 0 when nil client / not run).
@@ -52,6 +54,7 @@ func elapsedMS(d time.Duration) int {
 
 // ConnectionStatus probes Health then Ready (fail-open fields; never panics).
 // Nil client → empty with HealthErr/ReadyErr "nil client" (HealthMS/ReadyMS/DurationMS stay 0; Result "err").
+// Version is always set to the package Version constant (including nil client).
 // Does not short-circuit Ready when Health fails — both probes always run.
 // Probe wall times are always set as HealthMS / ReadyMS / DurationMS (>= 0).
 // DurationMS is wall clock for the full Health+Ready path (start before Health, stop after Ready).
@@ -59,6 +62,7 @@ func elapsedMS(d time.Duration) int {
 func (c *Client) ConnectionStatus(ctx context.Context) ConnectionStatus {
 	if c == nil {
 		return ConnectionStatus{
+			Version:   Version,
 			HealthErr: "nil client",
 			ReadyErr:  "nil client",
 			Result:    AggregateConnectionResult(false, false),
@@ -74,6 +78,7 @@ func (c *Client) ConnectionStatus(ctx context.Context) ConnectionStatus {
 		Org:       c.org,
 		Workspace: c.workspace,
 		UserAgent: c.userAgent,
+		Version:   Version,
 	}
 	if s.UserAgent == "" {
 		s.UserAgent = defaultUserAgent
@@ -106,7 +111,7 @@ func (c *Client) ConnectionStatus(ctx context.Context) ConnectionStatus {
 }
 
 // FormatConnectionStatus returns a human multi-line summary of ConnectionStatus.
-// Always emits health_ms, ready_ms, duration_ms (including 0), and result=ok|err.
+// Always emits version, health_ms, ready_ms, duration_ms (including 0), and result=ok|err.
 func FormatConnectionStatus(s ConnectionStatus) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "base_url=%s\n", s.BaseURL)
@@ -120,6 +125,11 @@ func FormatConnectionStatus(s ConnectionStatus) string {
 		fmt.Fprintf(&b, "workspace=%s\n", s.Workspace)
 	}
 	fmt.Fprintf(&b, "user_agent=%s\n", s.UserAgent)
+	ver := s.Version
+	if ver == "" {
+		ver = Version
+	}
+	fmt.Fprintf(&b, "version=%s\n", ver)
 	if s.HealthOK {
 		b.WriteString("health=ok\n")
 	} else {
