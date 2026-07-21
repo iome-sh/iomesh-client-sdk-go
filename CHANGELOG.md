@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.57.0] — 2026-07-21
+
+Minor release: pull-loop SUMMARY/RESULT user_agent always-emit.
+
 ### Added
 
 - **Example** `examples/pull-loop` — `SUMMARY` and `RESULT=done` always emit `user_agent=UA` after `version=` before `tenant=` (package default `iomesh-client-sdk-go/<Version>`, same string ConnectionStatus uses when `WithUserAgent` is unset; empty string still emits `user_agent=` if truly unset) so scrapers peer ConnectionStatus `user_agent` without inventing readiness; field order matches on SUMMARY and RESULT for scrapers
