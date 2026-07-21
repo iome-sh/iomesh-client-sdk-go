@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Example** `examples/pull-loop` — `RESULT=done` always emits `exit_code=0|1` (same semantics as SUMMARY / process exit: `1` only when `strict && failed`; otherwise `0`, including non-strict with `failed=true`); keeps the `RESULT=done` token for scrapers that key off the RESULT line
+
 ## [0.49.0] — 2026-07-20
 
 Minor release: pull-loop SUMMARY exit_code.

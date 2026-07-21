@@ -297,6 +297,62 @@ func TestFormatPullLoopSummary(t *testing.T) {
 	}
 }
 
+func TestFormatPullLoopResult(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name     string
+		exitCode int
+		want     string
+	}{
+		{name: "exit 0 success", exitCode: 0, want: "RESULT=done exit_code=0"},
+		{name: "exit 1 strict failed", exitCode: 1, want: "RESULT=done exit_code=1"},
+		// same matrix as SUMMARY: scrapers pass the computed code; helper formats only
+		{name: "non-strict failed still 0", exitCode: 0, want: "RESULT=done exit_code=0"},
+		{name: "strict ok still 0", exitCode: 0, want: "RESULT=done exit_code=0"},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := formatPullLoopResult(tc.exitCode)
+			if got != tc.want {
+				t.Fatalf("formatPullLoopResult(%d) = %q, want %q", tc.exitCode, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestFormatPullLoopResultExitCodeMatrix covers the strict×failed → exit_code
+// matrix used by printPullLoopDone (same rule as SUMMARY / process exit).
+func TestFormatPullLoopResultExitCodeMatrix(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name   string
+		failed bool
+		strict bool
+		want   string
+	}{
+		{name: "ok non-strict", failed: false, strict: false, want: "RESULT=done exit_code=0"},
+		{name: "failed non-strict", failed: true, strict: false, want: "RESULT=done exit_code=0"},
+		{name: "ok strict", failed: false, strict: true, want: "RESULT=done exit_code=0"},
+		{name: "failed strict", failed: true, strict: true, want: "RESULT=done exit_code=1"},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			exitCode := 0
+			if tc.strict && tc.failed {
+				exitCode = 1
+			}
+			got := formatPullLoopResult(exitCode)
+			if got != tc.want {
+				t.Fatalf("formatPullLoopResult(strict=%v failed=%v) = %q, want %q", tc.strict, tc.failed, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestParseLoops(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
