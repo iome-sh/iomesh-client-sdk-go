@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Example** `examples/pull-loop` — `SUMMARY` always emits `wait_ready_attempts=A` (probe cycle count from `WaitReadyAttempts` when WaitReady ran; `0` when WaitReady off, same zeroing as `wait_interval_ms`)
+
 ## [0.47.0] — 2026-07-20
 
 Minor release: WaitReadyAttempts probe cycle count.
