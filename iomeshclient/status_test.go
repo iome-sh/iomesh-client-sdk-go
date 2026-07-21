@@ -63,6 +63,10 @@ func TestConnectionStatus_HealthAndReadyOK(t *testing.T) {
 	if !strings.Contains(human, "health=ok") || !strings.Contains(human, "ready=ok") {
 		t.Fatalf("FormatConnectionStatus=%q", human)
 	}
+	if !strings.Contains(human, "tenant=t1") || !strings.Contains(human, "org=o1") ||
+		!strings.Contains(human, "workspace=w1") {
+		t.Fatalf("FormatConnectionStatus missing identity: %q", human)
+	}
 	if !strings.Contains(human, "health_ms=") || !strings.Contains(human, "ready_ms=") ||
 		!strings.Contains(human, "duration_ms=") {
 		t.Fatalf("FormatConnectionStatus missing latencies: %q", human)
@@ -228,10 +232,18 @@ func TestConnectionStatus_NilClient(t *testing.T) {
 	if s.Version != iomeshclient.Version || s.Version == "" {
 		t.Fatalf("nil client Version=%q want %q", s.Version, iomeshclient.Version)
 	}
+	if s.Tenant != "" || s.Org != "" || s.Workspace != "" {
+		t.Fatalf("nil client identity want empty: tenant=%q org=%q workspace=%q",
+			s.Tenant, s.Org, s.Workspace)
+	}
 	human := iomeshclient.FormatConnectionStatus(s)
 	if !strings.Contains(human, "health_ms=0") || !strings.Contains(human, "ready_ms=0") ||
 		!strings.Contains(human, "duration_ms=0") {
 		t.Fatalf("FormatConnectionStatus nil zeros: %q", human)
+	}
+	if !strings.Contains(human, "tenant=\n") || !strings.Contains(human, "org=\n") ||
+		!strings.Contains(human, "workspace=\n") {
+		t.Fatalf("FormatConnectionStatus nil missing empty identity: %q", human)
 	}
 	if !strings.Contains(human, "result=err") {
 		t.Fatalf("FormatConnectionStatus nil missing result=err: %q", human)
@@ -260,6 +272,15 @@ func TestConnectionStatus_JSONContainsBaseURLAndUserAgent(t *testing.T) {
 	js := iomeshclient.FormatConnectionStatusJSON(s)
 	if !strings.Contains(js, `"base_url"`) {
 		t.Fatalf("JSON missing base_url: %s", js)
+	}
+	if !strings.Contains(js, `"tenant"`) {
+		t.Fatalf("JSON missing tenant: %s", js)
+	}
+	if !strings.Contains(js, `"org"`) {
+		t.Fatalf("JSON missing org: %s", js)
+	}
+	if !strings.Contains(js, `"workspace"`) {
+		t.Fatalf("JSON missing workspace: %s", js)
 	}
 	if !strings.Contains(js, `"user_agent"`) {
 		t.Fatalf("JSON missing user_agent: %s", js)
@@ -323,10 +344,25 @@ func TestConnectionStatus_JSONContainsBaseURLAndUserAgent(t *testing.T) {
 	if s.Version != iomeshclient.Version {
 		t.Fatalf("Version=%q want %q", s.Version, iomeshclient.Version)
 	}
+	// Identity keys always present (empty string when unset — no omitempty).
+	for _, key := range []string{"tenant", "org", "workspace"} {
+		v, ok := parsed[key]
+		if !ok {
+			t.Fatalf("JSON missing always-emitted %q: %s", key, js)
+		}
+		if _, isStr := v.(string); !isStr {
+			t.Fatalf("JSON %q want string got %T: %s", key, v, js)
+		}
+	}
+	if parsed["tenant"] != "" || parsed["org"] != "" || parsed["workspace"] != "" {
+		t.Fatalf("JSON identity want empty when unset: tenant=%v org=%v workspace=%v",
+			parsed["tenant"], parsed["org"], parsed["workspace"])
+	}
 }
 
 func TestFormatConnectionStatus_AlwaysEmitsLatencies(t *testing.T) {
 	// Zero latencies (not run / default struct) still print health_ms=, ready_ms=, duration_ms=.
+	// Empty identity still prints tenant= / org= / workspace=.
 	// Empty Version still prints version= package Version (fallback).
 	human := iomeshclient.FormatConnectionStatus(iomeshclient.ConnectionStatus{
 		BaseURL:   "http://127.0.0.1:8422",
@@ -334,6 +370,15 @@ func TestFormatConnectionStatus_AlwaysEmitsLatencies(t *testing.T) {
 		HealthOK:  true,
 		ReadyOK:   true,
 	})
+	if !strings.Contains(human, "tenant=\n") {
+		t.Fatalf("missing tenant=: %q", human)
+	}
+	if !strings.Contains(human, "org=\n") {
+		t.Fatalf("missing org=: %q", human)
+	}
+	if !strings.Contains(human, "workspace=\n") {
+		t.Fatalf("missing workspace=: %q", human)
+	}
 	if !strings.Contains(human, "health_ms=0") {
 		t.Fatalf("missing health_ms=0: %q", human)
 	}
@@ -352,11 +397,18 @@ func TestFormatConnectionStatus_AlwaysEmitsLatencies(t *testing.T) {
 
 	human2 := iomeshclient.FormatConnectionStatus(iomeshclient.ConnectionStatus{
 		BaseURL:    "http://x",
+		Tenant:     "t",
+		Org:        "o",
+		Workspace:  "w",
 		Version:    "9.9.9",
 		HealthMS:   12,
 		ReadyMS:    34,
 		DurationMS: 50,
 	})
+	if !strings.Contains(human2, "tenant=t\n") || !strings.Contains(human2, "org=o\n") ||
+		!strings.Contains(human2, "workspace=w\n") {
+		t.Fatalf("expected explicit identity: %q", human2)
+	}
 	if !strings.Contains(human2, "health_ms=12") || !strings.Contains(human2, "ready_ms=34") ||
 		!strings.Contains(human2, "duration_ms=50") {
 		t.Fatalf("expected explicit latencies: %q", human2)
@@ -412,6 +464,102 @@ func TestConnectionStatus_AlwaysEmitsVersion(t *testing.T) {
 	ns := nilC.ConnectionStatus(context.Background())
 	if ns.Version != iomeshclient.Version {
 		t.Fatalf("nil Version=%q want %q", ns.Version, iomeshclient.Version)
+	}
+}
+
+func TestConnectionStatus_AlwaysEmitsIdentity(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/health", "/ready":
+			w.WriteHeader(http.StatusOK)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	// Unset identity: empty strings still present in JSON + Format.
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := nc.ConnectionStatus(context.Background())
+	if s.Tenant != "" || s.Org != "" || s.Workspace != "" {
+		t.Fatalf("unset identity want empty: tenant=%q org=%q workspace=%q",
+			s.Tenant, s.Org, s.Workspace)
+	}
+
+	js := iomeshclient.FormatConnectionStatusJSON(s)
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(js), &parsed); err != nil {
+		t.Fatalf("json: %v\n%s", err, js)
+	}
+	for _, key := range []string{"tenant", "org", "workspace"} {
+		v, ok := parsed[key].(string)
+		if !ok {
+			t.Fatalf("JSON %q missing or not string: %v\n%s", key, parsed[key], js)
+		}
+		if v != "" {
+			t.Fatalf("JSON %q=%q want empty\n%s", key, v, js)
+		}
+	}
+
+	human := iomeshclient.FormatConnectionStatus(s)
+	if !strings.Contains(human, "tenant=\n") || !strings.Contains(human, "org=\n") ||
+		!strings.Contains(human, "workspace=\n") {
+		t.Fatalf("Format missing empty identity lines: %q", human)
+	}
+
+	// Set identity: values appear in JSON + Format.
+	nc2, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL},
+		iomeshclient.WithTenant("ten"),
+		iomeshclient.WithOrg("org1"),
+		iomeshclient.WithWorkspace("ws1"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s2 := nc2.ConnectionStatus(context.Background())
+	if s2.Tenant != "ten" || s2.Org != "org1" || s2.Workspace != "ws1" {
+		t.Fatalf("identity tenant=%q org=%q workspace=%q", s2.Tenant, s2.Org, s2.Workspace)
+	}
+	js2 := iomeshclient.FormatConnectionStatusJSON(s2)
+	var parsed2 map[string]any
+	if err := json.Unmarshal([]byte(js2), &parsed2); err != nil {
+		t.Fatalf("json2: %v\n%s", err, js2)
+	}
+	if parsed2["tenant"] != "ten" || parsed2["org"] != "org1" || parsed2["workspace"] != "ws1" {
+		t.Fatalf("JSON identity: %v\n%s", parsed2, js2)
+	}
+	human2 := iomeshclient.FormatConnectionStatus(s2)
+	if !strings.Contains(human2, "tenant=ten\n") || !strings.Contains(human2, "org=org1\n") ||
+		!strings.Contains(human2, "workspace=ws1\n") {
+		t.Fatalf("Format missing set identity: %q", human2)
+	}
+
+	// Nil client: empty identity always present in JSON + Format.
+	var nilC *iomeshclient.Client
+	ns := nilC.ConnectionStatus(context.Background())
+	if ns.Tenant != "" || ns.Org != "" || ns.Workspace != "" {
+		t.Fatalf("nil identity want empty: %+v", ns)
+	}
+	njs := iomeshclient.FormatConnectionStatusJSON(ns)
+	var nparsed map[string]any
+	if err := json.Unmarshal([]byte(njs), &nparsed); err != nil {
+		t.Fatalf("nil json: %v\n%s", err, njs)
+	}
+	for _, key := range []string{"tenant", "org", "workspace"} {
+		if _, ok := nparsed[key]; !ok {
+			t.Fatalf("nil JSON missing %q: %s", key, njs)
+		}
+		if nparsed[key] != "" {
+			t.Fatalf("nil JSON %q=%v want empty: %s", key, nparsed[key], njs)
+		}
+	}
+	nhuman := iomeshclient.FormatConnectionStatus(ns)
+	if !strings.Contains(nhuman, "tenant=\n") || !strings.Contains(nhuman, "org=\n") ||
+		!strings.Contains(nhuman, "workspace=\n") {
+		t.Fatalf("nil Format missing empty identity: %q", nhuman)
 	}
 }
 

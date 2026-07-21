@@ -10,11 +10,16 @@ import (
 
 // ConnectionStatus is a fail-open snapshot of client identity + probes.
 // Fields are always populated for operators/CI; probe failures set *OK=false and *Err.
+// Identity strings (BaseURL, Tenant, Org, Workspace, UserAgent, Version) are always
+// emitted in JSON (empty string when unset / nil client).
 type ConnectionStatus struct {
-	BaseURL   string `json:"base_url"`
-	Tenant    string `json:"tenant,omitempty"`
-	Org       string `json:"org,omitempty"`
-	Workspace string `json:"workspace,omitempty"`
+	BaseURL string `json:"base_url"`
+	// Tenant is the multi-tenant id (always emitted; empty when unset / nil client).
+	Tenant string `json:"tenant"`
+	// Org is the org id (always emitted; empty when unset / nil client).
+	Org string `json:"org"`
+	// Workspace is the workspace id (always emitted; empty when unset / nil client).
+	Workspace string `json:"workspace"`
 	UserAgent string `json:"user_agent"`
 	// Version is the SDK package version (always emitted; equals iomeshclient.Version, including nil client).
 	Version   string `json:"version"`
@@ -54,6 +59,7 @@ func elapsedMS(d time.Duration) int {
 
 // ConnectionStatus probes Health then Ready (fail-open fields; never panics).
 // Nil client → empty with HealthErr/ReadyErr "nil client" (HealthMS/ReadyMS/DurationMS stay 0; Result "err").
+// Tenant/Org/Workspace are always set from client options (empty strings when unset / nil client).
 // Version is always set to the package Version constant (including nil client).
 // Does not short-circuit Ready when Health fails — both probes always run.
 // Probe wall times are always set as HealthMS / ReadyMS / DurationMS (>= 0).
@@ -111,19 +117,14 @@ func (c *Client) ConnectionStatus(ctx context.Context) ConnectionStatus {
 }
 
 // FormatConnectionStatus returns a human multi-line summary of ConnectionStatus.
-// Always emits version, health_ms, ready_ms, duration_ms (including 0), and result=ok|err.
+// Always emits tenant=, org=, workspace= (including empty), version, health_ms, ready_ms,
+// duration_ms (including 0), and result=ok|err.
 func FormatConnectionStatus(s ConnectionStatus) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "base_url=%s\n", s.BaseURL)
-	if s.Tenant != "" {
-		fmt.Fprintf(&b, "tenant=%s\n", s.Tenant)
-	}
-	if s.Org != "" {
-		fmt.Fprintf(&b, "org=%s\n", s.Org)
-	}
-	if s.Workspace != "" {
-		fmt.Fprintf(&b, "workspace=%s\n", s.Workspace)
-	}
+	fmt.Fprintf(&b, "tenant=%s\n", s.Tenant)
+	fmt.Fprintf(&b, "org=%s\n", s.Org)
+	fmt.Fprintf(&b, "workspace=%s\n", s.Workspace)
 	fmt.Fprintf(&b, "user_agent=%s\n", s.UserAgent)
 	ver := s.Version
 	if ver == "" {
