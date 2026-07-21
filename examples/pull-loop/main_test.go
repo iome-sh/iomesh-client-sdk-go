@@ -123,6 +123,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 		waitIntervalMS    int
 		waitRequireHealth bool
 		failed            bool
+		strict            bool
 		want              string
 	}{
 		{
@@ -135,7 +136,8 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			waitIntervalMS:    500,
 			waitRequireHealth: true,
 			failed:            false,
-			want:              "SUMMARY cycles_completed=0 fetch_total=0 duration_ms=0 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false failed=false",
+			strict:            false,
+			want:              "SUMMARY cycles_completed=0 fetch_total=0 duration_ms=0 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false failed=false strict=false",
 		},
 		{
 			name:              "typical success wait off",
@@ -146,7 +148,8 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			waitIntervalMS:    500,
 			waitRequireHealth: false,
 			failed:            false,
-			want:              "SUMMARY cycles_completed=3 fetch_total=12 duration_ms=4500 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false failed=false",
+			strict:            false,
+			want:              "SUMMARY cycles_completed=3 fetch_total=12 duration_ms=4500 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false failed=false strict=false",
 		},
 		{
 			name:              "single cycle empty fetch wait off",
@@ -157,7 +160,8 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			waitIntervalMS:    0,
 			waitRequireHealth: false,
 			failed:            false,
-			want:              "SUMMARY cycles_completed=1 fetch_total=0 duration_ms=2001 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false failed=false",
+			strict:            false,
+			want:              "SUMMARY cycles_completed=1 fetch_total=0 duration_ms=2001 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false failed=false strict=false",
 		},
 		{
 			name:              "negative duration clamps to zero",
@@ -168,7 +172,8 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			waitIntervalMS:    250,
 			waitRequireHealth: false,
 			failed:            false,
-			want:              "SUMMARY cycles_completed=1 fetch_total=5 duration_ms=0 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false failed=false",
+			strict:            false,
+			want:              "SUMMARY cycles_completed=1 fetch_total=5 duration_ms=0 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false failed=false strict=false",
 		},
 		{
 			name:              "wait on default interval require false",
@@ -179,7 +184,8 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			waitIntervalMS:    500,
 			waitRequireHealth: false,
 			failed:            false,
-			want:              "SUMMARY cycles_completed=2 fetch_total=8 duration_ms=1200 wait_ready_ms=5000 wait_interval_ms=500 wait_require_health=false failed=false",
+			strict:            false,
+			want:              "SUMMARY cycles_completed=2 fetch_total=8 duration_ms=1200 wait_ready_ms=5000 wait_interval_ms=500 wait_require_health=false failed=false strict=false",
 		},
 		{
 			name:              "wait on custom interval require true",
@@ -190,7 +196,8 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			waitIntervalMS:    250,
 			waitRequireHealth: true,
 			failed:            false,
-			want:              "SUMMARY cycles_completed=1 fetch_total=3 duration_ms=900 wait_ready_ms=3000 wait_interval_ms=250 wait_require_health=true failed=false",
+			strict:            false,
+			want:              "SUMMARY cycles_completed=1 fetch_total=3 duration_ms=900 wait_ready_ms=3000 wait_interval_ms=250 wait_require_health=true failed=false strict=false",
 		},
 		{
 			name:              "wait on interval 1 require health",
@@ -201,7 +208,8 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			waitIntervalMS:    1,
 			waitRequireHealth: true,
 			failed:            false,
-			want:              "SUMMARY cycles_completed=0 fetch_total=0 duration_ms=50 wait_ready_ms=100 wait_interval_ms=1 wait_require_health=true failed=false",
+			strict:            false,
+			want:              "SUMMARY cycles_completed=0 fetch_total=0 duration_ms=50 wait_ready_ms=100 wait_interval_ms=1 wait_require_health=true failed=false strict=false",
 		},
 		{
 			name:              "negative wait ready treated as off",
@@ -212,7 +220,8 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			waitIntervalMS:    500,
 			waitRequireHealth: true,
 			failed:            false,
-			want:              "SUMMARY cycles_completed=1 fetch_total=1 duration_ms=10 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false failed=false",
+			strict:            false,
+			want:              "SUMMARY cycles_completed=1 fetch_total=1 duration_ms=10 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false failed=false strict=false",
 		},
 		{
 			name:              "failed true wait off",
@@ -223,7 +232,8 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			waitIntervalMS:    500,
 			waitRequireHealth: false,
 			failed:            true,
-			want:              "SUMMARY cycles_completed=0 fetch_total=0 duration_ms=100 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false failed=true",
+			strict:            false,
+			want:              "SUMMARY cycles_completed=0 fetch_total=0 duration_ms=100 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false failed=true strict=false",
 		},
 		{
 			name:              "failed true wait on",
@@ -234,14 +244,39 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			waitIntervalMS:    250,
 			waitRequireHealth: true,
 			failed:            true,
-			want:              "SUMMARY cycles_completed=1 fetch_total=2 duration_ms=800 wait_ready_ms=2000 wait_interval_ms=250 wait_require_health=true failed=true",
+			strict:            false,
+			want:              "SUMMARY cycles_completed=1 fetch_total=2 duration_ms=800 wait_ready_ms=2000 wait_interval_ms=250 wait_require_health=true failed=true strict=false",
+		},
+		{
+			name:              "strict true failed false",
+			cyclesCompleted:   2,
+			fetchTotal:        4,
+			durationMS:        600,
+			waitReadyMS:       0,
+			waitIntervalMS:    0,
+			waitRequireHealth: false,
+			failed:            false,
+			strict:            true,
+			want:              "SUMMARY cycles_completed=2 fetch_total=4 duration_ms=600 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false failed=false strict=true",
+		},
+		{
+			name:              "strict true failed true wait on",
+			cyclesCompleted:   1,
+			fetchTotal:        0,
+			durationMS:        1500,
+			waitReadyMS:       5000,
+			waitIntervalMS:    500,
+			waitRequireHealth: true,
+			failed:            true,
+			strict:            true,
+			want:              "SUMMARY cycles_completed=1 fetch_total=0 duration_ms=1500 wait_ready_ms=5000 wait_interval_ms=500 wait_require_health=true failed=true strict=true",
 		},
 	}
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got := formatPullLoopSummary(tc.cyclesCompleted, tc.fetchTotal, tc.durationMS, tc.waitReadyMS, tc.waitIntervalMS, tc.waitRequireHealth, tc.failed)
+			got := formatPullLoopSummary(tc.cyclesCompleted, tc.fetchTotal, tc.durationMS, tc.waitReadyMS, tc.waitIntervalMS, tc.waitRequireHealth, tc.failed, tc.strict)
 			if got != tc.want {
 				t.Fatalf("formatPullLoopSummary(...) = %q, want %q", got, tc.want)
 			}
