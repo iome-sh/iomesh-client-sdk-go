@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.56.0] — 2026-07-21
+
+Minor release: pull-loop RESULT identity always-emit.
+
 ### Added
 
 - **Example** `examples/pull-loop` — `RESULT=done` always emits `tenant=T` / `org=O` / `workspace=W` (same connect identity triple as SUMMARY from `IOMESH_TENANT` / `IOMESH_ORG` / `IOMESH_WORKSPACE`; empty string honest when unset) after `version=` so scrapers peer ConnectionStatus / SUMMARY identity on the RESULT line without inventing readiness; composes with existing `version` and `exit_code`
