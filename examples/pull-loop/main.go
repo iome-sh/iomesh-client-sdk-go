@@ -189,7 +189,7 @@ func main() {
 	// Failure is warn-only by default; under IOMESH_STRICT=1 sets failed.
 	if waitReadyMS > 0 {
 		wrCtx, wrCancel := context.WithTimeout(ctx, time.Duration(waitReadyMS)*time.Millisecond)
-		elapsed, wrErr := nc.WaitReadyElapsed(wrCtx, iomeshclient.WaitReadyOptions{
+		elapsed, attempts, wrErr := nc.WaitReadyAttempts(wrCtx, iomeshclient.WaitReadyOptions{
 			Interval:      time.Duration(waitIntervalMS) * time.Millisecond,
 			RequireHealth: waitRequireHealth,
 		})
@@ -198,11 +198,14 @@ func main() {
 		if elapsedMS < 0 {
 			elapsedMS = 0
 		}
+		if attempts < 0 {
+			attempts = 0
+		}
 		if wrErr != nil {
-			log.Printf("WARN WaitReady: %v elapsed_ms=%d interval_ms=%d require_health=%v", wrErr, elapsedMS, waitIntervalMS, waitRequireHealth)
+			log.Printf("WARN WaitReady: %v elapsed_ms=%d interval_ms=%d require_health=%v attempts=%d", wrErr, elapsedMS, waitIntervalMS, waitRequireHealth, attempts)
 			failed = true
 		} else {
-			fmt.Printf("PASS WaitReady elapsed_ms=%d interval_ms=%d require_health=%v\n", elapsedMS, waitIntervalMS, waitRequireHealth)
+			fmt.Printf("PASS WaitReady elapsed_ms=%d interval_ms=%d require_health=%v attempts=%d\n", elapsedMS, waitIntervalMS, waitRequireHealth, attempts)
 		}
 	}
 
