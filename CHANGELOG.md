@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.47.0] — 2026-07-20
+
+Minor release: WaitReadyAttempts probe cycle count.
+
 ### Added
 
 - **`WaitReadyAttempts`** — like `WaitReadyElapsed` but also returns probe attempt cycle count (each Ready [+ Health] try; incremented at start of each poll iteration); nil client → `(0, 0, error)`; success → `attempts >= 1`; cancel/timeout → attempts counted so far (`>= 0`); `WaitReadyElapsed` / `WaitReady` delegate to it
