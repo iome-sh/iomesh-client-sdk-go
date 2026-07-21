@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestEnvStrict(t *testing.T) {
 	t.Parallel()
@@ -343,21 +346,28 @@ func TestFormatPullLoopResult(t *testing.T) {
 	cases := []struct {
 		name     string
 		exitCode int
+		version  string
 		want     string
 	}{
-		{name: "exit 0 success", exitCode: 0, want: "RESULT=done exit_code=0"},
-		{name: "exit 1 strict failed", exitCode: 1, want: "RESULT=done exit_code=1"},
+		{name: "exit 0 success", exitCode: 0, version: "0.52.0", want: "RESULT=done version=0.52.0 exit_code=0"},
+		{name: "exit 1 strict failed", exitCode: 1, version: "0.52.0", want: "RESULT=done version=0.52.0 exit_code=1"},
 		// same matrix as SUMMARY: scrapers pass the computed code; helper formats only
-		{name: "non-strict failed still 0", exitCode: 0, want: "RESULT=done exit_code=0"},
-		{name: "strict ok still 0", exitCode: 0, want: "RESULT=done exit_code=0"},
+		{name: "non-strict failed still 0", exitCode: 0, version: "0.52.0", want: "RESULT=done version=0.52.0 exit_code=0"},
+		{name: "strict ok still 0", exitCode: 0, version: "0.52.0", want: "RESULT=done version=0.52.0 exit_code=0"},
+		{name: "custom version", exitCode: 0, version: "9.9.9", want: "RESULT=done version=9.9.9 exit_code=0"},
+		{name: "empty version still emits version=", exitCode: 0, version: "", want: "RESULT=done version= exit_code=0"},
+		{name: "empty version with exit 1", exitCode: 1, version: "", want: "RESULT=done version= exit_code=1"},
 	}
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got := formatPullLoopResult(tc.exitCode)
+			got := formatPullLoopResult(tc.exitCode, tc.version)
 			if got != tc.want {
-				t.Fatalf("formatPullLoopResult(%d) = %q, want %q", tc.exitCode, got, tc.want)
+				t.Fatalf("formatPullLoopResult(%d, %q) = %q, want %q", tc.exitCode, tc.version, got, tc.want)
+			}
+			if !strings.Contains(got, "version=") {
+				t.Fatalf("formatPullLoopResult(%d, %q) = %q, want always contains version=", tc.exitCode, tc.version, got)
 			}
 		})
 	}
@@ -365,18 +375,20 @@ func TestFormatPullLoopResult(t *testing.T) {
 
 // TestFormatPullLoopResultExitCodeMatrix covers the strict×failed → exit_code
 // matrix used by printPullLoopDone (same rule as SUMMARY / process exit).
+// version is always emitted alongside exit_code.
 func TestFormatPullLoopResultExitCodeMatrix(t *testing.T) {
 	t.Parallel()
+	const ver = "0.52.0"
 	cases := []struct {
 		name   string
 		failed bool
 		strict bool
 		want   string
 	}{
-		{name: "ok non-strict", failed: false, strict: false, want: "RESULT=done exit_code=0"},
-		{name: "failed non-strict", failed: true, strict: false, want: "RESULT=done exit_code=0"},
-		{name: "ok strict", failed: false, strict: true, want: "RESULT=done exit_code=0"},
-		{name: "failed strict", failed: true, strict: true, want: "RESULT=done exit_code=1"},
+		{name: "ok non-strict", failed: false, strict: false, want: "RESULT=done version=0.52.0 exit_code=0"},
+		{name: "failed non-strict", failed: true, strict: false, want: "RESULT=done version=0.52.0 exit_code=0"},
+		{name: "ok strict", failed: false, strict: true, want: "RESULT=done version=0.52.0 exit_code=0"},
+		{name: "failed strict", failed: true, strict: true, want: "RESULT=done version=0.52.0 exit_code=1"},
 	}
 	for _, tc := range cases {
 		tc := tc
@@ -386,9 +398,12 @@ func TestFormatPullLoopResultExitCodeMatrix(t *testing.T) {
 			if tc.strict && tc.failed {
 				exitCode = 1
 			}
-			got := formatPullLoopResult(exitCode)
+			got := formatPullLoopResult(exitCode, ver)
 			if got != tc.want {
 				t.Fatalf("formatPullLoopResult(strict=%v failed=%v) = %q, want %q", tc.strict, tc.failed, got, tc.want)
+			}
+			if !strings.Contains(got, "version=") {
+				t.Fatalf("formatPullLoopResult(strict=%v failed=%v) = %q, want always contains version=", tc.strict, tc.failed, got)
 			}
 		})
 	}
