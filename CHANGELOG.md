@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`ConnectionStatus` identity fields** — always-emitted JSON `tenant` / `org` / `workspace` (empty string when unset / nil client; no `omitempty`); `FormatConnectionStatus` always prints `tenant=` / `org=` / `workspace=` after `base_url` (composes with existing version / latencies / result)
+
 ## [0.53.0] — 2026-07-20
 
 Minor release: pull-loop RESULT version.

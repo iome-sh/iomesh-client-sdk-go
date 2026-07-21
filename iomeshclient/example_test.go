@@ -73,6 +73,9 @@ func ExampleFormatConnectionStatus() {
 	fmt.Print(iomeshclient.FormatConnectionStatus(st))
 	// Output:
 	// base_url=http://127.0.0.1:8422
+	// tenant=
+	// org=
+	// workspace=
 	// user_agent=iomesh-client-sdk-go/0.26.0
 	// version=0.26.0
 	// health=ok
