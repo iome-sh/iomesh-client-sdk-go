@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.59.0] — 2026-07-21
+
+Minor release: pull-loop SUMMARY/RESULT result=ok|err.
+
 ### Added
 
 - **Example** `examples/pull-loop` — `SUMMARY` and `RESULT=done` always emit `result=ok|err` derived from the existing hard-fail flag `failed` (`result=ok` when `failed==false`; `result=err` when `failed==true`), peers ConnectionStatus.Result / AggregateConnectionResult; field order places `result=` after `strict=` (SUMMARY) / after `workspace=` (RESULT) before `exit_code=` so scrapers can key stage outcome without re-deriving from `failed` or exit status; composes with existing `failed` / `strict` / `exit_code` knobs (does not remove them)
