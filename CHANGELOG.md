@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`ConnectionStatus.Version`** — always-emitted `version` (SDK package `Version` const, including nil client); `FormatConnectionStatus` prints `version=…` after `user_agent` (empty field falls back to package Version)
+
 ## [0.50.0] — 2026-07-20
 
 Minor release: pull-loop RESULT exit_code.

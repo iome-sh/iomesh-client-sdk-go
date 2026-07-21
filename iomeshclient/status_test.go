@@ -55,6 +55,9 @@ func TestConnectionStatus_HealthAndReadyOK(t *testing.T) {
 	if s.Result != "ok" {
 		t.Fatalf("Result=%q want ok", s.Result)
 	}
+	if s.Version != iomeshclient.Version || s.Version == "" {
+		t.Fatalf("Version=%q want %q", s.Version, iomeshclient.Version)
+	}
 
 	human := iomeshclient.FormatConnectionStatus(s)
 	if !strings.Contains(human, "health=ok") || !strings.Contains(human, "ready=ok") {
@@ -66,6 +69,9 @@ func TestConnectionStatus_HealthAndReadyOK(t *testing.T) {
 	}
 	if !strings.Contains(human, "result=ok") {
 		t.Fatalf("FormatConnectionStatus missing result=ok: %q", human)
+	}
+	if !strings.Contains(human, "version="+iomeshclient.Version) {
+		t.Fatalf("FormatConnectionStatus missing version=: %q", human)
 	}
 }
 
@@ -219,6 +225,9 @@ func TestConnectionStatus_NilClient(t *testing.T) {
 	if s.Result != "err" {
 		t.Fatalf("Result=%q want err (nil client)", s.Result)
 	}
+	if s.Version != iomeshclient.Version || s.Version == "" {
+		t.Fatalf("nil client Version=%q want %q", s.Version, iomeshclient.Version)
+	}
 	human := iomeshclient.FormatConnectionStatus(s)
 	if !strings.Contains(human, "health_ms=0") || !strings.Contains(human, "ready_ms=0") ||
 		!strings.Contains(human, "duration_ms=0") {
@@ -226,6 +235,9 @@ func TestConnectionStatus_NilClient(t *testing.T) {
 	}
 	if !strings.Contains(human, "result=err") {
 		t.Fatalf("FormatConnectionStatus nil missing result=err: %q", human)
+	}
+	if !strings.Contains(human, "version="+iomeshclient.Version) {
+		t.Fatalf("FormatConnectionStatus nil missing version=: %q", human)
 	}
 }
 
@@ -264,6 +276,9 @@ func TestConnectionStatus_JSONContainsBaseURLAndUserAgent(t *testing.T) {
 	if !strings.Contains(js, `"result"`) {
 		t.Fatalf("JSON missing result: %s", js)
 	}
+	if !strings.Contains(js, `"version"`) {
+		t.Fatalf("JSON missing version: %s", js)
+	}
 	if !strings.HasSuffix(js, "\n") {
 		t.Fatal("JSON should end with newline")
 	}
@@ -301,10 +316,18 @@ func TestConnectionStatus_JSONContainsBaseURLAndUserAgent(t *testing.T) {
 	if res != s.Result {
 		t.Fatalf("JSON result=%q want %q", res, s.Result)
 	}
+	ver, ok := parsed["version"].(string)
+	if !ok || ver != iomeshclient.Version {
+		t.Fatalf("JSON version=%v want %q\n%s", parsed["version"], iomeshclient.Version, js)
+	}
+	if s.Version != iomeshclient.Version {
+		t.Fatalf("Version=%q want %q", s.Version, iomeshclient.Version)
+	}
 }
 
 func TestFormatConnectionStatus_AlwaysEmitsLatencies(t *testing.T) {
 	// Zero latencies (not run / default struct) still print health_ms=, ready_ms=, duration_ms=.
+	// Empty Version still prints version= package Version (fallback).
 	human := iomeshclient.FormatConnectionStatus(iomeshclient.ConnectionStatus{
 		BaseURL:   "http://127.0.0.1:8422",
 		UserAgent: "iomesh-client-sdk-go/test",
@@ -323,9 +346,13 @@ func TestFormatConnectionStatus_AlwaysEmitsLatencies(t *testing.T) {
 	if !strings.Contains(human, "result=ok") {
 		t.Fatalf("missing result=ok: %q", human)
 	}
+	if !strings.Contains(human, "version="+iomeshclient.Version) {
+		t.Fatalf("missing version= fallback: %q", human)
+	}
 
 	human2 := iomeshclient.FormatConnectionStatus(iomeshclient.ConnectionStatus{
 		BaseURL:    "http://x",
+		Version:    "9.9.9",
 		HealthMS:   12,
 		ReadyMS:    34,
 		DurationMS: 50,
@@ -336,6 +363,55 @@ func TestFormatConnectionStatus_AlwaysEmitsLatencies(t *testing.T) {
 	}
 	if !strings.Contains(human2, "result=err") {
 		t.Fatalf("missing result=err when probes not OK: %q", human2)
+	}
+	if !strings.Contains(human2, "version=9.9.9") {
+		t.Fatalf("expected explicit version: %q", human2)
+	}
+}
+
+func TestConnectionStatus_AlwaysEmitsVersion(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/health", "/ready":
+			w.WriteHeader(http.StatusOK)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := nc.ConnectionStatus(context.Background())
+	if s.Version != iomeshclient.Version {
+		t.Fatalf("Version=%q want %q", s.Version, iomeshclient.Version)
+	}
+	if s.Version == "" {
+		t.Fatal("Version must always be present")
+	}
+
+	js := iomeshclient.FormatConnectionStatusJSON(s)
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(js), &parsed); err != nil {
+		t.Fatalf("json: %v\n%s", err, js)
+	}
+	ver, ok := parsed["version"].(string)
+	if !ok || ver != iomeshclient.Version {
+		t.Fatalf("JSON version=%v want %q\n%s", parsed["version"], iomeshclient.Version, js)
+	}
+
+	human := iomeshclient.FormatConnectionStatus(s)
+	if !strings.Contains(human, "version="+iomeshclient.Version) {
+		t.Fatalf("Format missing version=: %q", human)
+	}
+
+	// Nil client path also always sets Version.
+	var nilC *iomeshclient.Client
+	ns := nilC.ConnectionStatus(context.Background())
+	if ns.Version != iomeshclient.Version {
+		t.Fatalf("nil Version=%q want %q", ns.Version, iomeshclient.Version)
 	}
 }
 

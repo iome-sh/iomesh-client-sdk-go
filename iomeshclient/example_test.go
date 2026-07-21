@@ -66,6 +66,7 @@ func ExampleFormatConnectionStatus() {
 	st := iomeshclient.ConnectionStatus{
 		BaseURL:   "http://127.0.0.1:8422",
 		UserAgent: "iomesh-client-sdk-go/0.26.0",
+		Version:   "0.26.0",
 		HealthOK:  true,
 		ReadyOK:   true,
 	}
@@ -73,6 +74,7 @@ func ExampleFormatConnectionStatus() {
 	// Output:
 	// base_url=http://127.0.0.1:8422
 	// user_agent=iomesh-client-sdk-go/0.26.0
+	// version=0.26.0
 	// health=ok
 	// health_ms=0
 	// ready=ok
