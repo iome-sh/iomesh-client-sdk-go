@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Example** `examples/pull-loop` — `SUMMARY` always emits leading `version=V` (SDK package `Version` const) so scrapers can key SDK version without re-parsing the banner `sdk=` line; composes with existing SUMMARY knobs
+
 ## [0.51.0] — 2026-07-20
 
 Minor release: ConnectionStatus version evidence.
