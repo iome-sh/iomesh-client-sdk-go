@@ -53,7 +53,7 @@
 //
 // Always prints before RESULT=done:
 //
-//	SUMMARY cycles_completed=N fetch_total=M duration_ms=D wait_ready_ms=W wait_interval_ms=I wait_require_health=B wait_ready_attempts=A failed=F strict=S
+//	SUMMARY cycles_completed=N fetch_total=M duration_ms=D wait_ready_ms=W wait_interval_ms=I wait_require_health=B wait_ready_attempts=A failed=F strict=S exit_code=E
 //
 // Consumer filter defaults (resolveConsumerFilter):
 //  1. IOMESH_SUBJECT if set (operator-chosen; used even if ensure is on)
@@ -324,8 +324,9 @@ func publishDemo(ctx context.Context, nc *iomeshclient.Client, stream, pubSubjec
 }
 
 // finishPullLoop emits SUMMARY then RESULT=done; under IOMESH_STRICT exits 1 when failed.
-// WaitReady knobs (including wait_ready_attempts), failed, and strict are always included
-// on SUMMARY (0/false when WaitReady off).
+// WaitReady knobs (including wait_ready_attempts), failed, strict, and exit_code are always
+// included on SUMMARY (0/false when WaitReady off). exit_code matches the process exit used
+// after SUMMARY (1 only when strict && failed; otherwise 0, including non-strict failures).
 func finishPullLoop(cyclesCompleted, fetchTotal int, start time.Time, waitReadyMS, waitIntervalMS int, waitRequireHealth bool, waitReadyAttempts int, strict, failed bool) {
 	printPullLoopDone(cyclesCompleted, fetchTotal, start, waitReadyMS, waitIntervalMS, waitRequireHealth, waitReadyAttempts, failed, strict)
 	if strict && failed {
@@ -378,6 +379,8 @@ func wantPublishEach(env string) bool {
 // scrapers see hard stage-smoke failures even when non-strict (exit 0).
 // strict is always emitted (IOMESH_STRICT mode) so scrapers see whether
 // hard-fail exit was enabled without re-parsing env/banner.
+// exit_code is always emitted and matches process exit after SUMMARY:
+// 1 only when strict && failed; otherwise 0 (including non-strict with failed).
 // Pure helper (no I/O).
 func formatPullLoopSummary(cyclesCompleted, fetchTotal, durationMS, waitReadyMS, waitIntervalMS int, waitRequireHealth bool, waitReadyAttempts int, failed, strict bool) string {
 	if durationMS < 0 {
@@ -389,8 +392,12 @@ func formatPullLoopSummary(cyclesCompleted, fetchTotal, durationMS, waitReadyMS,
 		waitRequireHealth = false
 		waitReadyAttempts = 0
 	}
-	return fmt.Sprintf("SUMMARY cycles_completed=%d fetch_total=%d duration_ms=%d wait_ready_ms=%d wait_interval_ms=%d wait_require_health=%v wait_ready_attempts=%d failed=%t strict=%t",
-		cyclesCompleted, fetchTotal, durationMS, waitReadyMS, waitIntervalMS, waitRequireHealth, waitReadyAttempts, failed, strict)
+	exitCode := 0
+	if strict && failed {
+		exitCode = 1
+	}
+	return fmt.Sprintf("SUMMARY cycles_completed=%d fetch_total=%d duration_ms=%d wait_ready_ms=%d wait_interval_ms=%d wait_require_health=%v wait_ready_attempts=%d failed=%t strict=%t exit_code=%d",
+		cyclesCompleted, fetchTotal, durationMS, waitReadyMS, waitIntervalMS, waitRequireHealth, waitReadyAttempts, failed, strict, exitCode)
 }
 
 // parseLoops returns fetch cycle count from an env value.
