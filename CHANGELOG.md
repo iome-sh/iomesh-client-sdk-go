@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Example** `examples/pull-loop` — `SUMMARY` always emits `exit_code=0|1` (process exit after SUMMARY: `1` only when `strict && failed`, same condition as `os.Exit(1)`; otherwise `0`, including non-strict with `failed=true`)
+
 ## [0.48.0] — 2026-07-20
 
 Minor release: pull-loop SUMMARY always emits wait_ready_attempts.

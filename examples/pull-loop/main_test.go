@@ -139,7 +139,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			waitReadyAttempts: 7,
 			failed:            false,
 			strict:            false,
-			want:              "SUMMARY cycles_completed=0 fetch_total=0 duration_ms=0 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false",
+			want:              "SUMMARY cycles_completed=0 fetch_total=0 duration_ms=0 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false exit_code=0",
 		},
 		{
 			name:              "typical success wait off",
@@ -152,7 +152,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			waitReadyAttempts: 0,
 			failed:            false,
 			strict:            false,
-			want:              "SUMMARY cycles_completed=3 fetch_total=12 duration_ms=4500 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false",
+			want:              "SUMMARY cycles_completed=3 fetch_total=12 duration_ms=4500 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false exit_code=0",
 		},
 		{
 			name:              "single cycle empty fetch wait off",
@@ -165,7 +165,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			waitReadyAttempts: 0,
 			failed:            false,
 			strict:            false,
-			want:              "SUMMARY cycles_completed=1 fetch_total=0 duration_ms=2001 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false",
+			want:              "SUMMARY cycles_completed=1 fetch_total=0 duration_ms=2001 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false exit_code=0",
 		},
 		{
 			name:              "negative duration clamps to zero",
@@ -178,7 +178,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			waitReadyAttempts: 0,
 			failed:            false,
 			strict:            false,
-			want:              "SUMMARY cycles_completed=1 fetch_total=5 duration_ms=0 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false",
+			want:              "SUMMARY cycles_completed=1 fetch_total=5 duration_ms=0 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false exit_code=0",
 		},
 		{
 			name:              "wait on default interval require false attempts 1",
@@ -191,7 +191,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			waitReadyAttempts: 1,
 			failed:            false,
 			strict:            false,
-			want:              "SUMMARY cycles_completed=2 fetch_total=8 duration_ms=1200 wait_ready_ms=5000 wait_interval_ms=500 wait_require_health=false wait_ready_attempts=1 failed=false strict=false",
+			want:              "SUMMARY cycles_completed=2 fetch_total=8 duration_ms=1200 wait_ready_ms=5000 wait_interval_ms=500 wait_require_health=false wait_ready_attempts=1 failed=false strict=false exit_code=0",
 		},
 		{
 			name:              "wait on custom interval require true attempts N",
@@ -204,7 +204,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			waitReadyAttempts: 4,
 			failed:            false,
 			strict:            false,
-			want:              "SUMMARY cycles_completed=1 fetch_total=3 duration_ms=900 wait_ready_ms=3000 wait_interval_ms=250 wait_require_health=true wait_ready_attempts=4 failed=false strict=false",
+			want:              "SUMMARY cycles_completed=1 fetch_total=3 duration_ms=900 wait_ready_ms=3000 wait_interval_ms=250 wait_require_health=true wait_ready_attempts=4 failed=false strict=false exit_code=0",
 		},
 		{
 			name:              "wait on interval 1 require health attempts 2",
@@ -217,7 +217,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			waitReadyAttempts: 2,
 			failed:            false,
 			strict:            false,
-			want:              "SUMMARY cycles_completed=0 fetch_total=0 duration_ms=50 wait_ready_ms=100 wait_interval_ms=1 wait_require_health=true wait_ready_attempts=2 failed=false strict=false",
+			want:              "SUMMARY cycles_completed=0 fetch_total=0 duration_ms=50 wait_ready_ms=100 wait_interval_ms=1 wait_require_health=true wait_ready_attempts=2 failed=false strict=false exit_code=0",
 		},
 		{
 			name:              "negative wait ready treated as off zeros attempts",
@@ -230,10 +230,10 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			waitReadyAttempts: 9,
 			failed:            false,
 			strict:            false,
-			want:              "SUMMARY cycles_completed=1 fetch_total=1 duration_ms=10 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false",
+			want:              "SUMMARY cycles_completed=1 fetch_total=1 duration_ms=10 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=false exit_code=0",
 		},
 		{
-			name:              "failed true wait off attempts 0",
+			name:              "failed true strict false exit 0",
 			cyclesCompleted:   0,
 			fetchTotal:        0,
 			durationMS:        100,
@@ -243,10 +243,10 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			waitReadyAttempts: 0,
 			failed:            true,
 			strict:            false,
-			want:              "SUMMARY cycles_completed=0 fetch_total=0 duration_ms=100 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=true strict=false",
+			want:              "SUMMARY cycles_completed=0 fetch_total=0 duration_ms=100 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=true strict=false exit_code=0",
 		},
 		{
-			name:              "failed true wait on attempts N",
+			name:              "failed true wait on strict false exit 0",
 			cyclesCompleted:   1,
 			fetchTotal:        2,
 			durationMS:        800,
@@ -256,10 +256,10 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			waitReadyAttempts: 5,
 			failed:            true,
 			strict:            false,
-			want:              "SUMMARY cycles_completed=1 fetch_total=2 duration_ms=800 wait_ready_ms=2000 wait_interval_ms=250 wait_require_health=true wait_ready_attempts=5 failed=true strict=false",
+			want:              "SUMMARY cycles_completed=1 fetch_total=2 duration_ms=800 wait_ready_ms=2000 wait_interval_ms=250 wait_require_health=true wait_ready_attempts=5 failed=true strict=false exit_code=0",
 		},
 		{
-			name:              "strict true failed false",
+			name:              "strict true failed false exit 0",
 			cyclesCompleted:   2,
 			fetchTotal:        4,
 			durationMS:        600,
@@ -269,10 +269,10 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			waitReadyAttempts: 0,
 			failed:            false,
 			strict:            true,
-			want:              "SUMMARY cycles_completed=2 fetch_total=4 duration_ms=600 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=true",
+			want:              "SUMMARY cycles_completed=2 fetch_total=4 duration_ms=600 wait_ready_ms=0 wait_interval_ms=0 wait_require_health=false wait_ready_attempts=0 failed=false strict=true exit_code=0",
 		},
 		{
-			name:              "strict true failed true wait on attempts 3",
+			name:              "strict true failed true exit 1",
 			cyclesCompleted:   1,
 			fetchTotal:        0,
 			durationMS:        1500,
@@ -282,7 +282,7 @@ func TestFormatPullLoopSummary(t *testing.T) {
 			waitReadyAttempts: 3,
 			failed:            true,
 			strict:            true,
-			want:              "SUMMARY cycles_completed=1 fetch_total=0 duration_ms=1500 wait_ready_ms=5000 wait_interval_ms=500 wait_require_health=true wait_ready_attempts=3 failed=true strict=true",
+			want:              "SUMMARY cycles_completed=1 fetch_total=0 duration_ms=1500 wait_ready_ms=5000 wait_interval_ms=500 wait_require_health=true wait_ready_attempts=3 failed=true strict=true exit_code=1",
 		},
 	}
 	for _, tc := range cases {
