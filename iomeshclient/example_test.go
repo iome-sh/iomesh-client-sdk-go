@@ -32,12 +32,14 @@ func ExampleFormatStreams() {
 // Live usage: info, err := nc.GetStream(ctx, "EVENTS"); fmt.Print(FormatStreamDetail(*info)).
 func ExampleFormatStreamDetail() {
 	max := int64(1000)
+	age := int64(3600)
 	info := iomeshclient.StreamInfo{
 		Name:        "EVENTS",
 		Description: "ops",
 		Retention:   "limits",
 		Partitions:  1,
 		MaxMsgs:     &max,
+		MaxAgeSec:   &age,
 		Messages:    10,
 		FirstSeq:    1,
 		LastSeq:     10,
@@ -52,6 +54,7 @@ func ExampleFormatStreamDetail() {
 	// retention:   limits
 	// partitions:  1
 	// max_msgs:    1000
+	// max_age_sec: 3600
 	// messages:    10
 	// first_seq:   1
 	// last_seq:    10
