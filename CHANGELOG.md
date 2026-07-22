@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.66.0] — 2026-07-22
+
+Minor release: pull-loop RESULT duration_ms/failed/strict always-emit.
+
 ### Changed
 
 - **Example** `examples/pull-loop` — `RESULT=done` always emits `duration_ms=D` / `failed=true|false` / `strict=true|false` after `loops=` before `result=` (same wall-clock / hard-fail / IOMESH_STRICT knobs as SUMMARY; 0/false honest when zero/unset) so scrapers peer SUMMARY without inventing readiness; composes with existing identity / stream / consumer / batch / result / exit_code knobs
