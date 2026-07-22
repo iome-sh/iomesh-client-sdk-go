@@ -89,33 +89,38 @@ func FormatSubscription(s *Subscription) string {
 
 // FormatStreamDetail is a multi-line view for one stream (operator / CLI style).
 // Pure helper with no network I/O.
+// Always emits optional knobs for scrapers: description, retention, partitions,
+// max_msgs, max_age_sec, created_at, subjects (empty / zero / blank when unset;
+// *int64 nil → blank value, not omitted; empty subjects → "  (none)").
 func FormatStreamDetail(s StreamInfo) string {
 	var b strings.Builder
 	b.WriteString("iomesh stream\n")
 	fmt.Fprintf(&b, "name:        %s\n", s.Name)
-	if s.Description != "" {
-		fmt.Fprintf(&b, "description: %s\n", s.Description)
-	}
-	if s.Retention != "" {
-		fmt.Fprintf(&b, "retention:   %s\n", s.Retention)
-	}
-	if s.Partitions > 0 {
-		fmt.Fprintf(&b, "partitions:  %d\n", s.Partitions)
-	}
+	fmt.Fprintf(&b, "description: %s\n", s.Description)
+	fmt.Fprintf(&b, "retention:   %s\n", s.Retention)
+	fmt.Fprintf(&b, "partitions:  %d\n", s.Partitions)
 	if s.MaxMsgs != nil {
 		fmt.Fprintf(&b, "max_msgs:    %d\n", *s.MaxMsgs)
+	} else {
+		fmt.Fprintf(&b, "max_msgs:    \n")
 	}
 	if s.MaxAgeSec != nil {
 		fmt.Fprintf(&b, "max_age_sec: %d\n", *s.MaxAgeSec)
+	} else {
+		fmt.Fprintf(&b, "max_age_sec: \n")
 	}
 	fmt.Fprintf(&b, "messages:    %d\n", s.Messages)
 	fmt.Fprintf(&b, "first_seq:   %d\n", s.FirstSeq)
 	fmt.Fprintf(&b, "last_seq:    %d\n", s.LastSeq)
+	created := ""
 	if !s.CreatedAt.IsZero() {
-		fmt.Fprintf(&b, "created_at:  %s\n", s.CreatedAt.UTC().Format(time.RFC3339))
+		created = s.CreatedAt.UTC().Format(time.RFC3339)
 	}
-	if len(s.Subjects) > 0 {
-		b.WriteString("subjects:\n")
+	fmt.Fprintf(&b, "created_at:  %s\n", created)
+	b.WriteString("subjects:\n")
+	if len(s.Subjects) == 0 {
+		b.WriteString("  (none)\n")
+	} else {
 		for i, sub := range s.Subjects {
 			if i >= 24 {
 				fmt.Fprintf(&b, "  … +%d more\n", len(s.Subjects)-24)

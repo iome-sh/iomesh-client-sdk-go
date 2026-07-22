@@ -111,7 +111,7 @@ offset, err := kc.Produce(ctx, "mesh.finance.events", 0, []byte("key"), []byte(`
 | `DeleteConsumer` | `DELETE /v1/streams/{stream}/consumers/{name}` | 204 success; 404 → `*APIError`; destructive — opt-in cleanup (e.g. pull-loop `IOMESH_DELETE_CONSUMER=1`) |
 | `ConsumerFetch` / `ConsumerAck` / `ConsumerNack` | `POST …/fetch\|ack\|nack` | One-shot ops without holding a `Subscription`; path-escape stream/consumer; Fetch wires `Msg.Ack`/`Msg.Nack` via ephemeral sub |
 | `Publish` / `PullSubscribe` | stream publish / consumer | `PullSubscribe` uses `CreateConsumer` then returns `*Subscription` with `ConsumerInfo()`; `FetchContext`/`AckContext`/`NackContext` (or `Fetch`/`Ack`/`Nack` → `context.Background()`); `Delete(ctx)` removes the durable consumer via `DeleteConsumer`; default long-poll `DefaultFetchMaxWait` (5s) / `MaxWait`; path segments escaped |
-| `FormatMsg` / `FormatMsgs` / `FormatConsumerInfo` / `FormatSubscription` | — | Pure operator helpers for one message / batch / consumer detail / subscription handle (no network I/O); `FormatConsumerInfo` / `FormatSubscription` always emit `filter_subject` (empty when unset) |
+| `FormatMsg` / `FormatMsgs` / `FormatConsumerInfo` / `FormatSubscription` / `FormatStreamDetail` | — | Pure operator helpers for one message / batch / consumer detail / subscription handle / stream detail (no network I/O); `FormatConsumerInfo` / `FormatSubscription` always emit `filter_subject` (empty when unset); `FormatStreamDetail` always emits description/retention/partitions/max_msgs/max_age_sec/created_at/subjects (blank/0/`(none)` when unset) |
 | `Pub` | `POST /v1/pub` | Ephemeral fire-and-forget |
 
 ```go
@@ -127,7 +127,7 @@ info, err := nc.GetStream(ctx, "EVENTS")
 if err != nil {
 	log.Fatal(err)
 }
-fmt.Print(iomeshclient.FormatStreamDetail(*info)) // multi-line detail
+fmt.Print(iomeshclient.FormatStreamDetail(*info)) // multi-line detail (always-emits optional knobs)
 
 // DeleteStream is destructive — opt-in only (e.g. IOMESH_DELETE_STREAM=name); not auto-run in dogfood
 if err := nc.DeleteStream(ctx, "TEMP_STREAM"); err != nil {
