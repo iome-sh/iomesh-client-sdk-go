@@ -55,7 +55,7 @@ func FormatMsgs(msgs []*Msg) string {
 }
 
 // FormatConsumerInfo is a multi-line view for one durable consumer (operator / CLI style).
-// Pure helper with no network I/O. filter_subject is omitted when empty.
+// Pure helper with no network I/O. Always emits filter_subject (empty string when unset).
 func FormatConsumerInfo(info ConsumerInfo) string {
 	var b strings.Builder
 	b.WriteString("iomesh consumer\n")
@@ -63,9 +63,7 @@ func FormatConsumerInfo(info ConsumerInfo) string {
 	fmt.Fprintf(&b, "name:            %s\n", info.Name)
 	fmt.Fprintf(&b, "ack_floor:       %d\n", info.AckFloor)
 	fmt.Fprintf(&b, "pending_count:   %d\n", info.PendingCount)
-	if info.FilterSubject != "" {
-		fmt.Fprintf(&b, "filter_subject:  %s\n", info.FilterSubject)
-	}
+	fmt.Fprintf(&b, "filter_subject:  %s\n", info.FilterSubject)
 	return b.String()
 }
 
@@ -74,7 +72,7 @@ func FormatConsumerInfo(info ConsumerInfo) string {
 // Nil subscription → "iomesh subscription: nil\n".
 // Otherwise multi-line with stream and consumer from the Subscription handle
 // (so 409 name-only create still shows identity) plus FormatConsumerInfo body
-// fields (ack_floor, pending_count, filter_subject when non-empty).
+// fields (ack_floor, pending_count, filter_subject — always emitted, empty when unset).
 func FormatSubscription(s *Subscription) string {
 	if s == nil {
 		return "iomesh subscription: nil\n"
@@ -85,9 +83,7 @@ func FormatSubscription(s *Subscription) string {
 	fmt.Fprintf(&b, "consumer:        %s\n", s.consumer)
 	fmt.Fprintf(&b, "ack_floor:       %d\n", s.info.AckFloor)
 	fmt.Fprintf(&b, "pending_count:   %d\n", s.info.PendingCount)
-	if s.info.FilterSubject != "" {
-		fmt.Fprintf(&b, "filter_subject:  %s\n", s.info.FilterSubject)
-	}
+	fmt.Fprintf(&b, "filter_subject:  %s\n", s.info.FilterSubject)
 	return b.String()
 }
 

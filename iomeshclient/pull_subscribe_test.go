@@ -1181,16 +1181,19 @@ func TestFormatConsumerInfo(t *testing.T) {
 		}
 	}
 
-	// empty filter omitted
+	// empty filter still always-emitted (honest empty string; does not invent a filter)
 	out = iomeshclient.FormatConsumerInfo(iomeshclient.ConsumerInfo{
 		Stream: "S",
 		Name:   "c",
 	})
-	if strings.Contains(out, "filter_subject") {
-		t.Fatalf("expected no filter_subject line:\n%s", out)
-	}
-	if !strings.Contains(out, "stream:          S") || !strings.Contains(out, "name:            c") {
-		t.Fatalf("zero-ish info:\n%s", out)
+	for _, want := range []string{
+		"stream:          S",
+		"name:            c",
+		"filter_subject:  \n",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing %q in:\n%s", want, out)
+		}
 	}
 }
 
@@ -1278,13 +1281,11 @@ func TestFormatSubscription_Sparse409(t *testing.T) {
 		"consumer:        worker-1",
 		"ack_floor:       0",
 		"pending_count:   0",
+		// filter not returned on 409 path; always-emit empty filter_subject
+		"filter_subject:  \n",
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("missing %q in:\n%s", want, out)
 		}
-	}
-	// filter not returned on 409 path; omit empty filter_subject line
-	if strings.Contains(out, "filter_subject") {
-		t.Fatalf("expected no filter_subject line on sparse 409:\n%s", out)
 	}
 }

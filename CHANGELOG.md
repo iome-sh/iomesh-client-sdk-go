@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`FormatConsumerInfo` / `FormatSubscription`** — always emit `filter_subject:  %s` (empty string when unset / sparse 409 ConsumerInfo); peers TUI dogfood `consumer_filter` always-emit continuum; composes without inventing a filter when empty
+
 ## [0.61.0] — 2026-07-21
 
 Minor release: pull-loop SUMMARY/RESULT batch, max_wait_ms, and loops.
