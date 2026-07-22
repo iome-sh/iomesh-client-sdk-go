@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.62.0] — 2026-07-22
+
+Minor release: FormatConsumerInfo/Subscription filter_subject always-emit.
+
 ### Changed
 
 - **`FormatConsumerInfo` / `FormatSubscription`** — always emit `filter_subject:  %s` (empty string when unset / sparse 409 ConsumerInfo); peers TUI dogfood `consumer_filter` always-emit continuum; composes without inventing a filter when empty
