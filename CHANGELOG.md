@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.65.0] — 2026-07-22
+
+Minor release: FormatKVEntry created_at always-emit.
+
 ### Changed
 
 - **`FormatKVEntry`** — always emit `created_at` for operator/CI scrapers (RFC3339 UTC when set; blank value after the colon when zero/unset rather than omitting the line); peers FormatStreamDetail always-emit continuum; pure helper, no network I/O
