@@ -313,16 +313,30 @@ func TestFormatBucketInfo_Fields(t *testing.T) {
 			t.Fatalf("missing %q in:\n%s", want, out)
 		}
 	}
+}
 
-	// name-only (409 EnsureBucket / CreateBucket path) omits optional lines
-	nameOnly := iomeshclient.FormatBucketInfo(iomeshclient.BucketInfo{Name: "agent-state"})
-	if !strings.Contains(nameOnly, "name:         agent-state") {
-		t.Fatalf("name-only missing name:\n%s", nameOnly)
-	}
-	for _, ban := range []string{"history:", "max_bytes:", "ttl_seconds:"} {
-		if strings.Contains(nameOnly, ban) {
-			t.Fatalf("name-only should omit %q:\n%s", ban, nameOnly)
+// Empty / sparse BucketInfo still always-emits every scraper key (honest blanks).
+func TestFormatBucketInfo_EmptyAlwaysEmit(t *testing.T) {
+	out := iomeshclient.FormatBucketInfo(iomeshclient.BucketInfo{
+		Name: "agent-state",
+	})
+	for _, want := range []string{
+		"iomesh kv bucket",
+		"name:         agent-state",
+		"history:      0\n",
+		"max_bytes:    \n",
+		"ttl_seconds:  \n",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing %q in:\n%s", want, out)
 		}
+	}
+	// nil *int64 must not invent 0; blank value only
+	if strings.Contains(out, "max_bytes:    0") {
+		t.Fatalf("max_bytes should be blank when nil, got:\n%s", out)
+	}
+	if strings.Contains(out, "ttl_seconds:  0") {
+		t.Fatalf("ttl_seconds should be blank when nil, got:\n%s", out)
 	}
 }
 
