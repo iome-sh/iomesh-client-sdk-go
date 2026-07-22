@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.64.0] — 2026-07-22
+
+Minor release: FormatBucketInfo always-emit optional knobs.
+
 ### Changed
 
 - **`FormatBucketInfo`** — always emit optional bucket knobs for operator/CI scrapers: `history`, `max_bytes`, `ttl_seconds` (`0` when history unset; `*int64` nil prints blank after the colon rather than omitting the line); peers FormatStreamDetail always-emit continuum; pure helper, no network I/O
