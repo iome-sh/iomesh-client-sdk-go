@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.63.0] — 2026-07-22
+
+Minor release: FormatStreamDetail always-emit optional fields.
+
 ### Changed
 
 - **`FormatStreamDetail`** — always emit optional stream knobs for operator/CI scrapers: `description`, `retention`, `partitions`, `max_msgs`, `max_age_sec`, `created_at`, `subjects` (empty string / `0` / blank value when unset; `*int64` nil prints blank after the colon rather than omitting the line; empty subjects list prints `subjects:` then `  (none)`); peers FormatConsumerInfo/Subscription `filter_subject` always-emit continuum; pure helper, no network I/O
