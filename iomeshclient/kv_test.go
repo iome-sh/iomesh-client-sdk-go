@@ -353,11 +353,33 @@ func TestFormatKVEntry_Fields(t *testing.T) {
 		"bucket:     agent-state",
 		"key:        worker-1.checkpoint",
 		"revision:   3",
-		"2026-07-01T12:00:00Z",
+		"created_at: 2026-07-01T12:00:00Z",
 		"seq=42",
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("missing %q in:\n%s", want, out)
+		}
+	}
+}
+
+// Zero CreatedAt still always-emits the scraper key (honest blank, no invented timestamp).
+func TestFormatKVEntry_EmptyCreatedAtAlwaysEmit(t *testing.T) {
+	out := iomeshclient.FormatKVEntry(iomeshclient.KVEntry{
+		Bucket:   "b",
+		Key:      "k",
+		Value:    []byte("v"),
+		Revision: 1,
+	})
+	if !strings.Contains(out, "created_at: \n") {
+		t.Fatalf("created_at line missing or not blank when zero:\n%s", out)
+	}
+	// must not invent a fake RFC3339 timestamp
+	for _, line := range strings.Split(out, "\n") {
+		if strings.HasPrefix(line, "created_at:") {
+			val := strings.TrimSpace(strings.TrimPrefix(line, "created_at:"))
+			if val != "" {
+				t.Fatalf("created_at should be blank when zero, got %q in:\n%s", val, out)
+			}
 		}
 	}
 }

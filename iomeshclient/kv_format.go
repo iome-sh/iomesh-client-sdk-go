@@ -44,15 +44,18 @@ func FormatBucketInfo(info BucketInfo) string {
 // FormatKVEntry is a multi-line view for one KV entry (operator / CLI style).
 // Pure helper with no network I/O. Value is shown as UTF-8 text when printable;
 // otherwise as a base64-friendly byte length note with a short hex preview.
+// Always emits created_at for scrapers (RFC3339 UTC when set; blank value when zero).
 func FormatKVEntry(e KVEntry) string {
 	var b strings.Builder
 	b.WriteString("iomesh kv entry\n")
 	fmt.Fprintf(&b, "bucket:     %s\n", e.Bucket)
 	fmt.Fprintf(&b, "key:        %s\n", e.Key)
 	fmt.Fprintf(&b, "revision:   %d\n", e.Revision)
+	created := ""
 	if !e.CreatedAt.IsZero() {
-		fmt.Fprintf(&b, "created_at: %s\n", e.CreatedAt.UTC().Format(time.RFC3339))
+		created = e.CreatedAt.UTC().Format(time.RFC3339)
 	}
+	fmt.Fprintf(&b, "created_at: %s\n", created)
 	fmt.Fprintf(&b, "value:      %s\n", formatKVValue(e.Value, 256))
 	return b.String()
 }
