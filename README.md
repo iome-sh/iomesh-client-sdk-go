@@ -214,7 +214,7 @@ if err != nil {
 | `CreateBucket` / `EnsureBucket` | `POST /v1/kv/{name}` | Returns `*BucketInfo`; 409 conflict → success with name only. EnsureBucket is an idempotent alias of CreateBucket |
 | `Put` / `Get` / `Delete` | `/v1/kv/{bucket}/{key}` | Put returns `*PutResult` (revision metadata); value is base64 in JSON body; Get returns `*KVEntry` |
 | `ListKeys` | `GET /v1/kv/{bucket}?prefix=` | Optional prefix filter |
-| `FormatBucketInfo` / `FormatKVEntry` / `FormatKVKeys` / `FormatPutResult` | — | Pure operator format helpers (no network I/O) |
+| `FormatBucketInfo` / `FormatKVEntry` / `FormatKVKeys` / `FormatPutResult` | — | Pure operator format helpers (no network I/O); `FormatBucketInfo` always emits history/max_bytes/ttl_seconds (`0` / blank when unset) |
 
 ```go
 info, err := nc.EnsureBucket(ctx, "agent-state", iomeshclient.CreateBucketConfig{
@@ -224,7 +224,7 @@ if err != nil {
 	log.Fatal(err)
 }
 if info != nil {
-	fmt.Print(iomeshclient.FormatBucketInfo(*info)) // multi-line bucket detail
+	fmt.Print(iomeshclient.FormatBucketInfo(*info)) // multi-line bucket detail (always-emits optional knobs)
 }
 
 put, err := nc.Put(ctx, "agent-state", "worker-1.checkpoint", []byte("seq=42"))
