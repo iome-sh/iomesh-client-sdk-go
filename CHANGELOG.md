@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Example** `examples/pull-loop` — `RESULT=done` always emits `cycles_completed=` / `fetch_total=` / `wait_ready_ms=` / `wait_interval_ms=` / `wait_require_health=` / `wait_ready_attempts=` after `loops=` before `failed=` (same values as SUMMARY; 0/false honest when wait off / zero work) so scrapers peer SUMMARY without inventing readiness; composes with existing duration_ms/failed/strict/result/exit_code
+
 ## [0.66.0] — 2026-07-22
 
 Minor release: pull-loop RESULT duration_ms/failed/strict always-emit.
