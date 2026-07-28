@@ -182,9 +182,11 @@ func (c *Client) PublishMemoryIngest(ctx context.Context, tenantID string, env M
 }
 
 // DualWriteMemoryOptions controls DualWriteMemoryTurn.
+// Default zero-value is dual_write OFF (Sync: false): local-primary async stream only.
 type DualWriteMemoryOptions struct {
 	// Sync also performs IngestMemoryTurn against SyncClient (fail-open).
-	// When false, only async MEMORY_INGEST publish runs.
+	// When false (default / dual_write OFF), only async MEMORY_INGEST publish runs.
+	// Optional audit path only — not freemium hosted palace / not platform GPU primary.
 	Sync bool
 	// SyncClient is the client used for sync ingest (memory sidecar URL).
 	// When nil and Sync is true, the receiver client is used (same endpoint as mesh).
@@ -199,9 +201,11 @@ type DualWriteMemoryResult struct {
 	SyncErr error
 }
 
-// DualWriteMemoryTurn publishes async MEMORY_INGEST (required path) and optionally
-// sync POST /v1|/v5/memory/ingest (Palace write) with fail-open semantics matching
+// DualWriteMemoryTurn publishes async MEMORY_INGEST (required, local-primary path) and
+// optionally sync POST /v1|/v5/memory/ingest with fail-open semantics matching
 // iomesh-tui agent dual_write: stream durable first; sidecar best-effort.
+// Default opts (Sync: false) keep dual_write OFF — optional audit only when Sync: true;
+// not primary freemium palace. Offline smoke ≠ live APPLY.
 func (c *Client) DualWriteMemoryTurn(ctx context.Context, tenantID string, env MemoryEnvelope, opts DualWriteMemoryOptions) (*DualWriteMemoryResult, error) {
 	ack, err := c.PublishMemoryIngest(ctx, tenantID, env)
 	if err != nil {

@@ -2,6 +2,10 @@
 // (PullSubscribe → optional pre-loop Publish → N× (optional per-cycle Publish →
 // FetchContext → FormatMsgs → optional AckContext)).
 //
+// Framing: the same APIs agents use to pull organizational heartbeats (ops pulse)
+// on dept.* / stream.> subjects. Offline stage smoke ≠ live APPLY; Beta surfaces.
+// For a minimal publish-first org-heartbeat demo see examples/org-heartbeat-publish.
+//
 // Env:
 //
 //	IOMESH_URL            mesh broker base (required)

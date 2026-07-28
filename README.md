@@ -6,11 +6,15 @@
 
 Official **Go client SDK** for the [I/O Mesh](https://iome.sh) broker and connector platform.
 
-Official open-source tooling from [IOMesh](https://iome.sh) (**IOMesh Technology Ltd.**).
+Publish and pull **organizational heartbeats** (ops **pulse**) on `dept.*` streams: connectors and services emit org-tool events; agents and workers consume them via durable pull. Public lexicon is **heartbeat / pulse** only.
+
+Memory helpers stay **local-primary** honest: durable stream paths first; `DualWriteMemoryTurn` defaults to **async-only** (`Sync: false` / dual_write **OFF**) — optional sidecar audit, not a freemium hosted palace. Offline stage smoke ≠ live APPLY. Surfaces are **Beta** / pre-1.0 — do not invent GA.
+
+Official open-source tooling from [IOMesh](https://iome.sh) (**IOMesh Technology Ltd.**). This repository is **MIT edge client code** only — not free mesh control-plane access.
 
 | Capability | Package |
 |------------|---------|
-| HTTP publish / pull subscribe / streams / KV / memory | [`iomeshclient`](./iomeshclient) |
+| HTTP publish / pull subscribe / streams / KV / memory (org heartbeats on `dept.*`) | [`iomeshclient`](./iomeshclient) |
 | Partner webhook HMAC + observation envelopes | [`connectorsdk`](./connectorsdk) |
 | Kafka protocol (Produce subset) | [`kafka`](./kafka) · via `iomeshclient.KafkaClient` |
 | Shared envelope + CUID helpers | [`envelope`](./envelope) · [`cuid`](./cuid) |
@@ -19,7 +23,7 @@ Official open-source tooling from [IOMesh](https://iome.sh) (**IOMesh Technology
 > **Package:** `iomeshclient`  
 > **Env prefix:** `IOMESH_*`  
 > **Wire headers:** `X-IOMesh-Tenant`, `X-IOMesh-Org`, `X-IOMesh-Workspace`, …  
-> **Status:** public OSS **v0.26.x** (pre-1.0). Memory M2/M3 + multi-tenant headers + dual-write/metering + Health/Ready/WaitReady + catalog plane + EvaluatePolicy + QueryContext + ConnectionStatus + ListStreams/GetStream/DeleteStream/ListStreamMessages + CreateStream/EnsureStream `*StreamInfo` + FormatStreams/FormatStreamDetail + CreateConsumer/EnsureConsumer `*ConsumerInfo` + ConsumerFetch/ConsumerAck/ConsumerNack + PullSubscribe `FetchContext`/`AckContext`/`NackContext` + `DefaultFetchMaxWait` + FormatMsg/FormatMsgs/FormatConsumerInfo + KV CreateBucket/EnsureBucket `*BucketInfo` + Put `*PutResult` + FormatBucketInfo/FormatKVEntry/FormatKVKeys/FormatPutResult aligned with [iomesh-tui](https://github.com/iome-sh/iomesh-tui).  
+> **Status:** public OSS **v0.67.x** (pre-1.0, **Beta**). Memory M2/M3 + multi-tenant headers + dual-write/metering + Health/Ready/WaitReady + catalog plane + EvaluatePolicy + QueryContext + ConnectionStatus + ListStreams/GetStream/DeleteStream/ListStreamMessages + CreateStream/EnsureStream `*StreamInfo` + FormatStreams/FormatStreamDetail + CreateConsumer/EnsureConsumer `*ConsumerInfo` + ConsumerFetch/ConsumerAck/ConsumerNack + PullSubscribe `FetchContext`/`AckContext`/`NackContext` + `DefaultFetchMaxWait` + FormatMsg/FormatMsgs/FormatConsumerInfo + KV CreateBucket/EnsureBucket `*BucketInfo` + Put `*PutResult` + FormatBucketInfo/FormatKVEntry/FormatKVKeys/FormatPutResult aligned with [iomesh-tui](https://github.com/iome-sh/iomesh-tui). Always-emit format helpers are operator diagnostics — not new product APIs / not invent GA.  
 > **User-Agent:** `iomesh-client-sdk-go/<Version>` (override with `WithUserAgent`).
 
 ## Requirements
@@ -33,7 +37,9 @@ Official open-source tooling from [IOMesh](https://iome.sh) (**IOMesh Technology
 go get github.com/iome-sh/iomesh-client-sdk-go@latest
 ```
 
-## Quick start — connect and publish
+## Quick start — publish an org heartbeat
+
+Connect, ensure a stream under `dept.*`, and publish a single organizational heartbeat (ops pulse). Agents and workers pull the same subjects as durable consumers.
 
 ```go
 package main
@@ -68,13 +74,17 @@ func main() {
 		log.Printf("stream=%s subjects=%v", info.Name, info.Subjects)
 	}
 
-	ack, err := nc.Publish(ctx, "EVENTS", "dept.engineering.events.demo", []byte(`{"hello":"mesh"}`))
+	// Organizational heartbeat (ops pulse) — public lexicon: heartbeat / pulse only.
+	ack, err := nc.Publish(ctx, "EVENTS", "dept.engineering.events.demo", []byte(`{"hello":"mesh","kind":"org_heartbeat"}`))
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Printf("published seq=%d subject=%s partition=%d", ack.Seq, ack.Subject, ack.Partition)
 }
 ```
+
+Runnable framing (publish + optional pull): [`examples/org-heartbeat-publish/`](examples/org-heartbeat-publish/).  
+Stage smoke pull loop: [`examples/pull-loop/`](examples/pull-loop/) (same durable consumer APIs; offline smoke ≠ live APPLY).
 
 ## Connector SDK (HMAC + envelope)
 
@@ -240,15 +250,17 @@ keys, err := nc.ListKeys(ctx, "agent-state", "worker-")
 fmt.Print(iomeshclient.FormatKVKeys("agent-state", keys)) // compact key listing
 ```
 
-## Memory (async streams + sync sidecar)
+## Memory (async streams + optional sync sidecar)
+
+**Honesty:** local-primary · `DualWriteMemoryTurn` defaults to **async-only** (`Sync: false` = dual_write **OFF**) · optional sidecar audit · not primary freemium hosted palace · local AI ≠ platform GPU product · offline stage smoke ≠ live APPLY · Beta surfaces — no invent GA.
 
 | API | Path | Notes |
 |-----|------|--------|
-| `PublishMemoryIngest` | `MEMORY_INGEST` publish | Async stream dual-write; temporal fields on `MemoryEnvelope` |
-| `DualWriteMemoryTurn` | async + optional sync | Stream first; optional fail-open `IngestMemoryTurn` (sidecar) |
+| `PublishMemoryIngest` | `MEMORY_INGEST` publish | Async durable stream; temporal fields on `MemoryEnvelope` |
+| `DualWriteMemoryTurn` | async + optional sync | Stream first; **default OFF** (no sync). Optional fail-open `IngestMemoryTurn` when `Sync: true` |
 | `RequestMemoryRecall` / `RequestMemoryRecallFull` | `MEMORY_RPC` publish | Async; Full adds `session_id` correlation |
 | `RetrieveMemory` | `POST /v1` then `/v5/memory/retrieve` | Sync hits; empty query OK if `session_id` set |
-| `IngestMemoryTurn` | `POST /v1` then `/v5/memory/ingest` | Sync Palace turn write |
+| `IngestMemoryTurn` | `POST /v1` then `/v5/memory/ingest` | Optional sync turn write (not freemium palace default) |
 
 ```go
 // Sync retrieve (sidecar URL or gateway that routes /v1|/v5/memory/*)
@@ -260,20 +272,27 @@ hits, err := nc.RetrieveMemory(ctx, iomeshclient.MemoryRetrieveRequest{
 })
 // hits.Path is "/v1/memory/retrieve" or "/v5/memory/retrieve"
 
-// Dual-write: durable stream + optional Palace sync (fail-open on sync)
+// Dual-write: durable stream first; Sync defaults OFF (local-primary / dual_write OFF).
+// Optional Sync: true = best-effort sidecar audit (fail-open) — not primary freemium palace.
 mesh, _ := iomeshclient.Connect(iomeshclient.Options{URL: os.Getenv("IOMESH_URL")}, /* tenant/org… */)
-palace, _ := iomeshclient.Connect(iomeshclient.Options{URL: os.Getenv("IOMESH_MEMORY_ENDPOINT")})
+// Default path — async only (recommended):
 res, err := mesh.DualWriteMemoryTurn(ctx, "dept.research", iomeshclient.MemoryEnvelope{
 	Role: "user", Content: "decision notes", SessionID: "sess-1", SessionSeq: 1,
-}, iomeshclient.DualWriteMemoryOptions{Sync: true, SyncClient: palace})
-// res.Async is PubAck; res.SyncErr is nil on Palace success (or set when fail-open)
+}, iomeshclient.DualWriteMemoryOptions{}) // Sync: false
+// Optional audit path:
+// palace, _ := iomeshclient.Connect(iomeshclient.Options{URL: os.Getenv("IOMESH_MEMORY_ENDPOINT")})
+// res, err = mesh.DualWriteMemoryTurn(ctx, "dept.research", env, iomeshclient.DualWriteMemoryOptions{Sync: true, SyncClient: palace})
+// res.Async is PubAck; res.SyncErr is set when optional sync fail-opens
 ```
 
 The agent harness ([iomesh-tui](https://github.com/iome-sh/iomesh-tui)) mirrors these surfaces without depending on this module (lean public HTTP).
-## Metering (dept streams)
+
+## Metering (dept streams / org-tool heartbeats)
+
+`EmitDeptEvent` / `EmitLLMCall` publish structured **organizational tool heartbeats** on the `dept` stream (`dept.*` subjects). Agents and ops dashboards consume these pulses; they are not wearable/medical brand claims.
 
 ```go
-// Remote multi-tenant usage event for platform dashboards
+// Remote multi-tenant usage event (org-tool heartbeat) for platform dashboards
 ack, err := nc.EmitLLMCall(ctx, iomeshclient.LLMCallEvent{
 	Tenant: "dept.research", SessionID: "sess-1",
 	Model: "deepseek-v4-flash", TotalTokens: 120, EstUSD: 0.002,
@@ -281,7 +300,7 @@ ack, err := nc.EmitLLMCall(ctx, iomeshclient.LLMCallEvent{
 // Wire: POST /v1/streams/dept/publish subject=dept.agent.llm_call
 ```
 
-Stage smoke (mesh + optional memory sidecar):
+Stage smoke (mesh + optional memory sidecar; dual_write sync only when `IOMESH_MEMORY_ENDPOINT` differs):
 
 ```bash
 export IOMESH_URL=http://127.0.0.1:8422

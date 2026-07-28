@@ -2,6 +2,10 @@
 // verifies HMAC, normalizes an observation envelope, and POSTs to an
 // I/O Mesh broker connector ingress using connectorsdk.
 //
+// Framing: partner webhooks become organizational heartbeats (ops pulse)
+// once normalized and published into mesh dept.* / connector streams.
+// Offline normalization still runs when the broker returns 404.
+//
 // Prerequisites:
 //   - CONNECTOR_SDK_SECRET set (same value used to sign the sample payload)
 //   - Optional: I/O Mesh broker (local foundation). Unknown connector

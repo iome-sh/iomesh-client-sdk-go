@@ -1,5 +1,11 @@
 // Package iomeshclient is the Go HTTP client for the I/O Mesh broker (/v1 API).
 //
+// Organizational heartbeats (ops pulse): Publish / PullSubscribe on dept.* subjects
+// carry org-tool events that agents and workers consume. Public lexicon is
+// heartbeat / pulse only. Memory helpers are local-primary; DualWriteMemoryTurn
+// defaults to async-only (dual_write OFF) — optional sidecar audit, not freemium palace.
+// Surfaces are Beta / pre-1.0; offline stage smoke ≠ live APPLY; MIT edge client only.
+//
 // Wire headers: X-IOMesh-Tenant, X-IOMesh-Org, X-IOMesh-Workspace (and related X-IOMesh-* ingress headers).
 // Default User-Agent: iomesh-client-sdk-go/<Version> for operator supportability.
 package iomeshclient
