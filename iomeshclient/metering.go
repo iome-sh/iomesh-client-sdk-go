@@ -8,11 +8,12 @@ import (
 	"time"
 )
 
-// Stream name for operational dept.* events (POST /v1/streams/dept/publish).
+// Stream name for operational dept.* organizational heartbeats (POST /v1/streams/dept/publish).
 const streamDept = "dept"
 
-// DeptEvent is a lightweight operational stream event (dept.* family).
+// DeptEvent is a lightweight organizational heartbeat / ops pulse on the dept.* family.
 // Wire shape matches iomesh-tui internal/iomesh.DeptEvent for platform remote metering.
+// Public lexicon: heartbeat / pulse only (org-tool events agents consume).
 type DeptEvent struct {
 	Type      string         `json:"type"` // e.g. dept.agent.llm_call
 	Timestamp time.Time      `json:"ts"`
@@ -42,8 +43,9 @@ type LLMCallEvent struct {
 	Extra            map[string]any
 }
 
-// EmitDeptEvent publishes a structured dept.* event via POST /v1/streams/dept/publish.
-// Subject defaults to ev.Type (e.g. dept.agent.llm_call). Tenant defaults to WithTenant.
+// EmitDeptEvent publishes a structured dept.* organizational heartbeat (ops pulse)
+// via POST /v1/streams/dept/publish. Subject defaults to ev.Type (e.g. dept.agent.llm_call).
+// Tenant defaults to WithTenant. Agents and dashboards pull these org-tool events.
 func (c *Client) EmitDeptEvent(ctx context.Context, ev DeptEvent) (*PubAck, error) {
 	if c == nil {
 		return nil, errors.New("iomeshclient: nil client")

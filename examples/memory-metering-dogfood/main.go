@@ -1,5 +1,10 @@
 // Command memory-metering-dogfood is a stage smoke for public SDK memory + metering wire.
 //
+// Honesty: DualWriteMemoryTurn uses Sync only when IOMESH_MEMORY_ENDPOINT differs
+// from IOMESH_URL (optional audit). Default dual_write path is local-primary async;
+// not freemium hosted palace. EmitLLMCall is an org-tool heartbeat on dept.*.
+// Offline stage smoke ≠ live APPLY. Beta surfaces — no invent GA.
+//
 // Env:
 //
 //	IOMESH_URL            mesh broker base (required)
