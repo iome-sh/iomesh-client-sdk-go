@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.68.0] — 2026-08-03
+
+Minor release: `RetrieveMemoryRelated` multi-hop lite client (feature #144).
+
+### Added
+
+- **`RetrieveMemoryRelated`** — sync multi-hop associative recall via `POST /v1|/v5/memory/related` (path cascade parity with `RetrieveMemory`); peers MCP `memory_related` / platform multi-hop related surface
+- **`MemoryRelatedRequest`** — request body (`tenant_id`, optional `seed_entity` / `query` — at least one required, `max_hops`, `limit`, `session_id`, `as_of`)
+- **`MemoryHit.HopDistance`** — optional path-aware min hop from seed (`0` = seed entity; omitted on plain retrieve)
+- **Example** `examples/memory-metering-dogfood` — fail-open `RetrieveMemoryRelated` probe after sync retrieve
+
+### Honesty
+
+- Multi-hop lite (EntityGraph BFS + entry entity tags) · **not** full graph RAG / Zep-Graphiti KG · **not** product Memory GA · `dual_write` remains OFF by default elsewhere
+
 ## [0.67.0] — 2026-07-22
 
 Minor release: pull-loop RESULT wait/cycle knobs always-emit.
