@@ -375,6 +375,173 @@ func TestRetrieveMemoryV1ThenV5Fallback(t *testing.T) {
 	}
 }
 
+func TestRetrieveMemoryRelatedSuccess(t *testing.T) {
+	var mu sync.Mutex
+	var gotBody map[string]any
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /v5/memory/related", func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		mu.Lock()
+		gotBody = body
+		mu.Unlock()
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"memories": []map[string]any{
+				{
+					"id":           "mem-seed",
+					"summary":      "alice note",
+					"full":         "person:alice owns widget",
+					"score":        0.95,
+					"hop_distance": 0,
+				},
+				{
+					"id":           "mem-hop2",
+					"summary":      "widget note",
+					"full":         "widget depends on org:acme",
+					"score":        0.7,
+					"hop_distance": 2,
+				},
+			},
+		})
+	})
+
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: ts.URL}, iomeshclient.WithTenant("dept.research"))
+	if err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+
+	resp, err := nc.RetrieveMemoryRelated(context.Background(), iomeshclient.MemoryRelatedRequest{
+		TenantID:   "dept.research",
+		SeedEntity: "person:alice",
+		Query:      "widget ownership",
+		MaxHops:    2,
+		Limit:      10,
+		SessionID:  "sess-1",
+		AsOf:       "2026-08-01T00:00:00Z",
+	})
+	if err != nil {
+		t.Fatalf("RetrieveMemoryRelated: %v", err)
+	}
+	if len(resp.Memories) != 2 {
+		t.Fatalf("memories = %d, want 2", len(resp.Memories))
+	}
+	if resp.Memories[0].HopDistance != 0 {
+		t.Fatalf("hop_distance[0] = %d, want 0", resp.Memories[0].HopDistance)
+	}
+	if resp.Memories[1].HopDistance != 2 {
+		t.Fatalf("hop_distance[1] = %d, want 2", resp.Memories[1].HopDistance)
+	}
+	if resp.Memories[1].ID != "mem-hop2" || resp.Memories[1].Summary != "widget note" {
+		t.Fatalf("hit[1] = %+v", resp.Memories[1])
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if gotBody["tenant_id"] != "dept.research" {
+		t.Fatalf("tenant_id = %v", gotBody["tenant_id"])
+	}
+	if gotBody["seed_entity"] != "person:alice" {
+		t.Fatalf("seed_entity = %v", gotBody["seed_entity"])
+	}
+	if gotBody["query"] != "widget ownership" {
+		t.Fatalf("query = %v", gotBody["query"])
+	}
+	if gotBody["max_hops"] != float64(2) {
+		t.Fatalf("max_hops = %v", gotBody["max_hops"])
+	}
+	if gotBody["limit"] != float64(10) {
+		t.Fatalf("limit = %v", gotBody["limit"])
+	}
+	if gotBody["session_id"] != "sess-1" {
+		t.Fatalf("session_id = %v", gotBody["session_id"])
+	}
+	if gotBody["as_of"] != "2026-08-01T00:00:00Z" {
+		t.Fatalf("as_of = %v", gotBody["as_of"])
+	}
+}
+
+func TestRetrieveMemoryRelatedV1ThenV5Fallback(t *testing.T) {
+	var paths []string
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /v1/memory/related", func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		w.WriteHeader(http.StatusNotFound)
+	})
+	mux.HandleFunc("POST /v5/memory/related", func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"memories": []map[string]any{
+				{"id": "m1", "summary": "related", "hop_distance": 1},
+			},
+		})
+	})
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: ts.URL})
+	if err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	resp, err := nc.RetrieveMemoryRelated(context.Background(), iomeshclient.MemoryRelatedRequest{
+		TenantID:   "dept.x",
+		SeedEntity: "person:alice",
+	})
+	if err != nil {
+		t.Fatalf("RetrieveMemoryRelated: %v", err)
+	}
+	if resp.Path != "/v5/memory/related" {
+		t.Fatalf("path=%q", resp.Path)
+	}
+	if len(paths) != 2 || paths[0] != "/v1/memory/related" || paths[1] != "/v5/memory/related" {
+		t.Fatalf("paths=%v", paths)
+	}
+	if len(resp.Memories) != 1 || resp.Memories[0].HopDistance != 1 {
+		t.Fatalf("memories=%+v", resp.Memories)
+	}
+}
+
+func TestRetrieveMemoryRelatedValidation(t *testing.T) {
+	ts := httptest.NewServer(http.NewServeMux())
+	defer ts.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: ts.URL})
+	if err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	ctx := context.Background()
+
+	if _, err := nc.RetrieveMemoryRelated(ctx, iomeshclient.MemoryRelatedRequest{SeedEntity: "person:alice"}); err == nil {
+		t.Fatal("expected tenant_id required")
+	} else if !strings.Contains(err.Error(), "tenant_id") {
+		t.Fatalf("err = %v, want tenant_id", err)
+	}
+
+	if _, err := nc.RetrieveMemoryRelated(ctx, iomeshclient.MemoryRelatedRequest{TenantID: "dept.research"}); err == nil {
+		t.Fatal("expected seed_entity or query required")
+	} else if !strings.Contains(err.Error(), "seed_entity or query") {
+		t.Fatalf("err = %v, want seed_entity or query", err)
+	}
+
+	// Whitespace-only also rejected.
+	if _, err := nc.RetrieveMemoryRelated(ctx, iomeshclient.MemoryRelatedRequest{
+		TenantID:   "  ",
+		SeedEntity: "person:alice",
+	}); err == nil {
+		t.Fatal("expected tenant_id required for whitespace")
+	}
+	if _, err := nc.RetrieveMemoryRelated(ctx, iomeshclient.MemoryRelatedRequest{
+		TenantID:   "dept.research",
+		SeedEntity: "   ",
+		Query:      "  ",
+	}); err == nil {
+		t.Fatal("expected seed_entity or query required for whitespace")
+	}
+}
+
 func TestRequestMemoryRecallFullSessionID(t *testing.T) {
 	var mu sync.Mutex
 	var rawPayload []byte

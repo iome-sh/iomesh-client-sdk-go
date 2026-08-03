@@ -66,7 +66,8 @@ type MemoryRetrieveRequest struct {
 	Until      string `json:"until,omitempty"`       // RFC3339 inclusive upper bound
 }
 
-// MemoryHit is one recall result from the memory sidecar (POST /v5/memory/retrieve).
+// MemoryHit is one recall result from the memory sidecar (POST /v5/memory/retrieve
+// or POST /v1|/v5/memory/related).
 // Field names match the sidecar wire shape; Content is filled from Full/Summary when decoding helpers need a single string.
 type MemoryHit struct {
 	ID         string  `json:"id,omitempty"`
@@ -80,6 +81,24 @@ type MemoryHit struct {
 	TurnID     string  `json:"turn_id,omitempty"`
 	EventTime  string  `json:"event_time,omitempty"`
 	SessionSeq int     `json:"session_seq,omitempty"`
+	// HopDistance is set on multi-hop related retrieve when the sidecar annotates
+	// path-aware min hop from seed (0 = seed entity). Omitted on plain retrieve.
+	// Multi-hop lite · not full graph RAG.
+	HopDistance int `json:"hop_distance,omitempty"`
+}
+
+// MemoryRelatedRequest is the sync HTTP body for POST /v1|/v5/memory/related (s1134).
+// Parity with MCP memory_related / aion s1133 (tenant_id HTTP naming).
+// At least one of SeedEntity or Query is required.
+// Honesty: multi-hop lite · not full KG · not Memory GA · dual_write OFF default elsewhere.
+type MemoryRelatedRequest struct {
+	TenantID   string `json:"tenant_id"`
+	SeedEntity string `json:"seed_entity,omitempty"` // e.g. person:alice
+	Query      string `json:"query,omitempty"`       // optional seed query — derive entity seeds from top hits
+	MaxHops    int    `json:"max_hops,omitempty"`    // BFS hops (server default 2, typically clamped 1..4)
+	Limit      int    `json:"limit,omitempty"`
+	SessionID  string `json:"session_id,omitempty"`
+	AsOf       string `json:"as_of,omitempty"` // RFC3339 optional validity instant
 }
 
 // MemoryRetrieveResponse is the sync retrieve JSON body.
@@ -114,6 +133,8 @@ const (
 	// Public alias then sidecar-stable path (parity with iomesh-tui RetrieveMemory).
 	pathMemoryRetrieveV1 = "/v1/memory/retrieve"
 	pathMemoryRetrieveV5 = "/v5/memory/retrieve"
+	pathMemoryRelatedV1  = "/v1/memory/related"
+	pathMemoryRelatedV5  = "/v5/memory/related"
 	pathMemoryIngestV1   = "/v1/memory/ingest"
 	pathMemoryIngestV5   = "/v5/memory/ingest"
 )
@@ -327,6 +348,76 @@ func (c *Client) RetrieveMemory(ctx context.Context, req MemoryRetrieveRequest) 
 	}
 	if lastErr == nil {
 		lastErr = errors.New("iomeshclient: memory retrieve: no path succeeded")
+	}
+	return nil, lastErr
+}
+
+// RetrieveMemoryRelated performs synchronous multi-hop associative recall against the
+// memory sidecar HTTP API (POST /v1|/v5/memory/related — aion s1133 / MCP memory_related).
+// Tries /v1/memory/related then /v5/memory/related (parity with RetrieveMemory path cascade).
+//
+// Honesty: multi-hop lite (EntityGraph BFS + entry entity tags) · not full Zep/Graphiti KG
+// or graph-RAG · not product Memory GA · dual_write remains OFF by default elsewhere.
+// At least one of SeedEntity or Query is required.
+func (c *Client) RetrieveMemoryRelated(ctx context.Context, req MemoryRelatedRequest) (*MemoryRetrieveResponse, error) {
+	req.TenantID = strings.TrimSpace(req.TenantID)
+	req.SeedEntity = strings.TrimSpace(req.SeedEntity)
+	req.Query = strings.TrimSpace(req.Query)
+	req.SessionID = strings.TrimSpace(req.SessionID)
+	req.AsOf = strings.TrimSpace(req.AsOf)
+	if req.TenantID == "" {
+		return nil, errors.New("iomeshclient: tenant_id required")
+	}
+	if req.SeedEntity == "" && req.Query == "" {
+		return nil, errors.New("iomeshclient: seed_entity or query required")
+	}
+
+	body := map[string]any{
+		"tenant_id": req.TenantID,
+	}
+	if req.SeedEntity != "" {
+		body["seed_entity"] = req.SeedEntity
+	}
+	if req.Query != "" {
+		body["query"] = req.Query
+	}
+	if req.MaxHops > 0 {
+		body["max_hops"] = req.MaxHops
+	}
+	if req.Limit > 0 {
+		body["limit"] = req.Limit
+	}
+	if req.SessionID != "" {
+		body["session_id"] = req.SessionID
+	}
+	if req.AsOf != "" {
+		body["as_of"] = req.AsOf
+	}
+
+	var lastErr error
+	for _, path := range []string{pathMemoryRelatedV1, pathMemoryRelatedV5} {
+		var resp MemoryRetrieveResponse
+		err := c.doJSON(ctx, http.MethodPost, path, body, &resp)
+		if err == nil {
+			if resp.Memories == nil {
+				resp.Memories = []MemoryHit{}
+			}
+			resp.Path = path
+			return &resp, nil
+		}
+		lastErr = err
+		var apiErr *APIError
+		if errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusNotFound {
+			continue // try next path
+		}
+		if errors.As(err, &apiErr) && apiErr.StatusCode >= 400 && apiErr.StatusCode < 500 && apiErr.StatusCode != http.StatusNotFound {
+			return nil, err
+		}
+		// transport / 5xx: try next path once
+		continue
+	}
+	if lastErr == nil {
+		lastErr = errors.New("iomeshclient: memory related: no path succeeded")
 	}
 	return nil, lastErr
 }

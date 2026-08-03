@@ -195,6 +195,20 @@ func main() {
 		fmt.Printf("PASS RetrieveMemory path=%s hits=%d\n", res.Path, len(res.Memories))
 	}
 
+	// 3b) Multi-hop related (s1134) — multi-hop lite · not full KG · not Memory GA
+	// Fail-open: older sidecars may 404 both /v1 and /v5 related paths.
+	related, err := memory.RetrieveMemoryRelated(ctx, iomeshclient.MemoryRelatedRequest{
+		TenantID: tenant,
+		Query:    "iomesh-client-sdk-go memory-metering-dogfood",
+		MaxHops:  2,
+		Limit:    8,
+	})
+	if err != nil {
+		log.Printf("WARN RetrieveMemoryRelated: %v (sidecar needs s1133 /memory/related)", err)
+	} else {
+		fmt.Printf("PASS RetrieveMemoryRelated path=%s hits=%d\n", related.Path, len(related.Memories))
+	}
+
 	// 4) Remote metering emit (platform dashboards)
 	if _, err := mesh.EmitLLMCall(ctx, iomeshclient.LLMCallEvent{
 		Tenant:       tenant,
