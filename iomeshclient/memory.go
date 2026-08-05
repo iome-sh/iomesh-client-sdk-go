@@ -101,6 +101,74 @@ type MemoryRelatedRequest struct {
 	AsOf       string `json:"as_of,omitempty"` // RFC3339 optional validity instant
 }
 
+// MemoryOpsDigestRequest is the sync HTTP body for POST /v1|/v5/memory/ops_digest (s1199).
+// Parity with aion s1198 HTTP / MCP ops_digest_export (s1197).
+// Window defaults to day; Horizon defaults to ops when empty.
+// Honesty: ops GA-path framing · knowledge/analytical Beta · never invent GA ·
+// dual_write OFF · book-demo OFF · not product Memory GA.
+type MemoryOpsDigestRequest struct {
+	TenantID string `json:"tenant_id"`
+	Window   string `json:"window,omitempty"`  // day|week (default day)
+	Horizon  string `json:"horizon,omitempty"` // ops|knowledge|analytical|all (default ops)
+	Limit    int    `json:"limit,omitempty"`
+	AsOf     string `json:"as_of,omitempty"` // optional RFC3339 upper bound
+}
+
+// MemoryOpsDigestHonesty is residual-honest framing on the ops digest export.
+// Ops pulse is GA-path; knowledge and analytical horizons stay Beta.
+// Never invent GA · dual_write default off · book-demo off · not Memory GA.
+type MemoryOpsDigestHonesty struct {
+	OpsPulse         string `json:"ops_pulse"`
+	Knowledge        string `json:"knowledge"`
+	Analytical       string `json:"analytical"`
+	NeverInventGA    bool   `json:"never_invent_ga"`
+	DualWriteDefault string `json:"dual_write_default"`
+	BookDemo         string `json:"book_demo"`
+	Note             string `json:"note,omitempty"`
+}
+
+// MemoryOpsDigestPattern is one pattern signal in an ops digest (aion PatternSignal wire shape).
+type MemoryOpsDigestPattern struct {
+	ID        string  `json:"id,omitempty"`
+	Kind      string  `json:"kind,omitempty"`
+	Subject   string  `json:"subject,omitempty"`
+	Count     int     `json:"count,omitempty"`
+	Window    string  `json:"window,omitempty"`
+	Score     float64 `json:"score,omitempty"`
+	Summary   string  `json:"summary,omitempty"`
+	FirstSeen string  `json:"first_seen,omitempty"`
+	LastSeen  string  `json:"last_seen,omitempty"`
+}
+
+// MemoryOpsDigestReceipt is one timeline receipt in an ops digest pack.
+type MemoryOpsDigestReceipt struct {
+	ID         string `json:"id,omitempty"`
+	EventTime  string `json:"event_time,omitempty"`
+	Summary    string `json:"summary,omitempty"`
+	SourceHint string `json:"source_hint,omitempty"`
+}
+
+// MemoryOpsDigestDecisionStub is a human-owned decision scaffold (not auto-apply).
+type MemoryOpsDigestDecisionStub struct {
+	Pattern                string   `json:"pattern,omitempty"`
+	ReceiptsRef            []string `json:"receipts_ref,omitempty"`
+	ProductOrGTMHypothesis string   `json:"product_or_gtm_hypothesis,omitempty"`
+}
+
+// MemoryOpsDigestResponse is the ops digest export JSON body from POST /v1|/v5/memory/ops_digest.
+type MemoryOpsDigestResponse struct {
+	Window       string                      `json:"window"`
+	Horizon      string                      `json:"horizon"`
+	AsOf         string                      `json:"as_of"`
+	Since        string                      `json:"since,omitempty"`
+	Honesty      MemoryOpsDigestHonesty      `json:"honesty"`
+	Patterns     []MemoryOpsDigestPattern    `json:"patterns"`
+	Receipts     []MemoryOpsDigestReceipt    `json:"receipts"`
+	DecisionStub MemoryOpsDigestDecisionStub `json:"decision_stub"`
+	// Path is the successful API path (/v1/memory/ops_digest or /v5/memory/ops_digest). Not JSON.
+	Path string `json:"-"`
+}
+
 // MemoryRetrieveResponse is the sync retrieve JSON body.
 type MemoryRetrieveResponse struct {
 	Memories []MemoryHit `json:"memories"`
@@ -131,12 +199,14 @@ const (
 	streamMemoryRPC      = "MEMORY_RPC"
 
 	// Public alias then sidecar-stable path (parity with iomesh-tui RetrieveMemory).
-	pathMemoryRetrieveV1 = "/v1/memory/retrieve"
-	pathMemoryRetrieveV5 = "/v5/memory/retrieve"
-	pathMemoryRelatedV1  = "/v1/memory/related"
-	pathMemoryRelatedV5  = "/v5/memory/related"
-	pathMemoryIngestV1   = "/v1/memory/ingest"
-	pathMemoryIngestV5   = "/v5/memory/ingest"
+	pathMemoryRetrieveV1  = "/v1/memory/retrieve"
+	pathMemoryRetrieveV5  = "/v5/memory/retrieve"
+	pathMemoryRelatedV1   = "/v1/memory/related"
+	pathMemoryRelatedV5   = "/v5/memory/related"
+	pathMemoryOpsDigestV1 = "/v1/memory/ops_digest"
+	pathMemoryOpsDigestV5 = "/v5/memory/ops_digest"
+	pathMemoryIngestV1    = "/v1/memory/ingest"
+	pathMemoryIngestV5    = "/v5/memory/ingest"
 )
 
 // RegisterMemoryProduct registers a memory DataProduct via POST /v5/registry/memory-products.
@@ -418,6 +488,71 @@ func (c *Client) RetrieveMemoryRelated(ctx context.Context, req MemoryRelatedReq
 	}
 	if lastErr == nil {
 		lastErr = errors.New("iomeshclient: memory related: no path succeeded")
+	}
+	return nil, lastErr
+}
+
+// ExportOpsDigest performs synchronous ops heartbeat digest export against the
+// memory sidecar HTTP API (POST /v1|/v5/memory/ops_digest — aion s1198 / MCP ops_digest_export).
+// Tries /v1/memory/ops_digest then /v5/memory/ops_digest (parity with RetrieveMemory path cascade).
+//
+// Honesty: ops GA-path framing · knowledge/analytical Beta · never invent GA ·
+// dual_write OFF · book-demo OFF · not product Memory GA. Human owns irreversible decisions.
+// Window defaults to "day"; Horizon defaults to "ops" when empty.
+func (c *Client) ExportOpsDigest(ctx context.Context, req MemoryOpsDigestRequest) (*MemoryOpsDigestResponse, error) {
+	req.TenantID = strings.TrimSpace(req.TenantID)
+	req.Window = strings.ToLower(strings.TrimSpace(req.Window))
+	req.Horizon = strings.ToLower(strings.TrimSpace(req.Horizon))
+	req.AsOf = strings.TrimSpace(req.AsOf)
+	if req.TenantID == "" {
+		return nil, errors.New("iomeshclient: tenant_id required")
+	}
+	if req.Window == "" {
+		req.Window = "day"
+	}
+	if req.Horizon == "" {
+		req.Horizon = "ops"
+	}
+
+	body := map[string]any{
+		"tenant_id": req.TenantID,
+		"window":    req.Window,
+		"horizon":   req.Horizon,
+	}
+	if req.Limit > 0 {
+		body["limit"] = req.Limit
+	}
+	if req.AsOf != "" {
+		body["as_of"] = req.AsOf
+	}
+
+	var lastErr error
+	for _, path := range []string{pathMemoryOpsDigestV1, pathMemoryOpsDigestV5} {
+		var resp MemoryOpsDigestResponse
+		err := c.doJSON(ctx, http.MethodPost, path, body, &resp)
+		if err == nil {
+			if resp.Patterns == nil {
+				resp.Patterns = []MemoryOpsDigestPattern{}
+			}
+			if resp.Receipts == nil {
+				resp.Receipts = []MemoryOpsDigestReceipt{}
+			}
+			resp.Path = path
+			return &resp, nil
+		}
+		lastErr = err
+		var apiErr *APIError
+		if errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusNotFound {
+			continue // try next path
+		}
+		if errors.As(err, &apiErr) && apiErr.StatusCode >= 400 && apiErr.StatusCode < 500 && apiErr.StatusCode != http.StatusNotFound {
+			return nil, err
+		}
+		// transport / 5xx: try next path once
+		continue
+	}
+	if lastErr == nil {
+		lastErr = errors.New("iomeshclient: memory ops_digest: no path succeeded")
 	}
 	return nil, lastErr
 }

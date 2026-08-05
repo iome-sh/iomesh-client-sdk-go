@@ -542,6 +542,245 @@ func TestRetrieveMemoryRelatedValidation(t *testing.T) {
 	}
 }
 
+func TestExportOpsDigestSuccess(t *testing.T) {
+	var mu sync.Mutex
+	var gotBody map[string]any
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /v5/memory/ops_digest", func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		mu.Lock()
+		gotBody = body
+		mu.Unlock()
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"window":  "day",
+			"horizon": "ops",
+			"as_of":   "2026-08-04T12:00:00Z",
+			"since":   "2026-08-03T12:00:00Z",
+			"honesty": map[string]any{
+				"ops_pulse":          "ga_path",
+				"knowledge":          "beta",
+				"analytical":         "beta",
+				"never_invent_ga":    true,
+				"dual_write_default": "off",
+				"book_demo":          "off",
+				"note":               "Ops digests synthesize live pulse",
+			},
+			"patterns": []map[string]any{
+				{
+					"id":      "pat-1",
+					"kind":    "recurrence",
+					"subject": "setup-confusion",
+					"count":   3,
+					"window":  "day",
+					"score":   0.8,
+					"summary": "setup confusion recurring",
+				},
+			},
+			"receipts": []map[string]any{
+				{
+					"id":          "mem-r1",
+					"event_time":  "2026-08-04T10:00:00Z",
+					"summary":     "incident setup note",
+					"source_hint": "palace_timeline",
+				},
+			},
+			"decision_stub": map[string]any{
+				"pattern":      "setup-confusion",
+				"receipts_ref": []string{"mem-r1"},
+			},
+		})
+	})
+
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: ts.URL}, iomeshclient.WithTenant("dept.research"))
+	if err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+
+	resp, err := nc.ExportOpsDigest(context.Background(), iomeshclient.MemoryOpsDigestRequest{
+		TenantID: "dept.research",
+		Window:   "day",
+		Horizon:  "ops",
+		Limit:    10,
+		AsOf:     "2026-08-04T12:00:00Z",
+	})
+	if err != nil {
+		t.Fatalf("ExportOpsDigest: %v", err)
+	}
+	if resp.Path != "/v5/memory/ops_digest" {
+		t.Fatalf("path=%q", resp.Path)
+	}
+	if resp.Window != "day" || resp.Horizon != "ops" {
+		t.Fatalf("window/horizon = %s/%s", resp.Window, resp.Horizon)
+	}
+	if resp.AsOf != "2026-08-04T12:00:00Z" || resp.Since != "2026-08-03T12:00:00Z" {
+		t.Fatalf("as_of/since = %s/%s", resp.AsOf, resp.Since)
+	}
+	if !resp.Honesty.NeverInventGA || resp.Honesty.OpsPulse != "ga_path" || resp.Honesty.Knowledge != "beta" {
+		t.Fatalf("honesty unexpected: %+v", resp.Honesty)
+	}
+	if resp.Honesty.DualWriteDefault != "off" || resp.Honesty.BookDemo != "off" {
+		t.Fatalf("dual_write/book_demo honesty: %+v", resp.Honesty)
+	}
+	if len(resp.Patterns) != 1 || resp.Patterns[0].Subject != "setup-confusion" {
+		t.Fatalf("patterns=%+v", resp.Patterns)
+	}
+	if len(resp.Receipts) != 1 || resp.Receipts[0].ID != "mem-r1" {
+		t.Fatalf("receipts=%+v", resp.Receipts)
+	}
+	if resp.DecisionStub.Pattern != "setup-confusion" || len(resp.DecisionStub.ReceiptsRef) != 1 {
+		t.Fatalf("decision_stub=%+v", resp.DecisionStub)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if gotBody["tenant_id"] != "dept.research" {
+		t.Fatalf("tenant_id = %v", gotBody["tenant_id"])
+	}
+	if gotBody["window"] != "day" {
+		t.Fatalf("window = %v", gotBody["window"])
+	}
+	if gotBody["horizon"] != "ops" {
+		t.Fatalf("horizon = %v", gotBody["horizon"])
+	}
+	if gotBody["limit"] != float64(10) {
+		t.Fatalf("limit = %v", gotBody["limit"])
+	}
+	if gotBody["as_of"] != "2026-08-04T12:00:00Z" {
+		t.Fatalf("as_of = %v", gotBody["as_of"])
+	}
+}
+
+func TestExportOpsDigestV1ThenV5Fallback(t *testing.T) {
+	var paths []string
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /v1/memory/ops_digest", func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		w.WriteHeader(http.StatusNotFound)
+	})
+	mux.HandleFunc("POST /v5/memory/ops_digest", func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"window":  "week",
+			"horizon": "all",
+			"as_of":   "2026-08-04T00:00:00Z",
+			"honesty": map[string]any{
+				"ops_pulse":          "ga_path",
+				"knowledge":          "beta",
+				"analytical":         "beta",
+				"never_invent_ga":    true,
+				"dual_write_default": "off",
+				"book_demo":          "off",
+			},
+			"patterns": []map[string]any{},
+			"receipts": []map[string]any{
+				{"id": "r1", "summary": "week receipt"},
+			},
+			"decision_stub": map[string]any{},
+		})
+	})
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: ts.URL})
+	if err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	resp, err := nc.ExportOpsDigest(context.Background(), iomeshclient.MemoryOpsDigestRequest{
+		TenantID: "dept.x",
+		Window:   "week",
+		Horizon:  "all",
+	})
+	if err != nil {
+		t.Fatalf("ExportOpsDigest: %v", err)
+	}
+	if resp.Path != "/v5/memory/ops_digest" {
+		t.Fatalf("path=%q", resp.Path)
+	}
+	if len(paths) != 2 || paths[0] != "/v1/memory/ops_digest" || paths[1] != "/v5/memory/ops_digest" {
+		t.Fatalf("paths=%v", paths)
+	}
+	if resp.Window != "week" || resp.Horizon != "all" {
+		t.Fatalf("window/horizon = %s/%s", resp.Window, resp.Horizon)
+	}
+	if len(resp.Receipts) != 1 || resp.Receipts[0].ID != "r1" {
+		t.Fatalf("receipts=%+v", resp.Receipts)
+	}
+	if resp.Patterns == nil {
+		t.Fatal("patterns should be non-nil empty slice")
+	}
+}
+
+func TestExportOpsDigestDefaultsAndValidation(t *testing.T) {
+	var mu sync.Mutex
+	var gotBody map[string]any
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /v5/memory/ops_digest", func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		mu.Lock()
+		gotBody = body
+		mu.Unlock()
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"window":  body["window"],
+			"horizon": body["horizon"],
+			"as_of":   "2026-08-04T00:00:00Z",
+			"honesty": map[string]any{
+				"ops_pulse":          "ga_path",
+				"knowledge":          "beta",
+				"analytical":         "beta",
+				"never_invent_ga":    true,
+				"dual_write_default": "off",
+				"book_demo":          "off",
+			},
+			"patterns":      []any{},
+			"receipts":      []any{},
+			"decision_stub": map[string]any{},
+		})
+	})
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: ts.URL})
+	if err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	ctx := context.Background()
+
+	if _, err := nc.ExportOpsDigest(ctx, iomeshclient.MemoryOpsDigestRequest{}); err == nil {
+		t.Fatal("expected tenant_id required")
+	} else if !strings.Contains(err.Error(), "tenant_id") {
+		t.Fatalf("err = %v, want tenant_id", err)
+	}
+	if _, err := nc.ExportOpsDigest(ctx, iomeshclient.MemoryOpsDigestRequest{TenantID: "  "}); err == nil {
+		t.Fatal("expected tenant_id required for whitespace")
+	}
+
+	// Empty window/horizon → client defaults day/ops.
+	resp, err := nc.ExportOpsDigest(ctx, iomeshclient.MemoryOpsDigestRequest{TenantID: "dept.defaults"})
+	if err != nil {
+		t.Fatalf("ExportOpsDigest defaults: %v", err)
+	}
+	if resp.Window != "day" || resp.Horizon != "ops" {
+		t.Fatalf("decoded window/horizon = %s/%s", resp.Window, resp.Horizon)
+	}
+	mu.Lock()
+	if gotBody["window"] != "day" || gotBody["horizon"] != "ops" {
+		t.Fatalf("request defaults body=%v", gotBody)
+	}
+	if _, ok := gotBody["limit"]; ok {
+		t.Fatalf("limit should be omitted when zero, got %v", gotBody["limit"])
+	}
+	if _, ok := gotBody["as_of"]; ok {
+		t.Fatalf("as_of should be omitted when empty, got %v", gotBody["as_of"])
+	}
+	mu.Unlock()
+}
+
 func TestRequestMemoryRecallFullSessionID(t *testing.T) {
 	var mu sync.Mutex
 	var rawPayload []byte
