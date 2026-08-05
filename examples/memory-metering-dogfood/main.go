@@ -209,6 +209,22 @@ func main() {
 		fmt.Printf("PASS RetrieveMemoryRelated path=%s hits=%d\n", related.Path, len(related.Memories))
 	}
 
+	// 3c) Ops digest export (s1199) — ops GA-path framing · knowledge/analytical Beta ·
+	// never invent GA · dual_write OFF · book-demo OFF · not Memory GA.
+	// Fail-open: older sidecars may 404 both /v1 and /v5 ops_digest paths (needs aion s1198).
+	digest, err := memory.ExportOpsDigest(ctx, iomeshclient.MemoryOpsDigestRequest{
+		TenantID: tenant,
+		Window:   "day",
+		Horizon:  "ops",
+		Limit:    8,
+	})
+	if err != nil {
+		log.Printf("WARN ExportOpsDigest: %v (sidecar needs s1198 /memory/ops_digest)", err)
+	} else {
+		fmt.Printf("PASS ExportOpsDigest path=%s window=%s horizon=%s patterns=%d receipts=%d\n",
+			digest.Path, digest.Window, digest.Horizon, len(digest.Patterns), len(digest.Receipts))
+	}
+
 	// 4) Remote metering emit (platform dashboards)
 	if _, err := mesh.EmitLLMCall(ctx, iomeshclient.LLMCallEvent{
 		Tenant:       tenant,
