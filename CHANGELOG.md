@@ -12,10 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`ExportOpsDigest`** — sync ops heartbeat digest export via `POST /v1|/v5/memory/ops_digest` (path cascade parity with `RetrieveMemory`); peers aion s1198 HTTP / MCP `ops_digest_export` (s1197)
 - **`MemoryOpsDigestRequest` / `MemoryOpsDigestResponse`** — request (`tenant_id`, `window` day|week default day, `horizon` ops|knowledge|analytical|all default ops, `limit`, `as_of`) and response (`window`, `horizon`, `as_of`, `since`, `honesty`, `patterns`, `receipts`, `decision_stub`)
 - **Example** `examples/memory-metering-dogfood` — fail-open `ExportOpsDigest` probe after multi-hop related
+- **Example** `examples/memory-metering-dogfood` — residual-honest `PreferShorterHops` on `RetrieveMemoryRelated` via optional `IOMESH_PREFER_SHORTER_HOPS` (s1293; omit = nil → kernel default true)
 
 ### Honesty
 
 - Ops digests: **ops GA-path framing** · knowledge/analytical horizons **Beta** · **never invent GA** · `dual_write` OFF · book-demo OFF · **not** product Memory GA · human owns irreversible decisions
+- PreferShorterHops dogfood: multi-hop lite · **not** full graph RAG · omit/nil = kernel default true · **not** Memory GA · `dual_write` OFF · example PASS ≠ live invent
 
 ## [0.68.0] — 2026-08-03
 

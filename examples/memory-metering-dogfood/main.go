@@ -3,7 +3,9 @@
 // Honesty: DualWriteMemoryTurn uses Sync only when IOMESH_MEMORY_ENDPOINT differs
 // from IOMESH_URL (optional audit). Default dual_write path is local-primary async;
 // not freemium hosted palace. EmitLLMCall is an org-tool heartbeat on dept.*.
-// Offline stage smoke ≠ live APPLY. Beta surfaces — no invent GA.
+// Multi-hop related is lite (EntityGraph BFS) · not full graph RAG · PreferShorterHops
+// omit/nil = kernel default true · not Memory GA · dual_write OFF.
+// Offline stage smoke ≠ live APPLY · example PASS ≠ live dogfood invent. Beta — no invent GA.
 //
 // Env:
 //
@@ -18,6 +20,10 @@
 //	                       probes EvaluatePolicy for tool.run_shell (warn-only, never exits)
 //	IOMESH_WAIT_READY     set to 1 to poll WaitReady before continuing (default: single Ready)
 //	IOMESH_STREAM         optional stream name; when set, ListStreamMessages (last N) warn-only
+//	IOMESH_PREFER_SHORTER_HOPS optional related hop ranking (s1293 / s1286):
+//	                       omit = nil PreferShorterHops → kernel default true;
+//	                       0|false = pointer false (legacy seed-first sort);
+//	                       1|true  = pointer true (explicit shorter-hops prefer)
 //
 // Usage:
 //
@@ -25,6 +31,7 @@
 //	export IOMESH_MEMORY_ENDPOINT=http://127.0.0.1:8765
 //	export IOMESH_POLICY_MODE=advisory   # optional
 //	export IOMESH_WAIT_READY=1          # optional
+//	# export IOMESH_PREFER_SHORTER_HOPS=0  # optional legacy sort; omit = kernel default true
 //	go run ./examples/memory-metering-dogfood
 package main
 
@@ -195,18 +202,27 @@ func main() {
 		fmt.Printf("PASS RetrieveMemory path=%s hits=%d\n", res.Path, len(res.Memories))
 	}
 
-	// 3b) Multi-hop related (s1134) — multi-hop lite · not full KG · not Memory GA
-	// Fail-open: older sidecars may 404 both /v1 and /v5 related paths.
+	// 3b) Multi-hop related (s1134/s1286) — PreferShorterHops residual-honest dogfood (s1293).
+	// omit/nil PreferShorterHops = kernel default true; env IOMESH_PREFER_SHORTER_HOPS sets pointer.
+	// Fail-open: older sidecars may 404 both /v1 and /v5 related paths — do not invent hits.
+	preferShorter := preferShorterHopsFromEnv()
+	preferDesc := "omit(kernel default true)"
+	if preferShorter != nil {
+		preferDesc = fmt.Sprintf("%v", *preferShorter)
+	}
+	log.Printf("honesty: multi-hop lite · not full graph RAG · PreferShorterHops default true · not Memory GA · dual_write OFF")
 	related, err := memory.RetrieveMemoryRelated(ctx, iomeshclient.MemoryRelatedRequest{
-		TenantID: tenant,
-		Query:    "iomesh-client-sdk-go memory-metering-dogfood",
-		MaxHops:  2,
-		Limit:    8,
+		TenantID:          tenant,
+		Query:             "iomesh-client-sdk-go memory-metering-dogfood",
+		MaxHops:           2,
+		Limit:             8,
+		PreferShorterHops: preferShorter,
 	})
 	if err != nil {
 		log.Printf("WARN RetrieveMemoryRelated: %v (sidecar needs s1133 /memory/related)", err)
 	} else {
-		fmt.Printf("PASS RetrieveMemoryRelated path=%s hits=%d\n", related.Path, len(related.Memories))
+		fmt.Printf("PASS RetrieveMemoryRelated path=%s hits=%d prefer_shorter_hops=%s\n",
+			related.Path, len(related.Memories), preferDesc)
 	}
 
 	// 3c) Ops digest export (s1199) — ops GA-path framing · knowledge/analytical Beta ·
@@ -253,4 +269,25 @@ func env(k, def string) string {
 		return v
 	}
 	return def
+}
+
+// preferShorterHopsFromEnv maps IOMESH_PREFER_SHORTER_HOPS to MemoryRelatedRequest.PreferShorterHops.
+// Unset → nil (omit key; kernel default true). 0|false → false. 1|true → true.
+// Unrecognized values warn and omit (same as unset). Residual honesty: multi-hop lite ≠ full graph RAG.
+func preferShorterHopsFromEnv() *bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv("IOMESH_PREFER_SHORTER_HOPS")))
+	if v == "" {
+		return nil
+	}
+	switch v {
+	case "0", "false", "no", "off":
+		b := false
+		return &b
+	case "1", "true", "yes", "on":
+		b := true
+		return &b
+	default:
+		log.Printf("WARN IOMESH_PREFER_SHORTER_HOPS=%q unrecognized; omitting (kernel default true)", os.Getenv("IOMESH_PREFER_SHORTER_HOPS"))
+		return nil
+	}
 }

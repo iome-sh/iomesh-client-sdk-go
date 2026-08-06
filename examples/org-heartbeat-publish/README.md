@@ -39,5 +39,5 @@ IOMESH_PULL=1 go run ./examples/org-heartbeat-publish
 ## Related
 
 - Multi-cycle stage smoke with `SUMMARY` / `RESULT` scrapers: [`../pull-loop/`](../pull-loop/)
-- Memory + metering dogfood (dual_write sync only when sidecar URL differs): [`../memory-metering-dogfood/`](../memory-metering-dogfood/)
+- Memory + metering dogfood (dual_write sync only when sidecar URL differs; optional `IOMESH_PREFER_SHORTER_HOPS` for related hop ranking — omit = kernel default true · multi-hop lite ≠ full graph RAG): [`../memory-metering-dogfood/`](../memory-metering-dogfood/)
 - Main SDK README quick start: publish/pull org heartbeats framing
