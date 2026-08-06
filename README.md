@@ -305,6 +305,8 @@ Stage smoke (mesh + optional memory sidecar; dual_write sync only when `IOMESH_M
 ```bash
 export IOMESH_URL=http://127.0.0.1:8422
 export IOMESH_MEMORY_ENDPOINT=http://127.0.0.1:8765  # warm plane
+# optional: IOMESH_PREFER_SHORTER_HOPS=0|false for legacy related sort; omit/1|true = PreferShorterHops
+# (omit = nil → kernel default true). Multi-hop lite · not full graph RAG · not Memory GA · dual_write OFF.
 go run ./examples/memory-metering-dogfood
 ```
 

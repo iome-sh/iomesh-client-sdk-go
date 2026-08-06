@@ -102,6 +102,7 @@ type MemoryRelatedRequest struct {
 	AsOf       string `json:"as_of,omitempty"` // RFC3339 optional validity instant
 	// PreferShorterHops: omit/nil = kernel default true (shorter BFS hops then event time; s1067/s1277).
 	// false = legacy seed-first sort. Multi-hop lite · not full graph RAG · not Memory GA.
+	// Dogfood: examples/memory-metering-dogfood (IOMESH_PREFER_SHORTER_HOPS; s1293 residual-honest).
 	PreferShorterHops *bool `json:"prefer_shorter_hops,omitempty"`
 }
 
