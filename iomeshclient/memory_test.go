@@ -462,6 +462,80 @@ func TestRetrieveMemoryRelatedSuccess(t *testing.T) {
 	if gotBody["as_of"] != "2026-08-01T00:00:00Z" {
 		t.Fatalf("as_of = %v", gotBody["as_of"])
 	}
+	// nil PreferShorterHops: omit key so kernel default true applies (s1286 / aion s1277).
+	if _, ok := gotBody["prefer_shorter_hops"]; ok {
+		t.Fatalf("prefer_shorter_hops present when nil: %v", gotBody["prefer_shorter_hops"])
+	}
+}
+
+// TestRetrieveMemoryRelatedPreferShorterHops covers s1286 body wiring:
+// false and true appear in the request body; nil omits the key (kernel default true).
+// Honesty: multi-hop lite · not full graph RAG · not Memory GA · dual_write OFF.
+func TestRetrieveMemoryRelatedPreferShorterHops(t *testing.T) {
+	boolPtr := func(v bool) *bool { return &v }
+
+	cases := []struct {
+		name    string
+		pref    *bool
+		wantKey bool
+		wantVal any
+	}{
+		{name: "false", pref: boolPtr(false), wantKey: true, wantVal: false},
+		{name: "true", pref: boolPtr(true), wantKey: true, wantVal: true},
+		{name: "nil_omit", pref: nil, wantKey: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var mu sync.Mutex
+			var gotBody map[string]any
+
+			mux := http.NewServeMux()
+			mux.HandleFunc("POST /v5/memory/related", func(w http.ResponseWriter, r *http.Request) {
+				var body map[string]any
+				_ = json.NewDecoder(r.Body).Decode(&body)
+				mu.Lock()
+				gotBody = body
+				mu.Unlock()
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"memories": []map[string]any{
+						{"id": "m1", "summary": "related", "hop_distance": 1},
+					},
+				})
+			})
+			// v1 404 so path cascade lands on v5 (same as success test).
+			mux.HandleFunc("POST /v1/memory/related", func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusNotFound)
+			})
+
+			ts := httptest.NewServer(mux)
+			defer ts.Close()
+
+			nc, err := iomeshclient.Connect(iomeshclient.Options{URL: ts.URL})
+			if err != nil {
+				t.Fatalf("Connect: %v", err)
+			}
+
+			_, err = nc.RetrieveMemoryRelated(context.Background(), iomeshclient.MemoryRelatedRequest{
+				TenantID:          "dept.research",
+				SeedEntity:        "person:alice",
+				PreferShorterHops: tc.pref,
+			})
+			if err != nil {
+				t.Fatalf("RetrieveMemoryRelated: %v", err)
+			}
+
+			mu.Lock()
+			defer mu.Unlock()
+			val, ok := gotBody["prefer_shorter_hops"]
+			if ok != tc.wantKey {
+				t.Fatalf("prefer_shorter_hops present=%v want=%v body=%v", ok, tc.wantKey, gotBody)
+			}
+			if tc.wantKey && val != tc.wantVal {
+				t.Fatalf("prefer_shorter_hops = %v (%T), want %v", val, val, tc.wantVal)
+			}
+		})
+	}
 }
 
 func TestRetrieveMemoryRelatedV1ThenV5Fallback(t *testing.T) {

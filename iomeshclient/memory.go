@@ -88,9 +88,10 @@ type MemoryHit struct {
 }
 
 // MemoryRelatedRequest is the sync HTTP body for POST /v1|/v5/memory/related (s1134).
-// Parity with MCP memory_related / aion s1133 (tenant_id HTTP naming).
+// Parity with MCP memory_related / aion s1133 (tenant_id HTTP naming) · s1277 PreferShorterHops.
 // At least one of SeedEntity or Query is required.
-// Honesty: multi-hop lite · not full KG · not Memory GA · dual_write OFF default elsewhere.
+// Honesty: multi-hop lite · not full graph RAG · not full KG · not Memory GA · dual_write OFF.
+// PreferShorterHops: omit/nil = kernel default true (shorter BFS hops then event time).
 type MemoryRelatedRequest struct {
 	TenantID   string `json:"tenant_id"`
 	SeedEntity string `json:"seed_entity,omitempty"` // e.g. person:alice
@@ -99,6 +100,9 @@ type MemoryRelatedRequest struct {
 	Limit      int    `json:"limit,omitempty"`
 	SessionID  string `json:"session_id,omitempty"`
 	AsOf       string `json:"as_of,omitempty"` // RFC3339 optional validity instant
+	// PreferShorterHops: omit/nil = kernel default true (shorter BFS hops then event time; s1067/s1277).
+	// false = legacy seed-first sort. Multi-hop lite · not full graph RAG · not Memory GA.
+	PreferShorterHops *bool `json:"prefer_shorter_hops,omitempty"`
 }
 
 // MemoryOpsDigestRequest is the sync HTTP body for POST /v1|/v5/memory/ops_digest (s1199).
@@ -425,6 +429,7 @@ func (c *Client) RetrieveMemory(ctx context.Context, req MemoryRetrieveRequest) 
 // RetrieveMemoryRelated performs synchronous multi-hop associative recall against the
 // memory sidecar HTTP API (POST /v1|/v5/memory/related — aion s1133 / MCP memory_related).
 // Tries /v1/memory/related then /v5/memory/related (parity with RetrieveMemory path cascade).
+// PreferShorterHops (s1286 / aion s1277): omit/nil = kernel default true; false = legacy seed-first.
 //
 // Honesty: multi-hop lite (EntityGraph BFS + entry entity tags) · not full Zep/Graphiti KG
 // or graph-RAG · not product Memory GA · dual_write remains OFF by default elsewhere.
@@ -462,6 +467,9 @@ func (c *Client) RetrieveMemoryRelated(ctx context.Context, req MemoryRelatedReq
 	}
 	if req.AsOf != "" {
 		body["as_of"] = req.AsOf
+	}
+	if req.PreferShorterHops != nil {
+		body["prefer_shorter_hops"] = *req.PreferShorterHops
 	}
 
 	var lastErr error
