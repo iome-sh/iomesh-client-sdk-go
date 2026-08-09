@@ -287,6 +287,32 @@ res, err := mesh.DualWriteMemoryTurn(ctx, "dept.research", iomeshclient.MemoryEn
 
 The agent harness ([iomesh-tui](https://github.com/iome-sh/iomesh-tui)) mirrors these surfaces without depending on this module (lean public HTTP).
 
+## Edge Memory OSS vs mesh memory HTTP
+
+Three planes — residual-honest (s1479). This SDK is the **mesh/platform HTTP** client only. It does **not** import `github.com/iome-sh/memory` (palace kernel) and does **not** re-implement a local FS palace or attach MCP stdio.
+
+| Plane | Package / surface | Role |
+|-------|-------------------|------|
+| Local edge palace | [`iomesh-memory-mcp`](https://github.com/iome-sh/iomesh-memory-mcp) + [`github.com/iome-sh/memory`](https://github.com/iome-sh/memory) | Customer-local MCP host + palace kernel · **dual_write OFF** · **not Memory GA** · local-primary FS palace |
+| Mesh / platform HTTP | this SDK — `RetrieveMemory` / `IngestMemoryTurn` / streams | Broker/gateway (and optional memory **sidecar HTTP**) paths · **not** local FS palace |
+| Private broker | aion monorepo | Streaming mesh + CP + residual private hosts · **stays private** |
+
+Public install (no `GOPRIVATE` required for the edge modules):
+
+```bash
+go install github.com/iome-sh/iomesh-memory-mcp/cmd/iomesh-memory-mcp@main
+go get github.com/iome-sh/memory@main
+```
+
+**Honesty locks**
+
+- **dual_write OFF** by default on SDK helpers (`DualWriteMemoryTurn` → async-only unless `Sync: true`).
+- **not Memory GA** — edge OSS + SDK memory helpers are Beta / residual; do not invent product GA.
+- **local-primary ≠ freemium palace** — customer-local MCP is not a hosted freemium Memory product.
+- **SDK HTTP ≠ invent local MCP attach** — `IOMESH_URL` / `IOMESH_MEMORY_ENDPOINT` target mesh or sidecar **HTTP**; they do not open MCP stdio or bind a local palace process for you.
+- **aion stays private** — do not treat monorepo broker/CP as a public dependency of this SDK.
+- Cross-links: [iomesh-tui](https://github.com/iome-sh/iomesh-tui) (agent edge) · [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) (public edge host) · [memory](https://github.com/iome-sh/memory) (public kernel).
+
 ## Metering (dept streams / org-tool heartbeats)
 
 `EmitDeptEvent` / `EmitLLMCall` publish structured **organizational tool heartbeats** on the `dept` stream (`dept.*` subjects). Agents and ops dashboards consume these pulses; they are not wearable/medical brand claims.
@@ -443,6 +469,9 @@ Process docs: [CONTRIBUTING](CONTRIBUTING.md) · [SUPPORT](SUPPORT.md) · [RELEA
 | Link | Role |
 |------|------|
 | [iome.sh](https://iome.sh) | Product / marketing site & documentation |
+| [iomesh-tui](https://github.com/iome-sh/iomesh-tui) | Agent edge TUI (`/memory`, integrations, pull) |
+| [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) | Public edge Memory MCP host (local palace; dual_write OFF; not Memory GA) |
+| [memory](https://github.com/iome-sh/memory) | Public palace kernel (Go module; not imported by this SDK) |
 | *Upcoming* | `iomesh-client-sdk-ts`, `iomesh-client-sdk-python`, … |
 
 ## License
