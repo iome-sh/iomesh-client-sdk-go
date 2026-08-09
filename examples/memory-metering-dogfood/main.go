@@ -7,6 +7,31 @@
 // omit/nil = kernel default true · not Memory GA · dual_write OFF.
 // Offline stage smoke ≠ live APPLY · example PASS ≠ live dogfood invent. Beta — no invent GA.
 //
+// Three planes (s1479) — residual-honest:
+//
+//	This example targets mesh/platform HTTP (broker + optional memory sidecar HTTP) via
+//	RetrieveMemory / IngestMemoryTurn / DualWriteMemoryTurn. It does NOT import
+//	github.com/iome-sh/memory, does NOT re-implement a local FS palace, and does NOT
+//	attach MCP stdio. SDK HTTP ≠ invent local MCP attach.
+//
+//	Optional local edge palace (separate process — not this binary):
+//	  go install github.com/iome-sh/iomesh-memory-mcp/cmd/iomesh-memory-mcp@main
+//	  iomesh-memory-mcp -http-addr :8080   # public edge host; dual_write OFF; not Memory GA
+//	  # Then point IOMESH_MEMORY_ENDPOINT only if that host exposes mesh-compatible
+//	  # /v1|/v5/memory/* HTTP (most edge MCP is stdio or MCP-over-HTTP — not a drop-in
+//	  # for this SDK dogfood). Prefer a real mesh broker or platform memory sidecar.
+//
+//	Planes:
+//	  Local edge:  iomesh-memory-mcp + github.com/iome-sh/memory (customer-local MCP)
+//	  Mesh HTTP:   this SDK (IOMESH_URL / IOMESH_MEMORY_ENDPOINT)
+//	  Private:     aion monorepo broker/CP (stays private)
+//
+//	Cross-links:
+//	  https://github.com/iome-sh/iomesh-tui
+//	  https://github.com/iome-sh/iomesh-memory-mcp
+//	  https://github.com/iome-sh/memory
+//	  README: "Edge Memory OSS vs mesh memory HTTP"
+//
 // Env:
 //
 //	IOMESH_URL            mesh broker base (required)
@@ -16,6 +41,7 @@
 //	IOMESH_API_KEY        optional Bearer
 //	IOMESH_MEMORY_ENDPOINT optional memory sidecar base for sync retrieve
 //	                       (when unset, uses IOMESH_URL — broker-only often 404s retrieve)
+//	                       mesh/sidecar HTTP only — not MCP stdio / not local palace attach
 //	IOMESH_POLICY_MODE    optional off|advisory|enforce (default off); when advisory/enforce,
 //	                       probes EvaluatePolicy for tool.run_shell (warn-only, never exits)
 //	IOMESH_WAIT_READY     set to 1 to poll WaitReady before continuing (default: single Ready)

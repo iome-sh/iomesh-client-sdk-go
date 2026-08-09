@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Docs (s1479)** README section **Edge Memory OSS vs mesh memory HTTP** — residual-honest three-plane map (local edge palace · mesh/platform HTTP this SDK · private aion broker); public install pointers for `iomesh-memory-mcp` + `github.com/iome-sh/memory` (no GOPRIVATE); no new go.mod kernel dependency
+- **Example** `examples/memory-metering-dogfood` — comment block points operators at optional local edge host vs mesh/sidecar HTTP dogfood targets; cross-links TUI + public MCP/kernel repos (s1479)
 - **`ExportOpsDigest`** — sync ops heartbeat digest export via `POST /v1|/v5/memory/ops_digest` (path cascade parity with `RetrieveMemory`); peers aion s1198 HTTP / MCP `ops_digest_export` (s1197)
 - **`MemoryOpsDigestRequest` / `MemoryOpsDigestResponse`** — request (`tenant_id`, `window` day|week default day, `horizon` ops|knowledge|analytical|all default ops, `limit`, `as_of`) and response (`window`, `horizon`, `as_of`, `since`, `honesty`, `patterns`, `receipts`, `decision_stub`)
 - **Example** `examples/memory-metering-dogfood` — fail-open `ExportOpsDigest` probe after multi-hop related
@@ -16,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Honesty
 
+- **s1479 three-plane:** dual_write OFF · **not** Memory GA · SDK does **not** re-implement palace · SDK HTTP ≠ invent local MCP attach · local-primary ≠ freemium palace · **aion stays private** · docs/example only (no hard `github.com/iome-sh/memory` dependency)
 - Ops digests: **ops GA-path framing** · knowledge/analytical horizons **Beta** · **never invent GA** · `dual_write` OFF · book-demo OFF · **not** product Memory GA · human owns irreversible decisions
 - PreferShorterHops dogfood: multi-hop lite · **not** full graph RAG · omit/nil = kernel default true · **not** Memory GA · `dual_write` OFF · example PASS ≠ live invent
 
