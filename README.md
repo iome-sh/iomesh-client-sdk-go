@@ -472,7 +472,12 @@ Process docs: [CONTRIBUTING](CONTRIBUTING.md) · [SUPPORT](SUPPORT.md) · [RELEA
 | [iomesh-tui](https://github.com/iome-sh/iomesh-tui) | Agent edge TUI (`/memory`, integrations, pull) |
 | [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) | Public edge Memory MCP host (local palace; dual_write OFF; not Memory GA) |
 | [memory](https://github.com/iome-sh/memory) | Public palace kernel (Go module; not imported by this SDK) |
-| *Upcoming* | `iomesh-client-sdk-ts`, `iomesh-client-sdk-python`, … |
+| [iomesh-client-sdk-python](https://github.com/iome-sh/iomesh-client-sdk-python) | Official Python client (see below) |
+| *Upcoming* | `iomesh-client-sdk-ts`, … |
+
+### Also available (other languages)
+
+**[Python SDK](https://github.com/iome-sh/iomesh-client-sdk-python)** — official MIT peer. Both this Go client and the Python client are **Beta** / pre-1.0. Python **v0.1** covers the **core HTTP plane** (connect, tenant/org/workspace headers, publish, pull consumers, health) — **not** the full Go surface yet (Kafka Produce subset, connector HMAC, memory helpers, catalog, etc. may lag). Do not invent GA or language parity.
 
 ## License
 
