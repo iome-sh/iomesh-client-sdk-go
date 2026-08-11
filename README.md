@@ -477,7 +477,7 @@ Process docs: [CONTRIBUTING](CONTRIBUTING.md) · [SUPPORT](SUPPORT.md) · [RELEA
 
 ### Also available (other languages)
 
-**[Python SDK](https://github.com/iome-sh/iomesh-client-sdk-python)** — official MIT peer. Both this Go client and the Python client are **Beta** / pre-1.0. Python **v0.1** covers the **core HTTP plane** (connect, tenant/org/workspace headers, publish, pull consumers, health). **v0.2** expands beyond core HTTP toward **KV · memory (dual_write OFF default) · connectorsdk HMAC**. **v0.3** expands toward **Kafka Produce subset · wait_ready · memory related/ops_digest**. **v0.4** adds residual polish toward **catalog · evaluate_policy** — still **Beta**, still **not** the full Go surface. Do not invent GA or language parity.
+**[Python SDK](https://github.com/iome-sh/iomesh-client-sdk-python)** — official MIT peer. Both this Go client and the Python client are **Beta** / pre-1.0. Python **v0.1** covers the **core HTTP plane** (connect, tenant/org/workspace headers, publish, pull consumers, health). **v0.2** expands beyond core HTTP toward **KV · memory (dual_write OFF default) · connectorsdk HMAC**. **v0.3** expands toward **Kafka Produce subset · wait_ready · memory related/ops_digest**. **v0.4** adds residual polish toward **catalog · evaluate_policy**. **v0.5** residual polish toward **query_context · format helpers · connection_status** — still **Beta**, still **not** the full Go surface. Do not invent GA or language parity.
 
 ## License
 
