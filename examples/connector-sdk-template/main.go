@@ -6,6 +6,11 @@
 // once normalized and published into mesh dept.* / connector streams.
 // Offline normalization still runs when the broker returns 404.
 //
+// Default POST is org-wide /v10/connectors/{id}/events (this template's
+// unregistered acme-crm). Mesh-install ingest is
+// /v10/connectors/{id}/i/{install_id}/events — set IOMESH_INSTALL_ID.
+// HMAC webhook verify ≠ OAuth; catalog listing ≠ Connected; Knowledge Beta.
+//
 // Prerequisites:
 //   - CONNECTOR_SDK_SECRET set (same value used to sign the sample payload)
 //   - Optional: I/O Mesh broker (local foundation). Unknown connector
@@ -30,6 +35,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -100,7 +106,21 @@ func run() error {
 	defer cancel()
 	client := &http.Client{Timeout: 15 * time.Second}
 
-	eventsURL := fmt.Sprintf("%s/v10/connectors/%s/events?department=%s", baseURL, connectorID, department)
+	var eventsURL string
+	if installID := strings.TrimSpace(os.Getenv("IOMESH_INSTALL_ID")); installID != "" {
+		u, err := connectorsdk.InstallEventsURL(baseURL, connectorID, installID)
+		if err != nil {
+			return fmt.Errorf("install events url: %w", err)
+		}
+		eventsURL = u + "?department=" + url.QueryEscape(department)
+		log.Printf("using mesh-install ingest (webhook verify ≠ OAuth; catalog ≠ Connected)")
+	} else {
+		u, err := connectorsdk.EventsURL(baseURL, connectorID)
+		if err != nil {
+			return fmt.Errorf("events url: %w", err)
+		}
+		eventsURL = u + "?department=" + url.QueryEscape(department)
+	}
 	ingressHeaders := map[string]string{
 		"X-IOMesh-Org": org,
 		tenantHeader:   tenant,
