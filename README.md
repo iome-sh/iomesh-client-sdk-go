@@ -97,7 +97,7 @@ payload, err := connectorsdk.NormalizeEnvelope(
 )
 ```
 
-See [`examples/connector-sdk-template/`](examples/connector-sdk-template/) for a webhook adapter (`IOMESH_URL`, `IOMESH_ORG`, …). HMAC verify + envelope normalize + optional POST to org-wide `/v10/connectors/{id}/events`. Mesh-install ingest is `/v10/connectors/{id}/i/{install_id}/events` (`connectorsdk.InstallEventsPath`). Webhook verify ≠ OAuth; catalog listing ≠ Connected; Knowledge stays Beta.
+See [`examples/connector-sdk-template/`](examples/connector-sdk-template/) for a webhook adapter (`IOMESH_URL`, `IOMESH_ORG`, optional `IOMESH_INSTALL_ID`). HMAC verify + envelope normalize + POST to org-wide `EventsURL` or mesh-install `InstallEventsURL`. Webhook verify ≠ OAuth; catalog listing ≠ Connected; Knowledge stays Beta.
 
 ## Kafka Produce
 

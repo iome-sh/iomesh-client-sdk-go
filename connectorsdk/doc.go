@@ -2,6 +2,7 @@
 // adapters: HMAC verification (GitHub sha256= style), observation envelope
 // normalization, and broker publish metadata.
 //
-// See examples/connector-sdk-template. HMAC verify + envelope normalize only —
-// webhook verify ≠ OAuth; catalog listing ≠ Connected; Knowledge stays Beta.
+// See examples/connector-sdk-template. Use EventsPath for org-wide ingest and
+// InstallEventsPath after mesh install. HMAC webhook verify ≠ OAuth; catalog
+// listing ≠ Connected; Knowledge stays Beta.
 package connectorsdk
