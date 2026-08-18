@@ -23,7 +23,7 @@ Official open-source tooling from [IOMesh](https://iome.sh) (**IOMesh Technology
 > **Package:** `iomeshclient`  
 > **Env prefix:** `IOMESH_*`  
 > **Wire headers:** `X-IOMesh-Tenant`, `X-IOMesh-Org`, `X-IOMesh-Workspace`, …  
-> **Status:** public OSS **v0.67.x** (pre-1.0, **Beta**). Memory M2/M3 + multi-tenant headers + dual-write/metering + Health/Ready/WaitReady + catalog plane + EvaluatePolicy + QueryContext + ConnectionStatus + ListStreams/GetStream/DeleteStream/ListStreamMessages + CreateStream/EnsureStream `*StreamInfo` + FormatStreams/FormatStreamDetail + CreateConsumer/EnsureConsumer `*ConsumerInfo` + ConsumerFetch/ConsumerAck/ConsumerNack + PullSubscribe `FetchContext`/`AckContext`/`NackContext` + `DefaultFetchMaxWait` + FormatMsg/FormatMsgs/FormatConsumerInfo + KV CreateBucket/EnsureBucket `*BucketInfo` + Put `*PutResult` + FormatBucketInfo/FormatKVEntry/FormatKVKeys/FormatPutResult aligned with [iomesh-tui](https://github.com/iome-sh/iomesh-tui). Always-emit format helpers are operator diagnostics — not new product APIs / not invent GA.  
+> **Status:** public OSS **v0.68.x** (pre-1.0, **Beta**). Memory M2/M3 + multi-tenant headers + dual-write/metering + Health/Ready/WaitReady + catalog plane + EvaluatePolicy + QueryContext + ConnectionStatus + ListStreams/GetStream/DeleteStream/ListStreamMessages + CreateStream/EnsureStream `*StreamInfo` + FormatStreams/FormatStreamDetail + CreateConsumer/EnsureConsumer `*ConsumerInfo` + ConsumerFetch/ConsumerAck/ConsumerNack + PullSubscribe `FetchContext`/`AckContext`/`NackContext` + `DefaultFetchMaxWait` + FormatMsg/FormatMsgs/FormatConsumerInfo + KV CreateBucket/EnsureBucket `*BucketInfo` + Put `*PutResult` + FormatBucketInfo/FormatKVEntry/FormatKVKeys/FormatPutResult aligned with [iomesh-tui](https://github.com/iome-sh/iomesh-tui). Always-emit format helpers are operator diagnostics — not new product APIs / not invent GA. `ConsumerNack` / `DeleteConsumer` are client wrappers; the serving broker may 404 until those routes exist (create/fetch/ack are the served durable-pull set). Catalog list is discovery — **not Connected**, Knowledge stays **Beta**.  
 > **User-Agent:** `iomesh-client-sdk-go/<Version>` (override with `WithUserAgent`).
 
 ## Requirements
@@ -97,7 +97,7 @@ payload, err := connectorsdk.NormalizeEnvelope(
 )
 ```
 
-See [`examples/connector-sdk-template/`](examples/connector-sdk-template/) for a full webhook adapter (`IOMESH_URL`, `IOMESH_ORG`, …).
+See [`examples/connector-sdk-template/`](examples/connector-sdk-template/) for a webhook adapter (`IOMESH_URL`, `IOMESH_ORG`, …). HMAC verify + envelope normalize + optional POST to org-wide `/v10/connectors/{id}/events`. Mesh-install ingest is `/v10/connectors/{id}/i/{install_id}/events` (`connectorsdk.InstallEventsPath`). Webhook verify ≠ OAuth; catalog listing ≠ Connected; Knowledge stays Beta.
 
 ## Kafka Produce
 
@@ -118,8 +118,8 @@ offset, err := kc.Produce(ctx, "mesh.finance.events", 0, []byte("key"), []byte(`
 | `DeleteStream` | `DELETE /v1/streams/{name}` | 204 success; 404 → `*APIError`; destructive — not used in dogfood by default |
 | `ListStreamMessages` | `GET /v1/streams/{name}/messages` | Stream replay/read-range; `from_seq`/`to_seq`/`limit`; payload base64→`[]byte`; non-2xx → `*APIError` |
 | `CreateConsumer` / `EnsureConsumer` | `POST /v1/streams/{stream}/consumers` | Returns `*ConsumerInfo`; 409 conflict → success with Stream/Name only. EnsureConsumer is an idempotent alias |
-| `DeleteConsumer` | `DELETE /v1/streams/{stream}/consumers/{name}` | 204 success; 404 → `*APIError`; destructive — opt-in cleanup (e.g. pull-loop `IOMESH_DELETE_CONSUMER=1`) |
-| `ConsumerFetch` / `ConsumerAck` / `ConsumerNack` | `POST …/fetch\|ack\|nack` | One-shot ops without holding a `Subscription`; path-escape stream/consumer; Fetch wires `Msg.Ack`/`Msg.Nack` via ephemeral sub |
+| `DeleteConsumer` | `DELETE /v1/streams/{stream}/consumers/{name}` | Client wrapper; 204 success when served; 404 → `*APIError`. Current broker durable-pull set is create/fetch/ack — delete may 404. Destructive — opt-in cleanup (e.g. pull-loop `IOMESH_DELETE_CONSUMER=1`) |
+| `ConsumerFetch` / `ConsumerAck` / `ConsumerNack` | `POST …/fetch\|ack\|nack` | One-shot ops without holding a `Subscription`; path-escape stream/consumer; Fetch wires `Msg.Ack`/`Msg.Nack` via ephemeral sub. **Ack is served**; **Nack may 404** until the broker registers it |
 | `Publish` / `PullSubscribe` | stream publish / consumer | `PullSubscribe` uses `CreateConsumer` then returns `*Subscription` with `ConsumerInfo()`; `FetchContext`/`AckContext`/`NackContext` (or `Fetch`/`Ack`/`Nack` → `context.Background()`); `Delete(ctx)` removes the durable consumer via `DeleteConsumer`; default long-poll `DefaultFetchMaxWait` (5s) / `MaxWait`; path segments escaped |
 | `FormatMsg` / `FormatMsgs` / `FormatConsumerInfo` / `FormatSubscription` / `FormatStreamDetail` | — | Pure operator helpers for one message / batch / consumer detail / subscription handle / stream detail (no network I/O); `FormatConsumerInfo` / `FormatSubscription` always emit `filter_subject` (empty when unset); `FormatStreamDetail` always emits description/retention/partitions/max_msgs/max_age_sec/created_at/subjects (blank/0/`(none)` when unset) |
 | `Pub` | `POST /v1/pub` | Ephemeral fire-and-forget |
@@ -259,8 +259,8 @@ fmt.Print(iomeshclient.FormatKVKeys("agent-state", keys)) // compact key listing
 | `PublishMemoryIngest` | `MEMORY_INGEST` publish | Async durable stream; temporal fields on `MemoryEnvelope` |
 | `DualWriteMemoryTurn` | async + optional sync | Stream first; **default OFF** (no sync). Optional fail-open `IngestMemoryTurn` when `Sync: true` |
 | `RequestMemoryRecall` / `RequestMemoryRecallFull` | `MEMORY_RPC` publish | Async; Full adds `session_id` correlation |
-| `RetrieveMemory` | `POST /v1` then `/v5/memory/retrieve` | Sync hits; empty query OK if `session_id` set |
-| `IngestMemoryTurn` | `POST /v1` then `/v5/memory/ingest` | Optional sync turn write (not freemium palace default) |
+| `RetrieveMemory` | `POST /v1` then `/v5/memory/retrieve` | Sync hits against a **memory sidecar** (or gateway that routes those paths). Empty query OK if `session_id` set. Broker-only `IOMESH_URL` typically 404s retrieve — not Memory GA |
+| `IngestMemoryTurn` | `POST /v1` then `/v5/memory/ingest` | Optional sync turn write on the **sidecar**. A broker 202 `status=accepted` with `note` (plan-gate stub, no palace write) is **not** live APPLY. dual_write **OFF** default |
 
 ```go
 // Sync retrieve (sidecar URL or gateway that routes /v1|/v5/memory/*)
@@ -422,6 +422,9 @@ _ = snip
 
 Fail-open discovery of governed data products. Tries mesh `/v1/catalog/*` then portal
 `/v17|/v16` federation paths (404 → next; all fail → `Source=fail-open`).
+Listings are **Beta** discovery — **not Connected**, not Knowledge GA, not live APPLY.
+Knowledge-layer rows stay Beta. This is the data-product catalog, not connector
+install / webhook / OAuth control-plane.
 
 ```go
 res := nc.ListCatalog(ctx, "") // optional query; "operational"|"knowledge"|"analytical" also sets mesh_layer=
