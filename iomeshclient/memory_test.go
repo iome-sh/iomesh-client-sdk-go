@@ -942,6 +942,12 @@ func TestIngestMemoryTurnSuccess(t *testing.T) {
 	if resp.Status != "ok" || resp.MemoryID != "mem-99" || resp.Ingested != 1 {
 		t.Fatalf("resp = %+v", resp)
 	}
+	if resp.Path != "/v5/memory/ingest" {
+		t.Fatalf("path = %q", resp.Path)
+	}
+	if !resp.PalaceWrite() {
+		t.Fatal("PalaceWrite() = false, want true for sidecar ok write")
+	}
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -959,6 +965,54 @@ func TestIngestMemoryTurnSuccess(t *testing.T) {
 	}
 	if gotBody["session_seq"] != float64(4) {
 		t.Fatalf("session_seq = %v", gotBody["session_seq"])
+	}
+}
+
+func TestIngestMemoryTurnBrokerAcceptedStubNotPalaceWrite(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /v5/memory/ingest", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"status": "accepted",
+			"note":   "memory ingest gated; sidecar proxy not configured on broker",
+		})
+	})
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: ts.URL})
+	if err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	resp, err := nc.IngestMemoryTurn(context.Background(), "dept.research", iomeshclient.MemoryEnvelope{
+		Content: "notes",
+	})
+	if err != nil {
+		t.Fatalf("IngestMemoryTurn: %v", err)
+	}
+	if resp.Status != "accepted" {
+		t.Fatalf("status = %q", resp.Status)
+	}
+	if resp.Note == "" {
+		t.Fatal("expected note from broker stub")
+	}
+	if resp.PalaceWrite() {
+		t.Fatal("PalaceWrite() = true for accepted stub — invents live APPLY")
+	}
+}
+
+func TestMemoryIngestResponsePalaceWrite(t *testing.T) {
+	if (iomeshclient.MemoryIngestResponse{}).PalaceWrite() {
+		t.Fatal("empty PalaceWrite")
+	}
+	if (iomeshclient.MemoryIngestResponse{Status: "accepted", Note: "stub"}).PalaceWrite() {
+		t.Fatal("accepted stub")
+	}
+	if !(iomeshclient.MemoryIngestResponse{Status: "ok", MemoryID: "m1"}).PalaceWrite() {
+		t.Fatal("ok+id")
+	}
+	if !(iomeshclient.MemoryIngestResponse{Ingested: 2}).PalaceWrite() {
+		t.Fatal("ingested count")
 	}
 }
 

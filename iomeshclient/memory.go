@@ -189,12 +189,30 @@ type MemoryRecallRequest struct {
 	SessionID string // optional temporal correlation (parity with iomesh-tui dogfood)
 }
 
-// MemoryIngestResponse is the sync ingest JSON body from POST /v5/memory/ingest.
+// MemoryIngestResponse is the sync ingest JSON body from POST /v1|/v5/memory/ingest.
+// Sidecar palace writes typically return status=ok plus memory_id / ingested.
+// A broker plan-gate stub may return HTTP 202 with status=accepted and a note
+// (no palace write) — that is not live APPLY / not Memory GA.
 type MemoryIngestResponse struct {
 	Status   string `json:"status,omitempty"`
 	MemoryID string `json:"memory_id,omitempty"`
 	Tier     int    `json:"tier,omitempty"`
 	Ingested int    `json:"ingested,omitempty"`
+	// Note is an optional operator string (e.g. broker stub: sidecar proxy not configured).
+	Note string `json:"note,omitempty"`
+	// Path is the successful API path (/v1/memory/ingest or /v5/memory/ingest). Not JSON.
+	Path string `json:"-"`
+}
+
+// PalaceWrite reports whether the response looks like a sidecar palace turn write
+// (status ok/empty with a memory_id or ingested count). Broker 202 accepted stubs
+// and empty bodies return false — not live APPLY.
+func (r MemoryIngestResponse) PalaceWrite() bool {
+	status := strings.ToLower(strings.TrimSpace(r.Status))
+	if status == "accepted" {
+		return false
+	}
+	return strings.TrimSpace(r.MemoryID) != "" || r.Ingested > 0
 }
 
 const (
@@ -569,6 +587,11 @@ func (c *Client) ExportOpsDigest(ctx context.Context, req MemoryOpsDigestRequest
 // IngestMemoryTurn performs a synchronous single-turn ingest via POST /v1 then /v5 memory/ingest.
 // PublishMemoryIngest remains the async stream path (MEMORY_INGEST publish).
 // Temporal fields on env (event_time, session_seq, …) are forwarded when set.
+//
+// Honesty: target a memory sidecar (or gateway that proxies sidecar paths).
+// HTTP 2xx is not automatically a palace write — use PalaceWrite() / Note.
+// Broker plan-gate 202 status=accepted is not live APPLY · dual_write OFF default
+// · not Memory GA.
 func (c *Client) IngestMemoryTurn(ctx context.Context, tenantID string, env MemoryEnvelope) (*MemoryIngestResponse, error) {
 	tenantID = strings.TrimSpace(tenantID)
 	if tenantID == "" {
@@ -637,6 +660,7 @@ func (c *Client) IngestMemoryTurn(ctx context.Context, tenantID string, env Memo
 		var resp MemoryIngestResponse
 		err := c.doJSON(ctx, http.MethodPost, path, body, &resp)
 		if err == nil {
+			resp.Path = path
 			return &resp, nil
 		}
 		lastErr = err

@@ -20,7 +20,8 @@ func SubjectForDepartment(department, source string) (string, error) {
 }
 
 // SubjectForDocument returns the broker ingest subject for knowledge-mesh document
-// events, e.g. dept.product.events.docs.notion. See docs/connectors/knowledge-mesh.md.
+// events, e.g. dept.product.events.docs.notion. Knowledge stays Beta; catalog
+// listing ≠ Connected; webhook verify ≠ OAuth.
 func SubjectForDocument(department, source string) (string, error) {
 	dept := strings.TrimSpace(department)
 	if dept == "" {

@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Example** `examples/memory-metering-dogfood` — fail-open `ExportOpsDigest` probe after multi-hop related
 - **Example** `examples/memory-metering-dogfood` — residual-honest `PreferShorterHops` on `RetrieveMemoryRelated` via optional `IOMESH_PREFER_SHORTER_HOPS` (s1293; omit = nil → kernel default true)
 
+### Changed
+
+- **Docs honesty (leftover pass)** — README status stamp **v0.68.x** (was stale v0.67.x); catalog list is Beta discovery / **not Connected**; `ConsumerNack` / `DeleteConsumer` documented as client wrappers that may 404 until the broker serves them (#161); `IngestMemoryTurn` is sidecar palace write, not broker 202 accepted stub (#163)
+- **`MemoryIngestResponse`** — decode optional `note`; set `Path` on success; `PalaceWrite()` is false for `status=accepted` stubs (not live APPLY / not Memory GA)
+- **connectorsdk** godoc — drop missing `docs/connectors/*` links; Knowledge Beta · webhook verify ≠ OAuth · catalog ≠ Connected
+
 ### Honesty
 
 - **s1479 three-plane:** dual_write OFF · **not** Memory GA · SDK does **not** re-implement palace · SDK HTTP ≠ invent local MCP attach · local-primary ≠ freemium palace · **aion stays private** · docs/example only (no hard `github.com/iome-sh/memory` dependency)

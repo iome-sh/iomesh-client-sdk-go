@@ -289,6 +289,10 @@ func (c *Client) EnsureConsumer(ctx context.Context, cfg CreateConsumerConfig) (
 // Empty stream/name / nil client → error. Non-2xx → *APIError (404 if missing).
 // 204 No Content is success (doJSON handles empty body on 2xx).
 // Stream and name path segments are url.PathEscape'd.
+//
+// Honesty: this is a client wrapper. The serving broker's durable-pull set is
+// create/fetch/ack; delete may 404 until that route is registered. 404 is not
+// "already gone" invent — treat *APIError as the honest miss.
 func (c *Client) DeleteConsumer(ctx context.Context, stream, name string) error {
 	if c == nil {
 		return errors.New("iomeshclient: nil client")
@@ -421,6 +425,10 @@ func (c *Client) ConsumerAck(ctx context.Context, stream, consumer string, seqs 
 
 // ConsumerNack negatively acknowledges one or more message sequences on a durable consumer.
 // Stream and consumer path segments are url.PathEscape'd.
+//
+// Honesty: this is a client wrapper. The serving broker registers fetch and ack;
+// nack may 404 until that route exists. Msg.Nack / Subscription.Nack share this
+// path — a 404 is an unserved route, not a successful negative ack.
 func (c *Client) ConsumerNack(ctx context.Context, stream, consumer string, seqs ...uint64) error {
 	if c == nil {
 		return errors.New("iomeshclient: nil client")
