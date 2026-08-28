@@ -116,7 +116,7 @@ offset, err := kc.Produce(ctx, "mesh.finance.events", 0, []byte("key"), []byte(`
 | `ListStreams` | `GET /v1/streams` | Explicit discovery; non-2xx → `*APIError` (not fail-open empty) |
 | `GetStream` | `GET /v1/streams/{name}` | Single `StreamInfo`; 404 → `*APIError` |
 | `DeleteStream` | `DELETE /v1/streams/{name}` | 204 success; 404 → `*APIError`; destructive — not used in dogfood by default |
-| `ListStreamMessages` | `GET /v1/streams/{name}/messages` | Stream replay/read-range; `from_seq`/`to_seq`/`limit`; payload base64→`[]byte`; non-2xx → `*APIError` |
+| `ListStreamMessages` | `GET /v1/streams/{name}/messages` | Stream replay/read-range; `from_seq`/`to_seq`/`limit`; payload base64→`[]byte`; non-2xx → `*APIError`. GitHub-ingested streams: [`examples/github-stream-read`](examples/github-stream-read/) — **not** an org-health or heart-rate API; Slack/PagerDuty are not pulses in that example |
 | `CreateConsumer` / `EnsureConsumer` | `POST /v1/streams/{stream}/consumers` | Returns `*ConsumerInfo`; 409 conflict → success with Stream/Name only. EnsureConsumer is an idempotent alias |
 | `DeleteConsumer` | `DELETE /v1/streams/{stream}/consumers/{name}` | Client wrapper; 204 success when served; 404 → `*APIError`. Current broker durable-pull set is create/fetch/ack — delete may 404. Destructive — opt-in cleanup (e.g. pull-loop `IOMESH_DELETE_CONSUMER=1`) |
 | `ConsumerFetch` / `ConsumerAck` / `ConsumerNack` | `POST …/fetch\|ack\|nack` | One-shot ops without holding a `Subscription`; path-escape stream/consumer; Fetch wires `Msg.Ack`/`Msg.Nack` via ephemeral sub. **Ack is served**; **Nack may 404** until the broker registers it |
