@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Example** `examples/github-stream-read` — replay a GitHub-ingested stream via `ListStreamMessages`. Not an org-health or heart-rate API. Slack/PagerDuty are not pulses there. Empty list is honest. Chat is not the record.
+- **Smoke** `TestListStreamMessages_GitHubReplaySmoke` — httptest `ListStreamMessages` + format path for a GitHub-ingested row. Not an org-health API.
 
 - **Docs (s1479)** README section **Edge Memory OSS vs mesh memory HTTP** — residual-honest three-plane map (local edge palace · mesh/platform HTTP this SDK · private aion broker); public install pointers for `iomesh-memory-mcp` + `github.com/iome-sh/memory` (no GOPRIVATE); no new go.mod kernel dependency
 - **Example** `examples/memory-metering-dogfood` — comment block points operators at optional local edge host vs mesh/sidecar HTTP dogfood targets; cross-links TUI + public MCP/kernel repos (s1479)
