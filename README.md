@@ -260,7 +260,7 @@ fmt.Print(iomeshclient.FormatKVKeys("agent-state", keys)) // compact key listing
 | `DualWriteMemoryTurn` | async + optional sync | Stream first; **default OFF** (no sync). Optional fail-open `IngestMemoryTurn` when `Sync: true` |
 | `RequestMemoryRecall` / `RequestMemoryRecallFull` | `MEMORY_RPC` publish | Async; Full adds `session_id` correlation |
 | `RetrieveMemory` | `POST /v1` then `/v5/memory/retrieve` | Sync hits against a **memory sidecar** (or gateway that routes those paths). Empty query OK if `session_id` set. Broker-only `IOMESH_URL` typically 404s retrieve — not Memory GA |
-| `IngestMemoryTurn` | `POST /v1` then `/v5/memory/ingest` | Optional sync turn write on the **sidecar**. A broker 202 `status=accepted` with `note` (plan-gate stub, no palace write) is **not** live APPLY. dual_write **OFF** default |
+| `IngestMemoryTurn` | `POST /v1` then `/v5/memory/ingest` | Optional sync turn write on the **sidecar**. A broker 202 `status=accepted` with `note` (no palace write) is **not** live APPLY. dual_write **OFF** default |
 
 ```go
 // Sync retrieve (sidecar URL or gateway that routes /v1|/v5/memory/*)
@@ -289,28 +289,28 @@ The agent harness ([iomesh-tui](https://github.com/iome-sh/iomesh-tui)) mirrors 
 
 ## Edge Memory OSS vs mesh memory HTTP
 
-Three planes — residual-honest (s1479). This SDK is the **mesh/platform HTTP** client only. It does **not** import `github.com/iome-sh/memory` (palace kernel) and does **not** re-implement a local FS palace or attach MCP stdio.
+Three planes. This SDK is the **mesh/platform HTTP** client only. It does **not** import `github.com/iome-sh/memory` (palace kernel) and does **not** re-implement a local FS palace or attach MCP stdio.
 
 | Plane | Package / surface | Role |
 |-------|-------------------|------|
 | Local edge palace | [`iomesh-memory-mcp`](https://github.com/iome-sh/iomesh-memory-mcp) + [`github.com/iome-sh/memory`](https://github.com/iome-sh/memory) | Customer-local MCP host + palace kernel · **dual_write OFF** · **not Memory GA** · local-primary FS palace |
 | Mesh / platform HTTP | this SDK — `RetrieveMemory` / `IngestMemoryTurn` / streams | Broker/gateway (and optional memory **sidecar HTTP**) paths · **not** local FS palace |
-| Private broker | aion monorepo | Streaming mesh + CP + residual private hosts · **stays private** |
+| Private control plane | unpublished | Mesh control plane and residual private hosts — **not a public dependency** of this SDK |
 
-Public install (no `GOPRIVATE` required for the edge modules):
+Public install:
 
 ```bash
 go install github.com/iome-sh/iomesh-memory-mcp/cmd/iomesh-memory-mcp@main
 go get github.com/iome-sh/memory@main
 ```
 
-**Honesty locks**
+**Honesty**
 
 - **dual_write OFF** by default on SDK helpers (`DualWriteMemoryTurn` → async-only unless `Sync: true`).
-- **not Memory GA** — edge OSS + SDK memory helpers are Beta / residual; do not invent product GA.
+- **not Memory GA** — edge OSS + SDK memory helpers are Beta; do not invent product GA.
 - **local-primary ≠ freemium palace** — customer-local MCP is not a hosted freemium Memory product.
 - **SDK HTTP ≠ invent local MCP attach** — `IOMESH_URL` / `IOMESH_MEMORY_ENDPOINT` target mesh or sidecar **HTTP**; they do not open MCP stdio or bind a local palace process for you.
-- **aion stays private** — do not treat monorepo broker/CP as a public dependency of this SDK.
+- **Control plane stays private** — this SDK does not depend on unpublished broker or control-plane modules.
 - Cross-links: [iomesh-tui](https://github.com/iome-sh/iomesh-tui) (agent edge) · [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) (public edge host) · [memory](https://github.com/iome-sh/memory) (public kernel).
 
 ## Metering (dept streams / org-tool heartbeats)
@@ -480,7 +480,7 @@ Process docs: [CONTRIBUTING](CONTRIBUTING.md) · [SUPPORT](SUPPORT.md) · [RELEA
 
 ### Also available (other languages)
 
-**[Python SDK](https://github.com/iome-sh/iomesh-client-sdk-python)** — official MIT peer. Both this Go client and the Python client are **Beta** / pre-1.0. The Python **0.x continuum bar is closed through v0.10**: core HTTP (v0.1) · KV / memory helpers with dual_write OFF default / connectorsdk HMAC (v0.2) · Kafka Produce subset · wait_ready · memory related/ops_digest (v0.3) · catalog · evaluate_policy (v0.4) · query_context · format helpers · connection_status (v0.5) · KV/msg format helpers (v0.6) · emit_dept_event · emit_llm_call (v0.7) · register_processor · list_live_views (v0.8) · request_memory_recall · connect_from_env (v0.9) · **v0.10 readiness packaging** (**py.typed** · API inventory · 1.0-bar docs residual · pull_loop example). Still **Beta** — **not invent 1.0 / GA** · dual_write OFF elsewhere · not Memory GA · not the full Go surface. **Residual parked:** live PyPI when token present · Kafka consumer · real 1.0 when the bar is met. Do not invent GA, language parity, or liveview GA.
+**[Python SDK](https://github.com/iome-sh/iomesh-client-sdk-python)** — official MIT peer. Both this Go client and the Python client are **Beta** / pre-1.0 — **not GA**. dual_write **OFF** by default. Not Memory GA. The Python client is a subset of this Go surface; do not invent language parity or 1.0. PyPI publication is not live yet.
 
 ## License
 

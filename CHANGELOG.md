@@ -12,26 +12,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Example** `examples/github-stream-read` — replay a GitHub-ingested stream via `ListStreamMessages`. Not an org-health or heart-rate API. Slack/PagerDuty are not pulses there. Empty list is honest. Chat is not the record.
 - **Smoke** `TestListStreamMessages_GitHubReplaySmoke` — httptest `ListStreamMessages` + format path for a GitHub-ingested row. Not an org-health API.
 
-- **Docs (s1479)** README section **Edge Memory OSS vs mesh memory HTTP** — residual-honest three-plane map (local edge palace · mesh/platform HTTP this SDK · private aion broker); public install pointers for `iomesh-memory-mcp` + `github.com/iome-sh/memory` (no GOPRIVATE); no new go.mod kernel dependency
-- **Example** `examples/memory-metering-dogfood` — comment block points operators at optional local edge host vs mesh/sidecar HTTP dogfood targets; cross-links TUI + public MCP/kernel repos (s1479)
-- **`ExportOpsDigest`** — sync ops heartbeat digest export via `POST /v1|/v5/memory/ops_digest` (path cascade parity with `RetrieveMemory`); peers aion s1198 HTTP / MCP `ops_digest_export` (s1197)
+- **Docs** README section **Edge Memory OSS vs mesh memory HTTP** — three-plane map (local edge palace · mesh/platform HTTP this SDK · private control plane); public install pointers for `iomesh-memory-mcp` + `github.com/iome-sh/memory`; no new go.mod kernel dependency
+- **Example** `examples/memory-metering-dogfood` — comment block points operators at optional local edge host vs mesh/sidecar HTTP smoke targets; cross-links TUI + public MCP/kernel repos
+- **`ExportOpsDigest`** — sync ops heartbeat digest export via `POST /v1|/v5/memory/ops_digest` (path cascade parity with `RetrieveMemory`); peers MCP `ops_digest_export`
 - **`MemoryOpsDigestRequest` / `MemoryOpsDigestResponse`** — request (`tenant_id`, `window` day|week default day, `horizon` ops|knowledge|analytical|all default ops, `limit`, `as_of`) and response (`window`, `horizon`, `as_of`, `since`, `honesty`, `patterns`, `receipts`, `decision_stub`)
 - **Example** `examples/memory-metering-dogfood` — fail-open `ExportOpsDigest` probe after multi-hop related
-- **Example** `examples/memory-metering-dogfood` — residual-honest `PreferShorterHops` on `RetrieveMemoryRelated` via optional `IOMESH_PREFER_SHORTER_HOPS` (s1293; omit = nil → kernel default true)
+- **Example** `examples/memory-metering-dogfood` — `PreferShorterHops` on `RetrieveMemoryRelated` via optional `IOMESH_PREFER_SHORTER_HOPS` (omit = nil → kernel default true)
 - **`connectorsdk.EventsPath` / `InstallEventsPath` / `EventsURL` / `InstallEventsURL`** — org-wide `/v10/connectors/{id}/events` vs mesh-install `/v10/connectors/{id}/i/{install_id}/events` (#162). Example honors optional `IOMESH_INSTALL_ID`.
 
 ### Changed
 
-- **Docs honesty (leftover pass)** — README status stamp **v0.68.x** (was stale v0.67.x); catalog list is Beta discovery / **not Connected**; `ConsumerNack` / `DeleteConsumer` documented as client wrappers that may 404 until the broker serves them (#161); `IngestMemoryTurn` is sidecar palace write, not broker 202 accepted stub (#163)
+- **Docs** — public README, examples, and Unreleased changelog copy hygiene: strip internal serials, private repository names, and internal workflow phrasing from user-facing docs (#169)
+- **Docs honesty** — README status stamp **v0.68.x** (was stale v0.67.x); catalog list is Beta discovery / **not Connected**; `ConsumerNack` / `DeleteConsumer` documented as client wrappers that may 404 until the broker serves them (#161); `IngestMemoryTurn` is sidecar palace write, not broker 202 accepted stub (#163)
 - **`MemoryIngestResponse`** — decode optional `note`; set `Path` on success; `PalaceWrite()` is false for `status=accepted` stubs (not live APPLY / not Memory GA)
 - **connectorsdk** godoc — drop missing `docs/connectors/*` links; Knowledge Beta · webhook verify ≠ OAuth · catalog ≠ Connected
 
 ### Honesty
 
 - Connector ingest: webhook verify ≠ OAuth · catalog listing ≠ Connected · Knowledge **Beta** · org-wide URL ≠ install ingest
-- **s1479 three-plane:** dual_write OFF · **not** Memory GA · SDK does **not** re-implement palace · SDK HTTP ≠ invent local MCP attach · local-primary ≠ freemium palace · **aion stays private** · docs/example only (no hard `github.com/iome-sh/memory` dependency)
-- Ops digests: **ops GA-path framing** · knowledge/analytical horizons **Beta** · **never invent GA** · `dual_write` OFF · book-demo OFF · **not** product Memory GA · human owns irreversible decisions
-- PreferShorterHops dogfood: multi-hop lite · **not** full graph RAG · omit/nil = kernel default true · **not** Memory GA · `dual_write` OFF · example PASS ≠ live invent
+- Three-plane map: dual_write OFF · **not** Memory GA · SDK does **not** re-implement palace · SDK HTTP ≠ invent local MCP attach · local-primary ≠ freemium palace · control plane stays private · docs/example only (no hard `github.com/iome-sh/memory` dependency)
+- Ops digests: knowledge/analytical horizons **Beta** · **never invent GA** · `dual_write` OFF · **not** product Memory GA
+- PreferShorterHops example: multi-hop lite · **not** full graph RAG · omit/nil = kernel default true · **not** Memory GA · `dual_write` OFF · example PASS ≠ live invent
 
 ## [0.68.0] — 2026-08-03
 

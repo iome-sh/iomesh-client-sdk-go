@@ -11,7 +11,7 @@ Replay messages from a **GitHub-ingested** stream the caller is allowed to see, 
 ## Honesty
 
 - Stream replay is **not** an org-health or heart-rate API
-- Slack and PagerDuty are **not** live pulses in this ticket
+- Slack and PagerDuty are **not** live pulses in this example
 - Chat is **not** the record
 - Empty list is honest: no signed GitHub event yet · catalog ≠ Connected
 - Offline tests ≠ live APPLY · Beta / pre-1.0 · dual_write OFF
