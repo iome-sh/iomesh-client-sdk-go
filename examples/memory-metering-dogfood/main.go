@@ -7,7 +7,7 @@
 // omit/nil = kernel default true · not Memory GA · dual_write OFF.
 // Offline stage smoke ≠ live APPLY · example PASS ≠ live dogfood invent. Beta — no invent GA.
 //
-// Three planes (s1479) — residual-honest:
+// Three planes:
 //
 //	This example targets mesh/platform HTTP (broker + optional memory sidecar HTTP) via
 //	RetrieveMemory / IngestMemoryTurn / DualWriteMemoryTurn. It does NOT import
@@ -19,12 +19,12 @@
 //	  iomesh-memory-mcp -http-addr :8080   # public edge host; dual_write OFF; not Memory GA
 //	  # Then point IOMESH_MEMORY_ENDPOINT only if that host exposes mesh-compatible
 //	  # /v1|/v5/memory/* HTTP (most edge MCP is stdio or MCP-over-HTTP — not a drop-in
-//	  # for this SDK dogfood). Prefer a real mesh broker or platform memory sidecar.
+//	  # for this SDK smoke). Prefer a real mesh broker or platform memory sidecar.
 //
 //	Planes:
 //	  Local edge:  iomesh-memory-mcp + github.com/iome-sh/memory (customer-local MCP)
 //	  Mesh HTTP:   this SDK (IOMESH_URL / IOMESH_MEMORY_ENDPOINT)
-//	  Private:     aion monorepo broker/CP (stays private)
+//	  Private:     unpublished control plane (not a public dependency)
 //
 //	Cross-links:
 //	  https://github.com/iome-sh/iomesh-tui
@@ -46,7 +46,7 @@
 //	                       probes EvaluatePolicy for tool.run_shell (warn-only, never exits)
 //	IOMESH_WAIT_READY     set to 1 to poll WaitReady before continuing (default: single Ready)
 //	IOMESH_STREAM         optional stream name; when set, ListStreamMessages (last N) warn-only
-//	IOMESH_PREFER_SHORTER_HOPS optional related hop ranking (s1293 / s1286):
+//	IOMESH_PREFER_SHORTER_HOPS optional related hop ranking:
 //	                       omit = nil PreferShorterHops → kernel default true;
 //	                       0|false = pointer false (legacy seed-first sort);
 //	                       1|true  = pointer true (explicit shorter-hops prefer)
@@ -228,8 +228,8 @@ func main() {
 		fmt.Printf("PASS RetrieveMemory path=%s hits=%d\n", res.Path, len(res.Memories))
 	}
 
-	// 3b) Multi-hop related (s1134/s1286) — PreferShorterHops residual-honest dogfood (s1293).
-	// omit/nil PreferShorterHops = kernel default true; env IOMESH_PREFER_SHORTER_HOPS sets pointer.
+	// 3b) Multi-hop related — PreferShorterHops example (omit/nil = kernel default true).
+	// env IOMESH_PREFER_SHORTER_HOPS sets the pointer when present.
 	// Fail-open: older sidecars may 404 both /v1 and /v5 related paths — do not invent hits.
 	preferShorter := preferShorterHopsFromEnv()
 	preferDesc := "omit(kernel default true)"
@@ -245,15 +245,15 @@ func main() {
 		PreferShorterHops: preferShorter,
 	})
 	if err != nil {
-		log.Printf("WARN RetrieveMemoryRelated: %v (sidecar needs s1133 /memory/related)", err)
+		log.Printf("WARN RetrieveMemoryRelated: %v (sidecar needs /memory/related)", err)
 	} else {
 		fmt.Printf("PASS RetrieveMemoryRelated path=%s hits=%d prefer_shorter_hops=%s\n",
 			related.Path, len(related.Memories), preferDesc)
 	}
 
-	// 3c) Ops digest export (s1199) — ops GA-path framing · knowledge/analytical Beta ·
-	// never invent GA · dual_write OFF · book-demo OFF · not Memory GA.
-	// Fail-open: older sidecars may 404 both /v1 and /v5 ops_digest paths (needs aion s1198).
+	// 3c) Ops digest export — knowledge/analytical Beta · never invent GA ·
+	// dual_write OFF · not Memory GA.
+	// Fail-open: older sidecars may 404 both /v1 and /v5 ops_digest paths.
 	digest, err := memory.ExportOpsDigest(ctx, iomeshclient.MemoryOpsDigestRequest{
 		TenantID: tenant,
 		Window:   "day",
@@ -261,7 +261,7 @@ func main() {
 		Limit:    8,
 	})
 	if err != nil {
-		log.Printf("WARN ExportOpsDigest: %v (sidecar needs s1198 /memory/ops_digest)", err)
+		log.Printf("WARN ExportOpsDigest: %v (sidecar needs /memory/ops_digest)", err)
 	} else {
 		fmt.Printf("PASS ExportOpsDigest path=%s window=%s horizon=%s patterns=%d receipts=%d\n",
 			digest.Path, digest.Window, digest.Horizon, len(digest.Patterns), len(digest.Receipts))
