@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`ConnectFromEnv`** — build a client from `IOMESH_*` environment variables (`IOMESH_URL` required; optional `IOMESH_TENANT` / `IOMESH_ORG` / `IOMESH_WORKSPACE` / `IOMESH_BEARER_TOKEN` or `IOMESH_TOKEN` / `IOMESH_TIMEOUT` seconds). Pass `nil` to read the process environment. Peers the Python `connect_from_env` helper. No network I/O.
+- **`StreamInfo.OrgID`** — decode optional `org_id` from broker stream JSON. Empty means shared/unowned persist (visible to every organization).
 - **Example** `examples/github-stream-read` — replay a GitHub-ingested stream via `ListStreamMessages`. Not an org-health or heart-rate API. Slack/PagerDuty are not pulses there. Empty list is honest. Chat is not the record.
 - **Smoke** `TestListStreamMessages_GitHubReplaySmoke` — httptest `ListStreamMessages` + format path for a GitHub-ingested row. Not an org-health API.
 
@@ -22,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`WithOrg`** — godoc: sets `X-IOMesh-Org` on all HTTP requests so the broker can isolate catalog and consume per organization
+- **`ListStreams`** — godoc: when `X-IOMesh-Org` is set, hosted brokers return that organization's streams plus shared persist; without the header, hosted brokers may reject the request. Local/dev brokers may still list everything
 - **Docs** — public README, examples, and Unreleased changelog copy hygiene: strip internal serials, private repository names, and internal workflow phrasing from user-facing docs (#169)
 - **Docs honesty** — README status stamp **v0.68.x** (was stale v0.67.x); catalog list is Beta discovery / **not Connected**; `ConsumerNack` / `DeleteConsumer` documented as client wrappers that may 404 until the broker serves them (#161); `IngestMemoryTurn` is sidecar palace write, not broker 202 accepted stub (#163)
 - **`MemoryIngestResponse`** — decode optional `note`; set `Path` on success; `PalaceWrite()` is false for `status=accepted` stubs (not live APPLY / not Memory GA)
@@ -29,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Honesty
 
+- Stream catalog: hosted `GET /v1/streams` (and consume) isolate by `X-IOMesh-Org` · empty `org_id` is shared persist · catalog list ≠ Connected · Beta / pre-1.0 · not Memory GA
 - Connector ingest: webhook verify ≠ OAuth · catalog listing ≠ Connected · Knowledge **Beta** · org-wide URL ≠ install ingest
 - Three-plane map: dual_write OFF · **not** Memory GA · SDK does **not** re-implement palace · SDK HTTP ≠ invent local MCP attach · local-primary ≠ freemium palace · control plane stays private · docs/example only (no hard `github.com/iome-sh/memory` dependency)
 - Ops digests: knowledge/analytical horizons **Beta** · **never invent GA** · `dual_write` OFF · **not** product Memory GA

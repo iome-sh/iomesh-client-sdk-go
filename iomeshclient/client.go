@@ -20,6 +20,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -85,7 +87,8 @@ func WithBearerToken(token string) ConnectOpt {
 	}
 }
 
-// WithOrg sets X-IOMesh-Org on all HTTP requests (PlanGate metering attribution).
+// WithOrg sets X-IOMesh-Org on all HTTP requests so the broker can isolate
+// catalog and consume per organization.
 func WithOrg(orgID string) ConnectOpt {
 	return func(o *connectOpts) {
 		o.org = strings.TrimSpace(orgID)
@@ -154,6 +157,72 @@ func Connect(base Options, opts ...ConnectOpt) (*Client, error) {
 		bearerToken: co.bearerToken,
 		userAgent:   ua,
 	}, nil
+}
+
+// ConnectFromEnv builds a Client from IOMESH_* environment variables. No network I/O.
+//
+// Required:
+//
+//	IOMESH_URL — broker base URL (http or https)
+//
+// Optional:
+//
+//	IOMESH_TENANT, IOMESH_ORG, IOMESH_WORKSPACE
+//	IOMESH_BEARER_TOKEN or IOMESH_TOKEN (bearer; BEARER_TOKEN wins if both set)
+//	IOMESH_TIMEOUT — request timeout in seconds (float; default 30)
+//
+// If environ is nil, the process environment (os.Environ) is used. A non-nil map
+// (including empty) is the sole source — process env is ignored.
+//
+// IOMESH_ORG sets X-IOMesh-Org so hosted brokers can isolate catalog and consume
+// per organization.
+func ConnectFromEnv(environ map[string]string) (*Client, error) {
+	env := environ
+	if env == nil {
+		env = environFromOS()
+	}
+
+	url := strings.TrimSpace(env["IOMESH_URL"])
+	if url == "" {
+		return nil, errors.New("iomeshclient: IOMESH_URL required")
+	}
+
+	var timeout time.Duration
+	if raw := strings.TrimSpace(env["IOMESH_TIMEOUT"]); raw != "" {
+		sec, err := strconv.ParseFloat(raw, 64)
+		if err != nil {
+			return nil, fmt.Errorf("iomeshclient: IOMESH_TIMEOUT invalid %q", raw)
+		}
+		timeout = time.Duration(sec * float64(time.Second))
+	}
+
+	token := strings.TrimSpace(env["IOMESH_BEARER_TOKEN"])
+	if token == "" {
+		token = strings.TrimSpace(env["IOMESH_TOKEN"])
+	}
+
+	return Connect(Options{
+		URL:            url,
+		RequestTimeout: timeout,
+	},
+		WithTenant(env["IOMESH_TENANT"]),
+		WithOrg(env["IOMESH_ORG"]),
+		WithWorkspace(env["IOMESH_WORKSPACE"]),
+		WithBearerToken(token),
+	)
+}
+
+func environFromOS() map[string]string {
+	pairs := os.Environ()
+	m := make(map[string]string, len(pairs))
+	for _, p := range pairs {
+		k, v, ok := strings.Cut(p, "=")
+		if !ok || k == "" {
+			continue
+		}
+		m[k] = v
+	}
+	return m
 }
 
 // validateBrokerURL enforces absolute http(s) endpoints for the mesh broker.

@@ -234,6 +234,59 @@ func TestListStreams_OKArrayAndUserAgent(t *testing.T) {
 	if streams[0].Messages != 3 || streams[0].LastSeq != 3 {
 		t.Fatalf("stats=%+v", streams[0])
 	}
+	if streams[0].OrgID != "" {
+		t.Fatalf("omitted org_id should decode empty, got %q", streams[0].OrgID)
+	}
+}
+
+func TestListStreams_DecodesOrgID(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/streams" {
+			http.NotFound(w, r)
+			return
+		}
+		_ = json.NewEncoder(w).Encode([]map[string]any{
+			{
+				"name":     "EVENTS",
+				"org_id":   "acme-org",
+				"subjects": []string{"dept.events.>"},
+				"messages": 1,
+			},
+			{
+				"name":     "GITHUB_EVENTS",
+				"org_id":   "",
+				"subjects": []string{"github.>"},
+				"messages": 4,
+			},
+			{
+				"name":     "OPERATIONAL_EVENTS",
+				"subjects": []string{"ops.>"},
+				"messages": 0,
+			},
+		})
+	}))
+	defer srv.Close()
+
+	nc, err := iomeshclient.Connect(iomeshclient.Options{URL: srv.URL}, iomeshclient.WithOrg("acme-org"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	streams, err := nc.ListStreams(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(streams) != 3 {
+		t.Fatalf("streams=%+v", streams)
+	}
+	if streams[0].OrgID != "acme-org" {
+		t.Fatalf("owned OrgID=%q", streams[0].OrgID)
+	}
+	if streams[1].Name != "GITHUB_EVENTS" || streams[1].OrgID != "" {
+		t.Fatalf("shared github=%+v", streams[1])
+	}
+	if streams[2].Name != "OPERATIONAL_EVENTS" || streams[2].OrgID != "" {
+		t.Fatalf("shared ops=%+v", streams[2])
+	}
 }
 
 func TestListStreams_Envelope(t *testing.T) {
@@ -269,6 +322,7 @@ func TestGetStream_OK(t *testing.T) {
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"name":       "EVENTS",
+			"org_id":     "acme-org",
 			"subjects":   []string{"dept.events.>"},
 			"retention":  "limits",
 			"partitions": 1,
@@ -293,6 +347,9 @@ func TestGetStream_OK(t *testing.T) {
 	}
 	if info == nil || info.Name != "EVENTS" || info.LastSeq != 10 {
 		t.Fatalf("info=%+v", info)
+	}
+	if info.OrgID != "acme-org" {
+		t.Fatalf("OrgID=%q", info.OrgID)
 	}
 }
 

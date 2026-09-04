@@ -83,6 +83,12 @@ func main() {
 }
 ```
 
+Or from environment — `IOMESH_URL` required; optional `IOMESH_TENANT`, `IOMESH_ORG`, `IOMESH_WORKSPACE`, `IOMESH_BEARER_TOKEN` or `IOMESH_TOKEN`, `IOMESH_TIMEOUT` (seconds). Pass `nil` to read the process environment. `IOMESH_ORG` sets `X-IOMesh-Org` so hosted brokers can isolate catalog and consume per organization.
+
+```go
+nc, err := iomeshclient.ConnectFromEnv(nil)
+```
+
 Runnable framing (publish + optional pull): [`examples/org-heartbeat-publish/`](examples/org-heartbeat-publish/).  
 Stage smoke pull loop: [`examples/pull-loop/`](examples/pull-loop/) (same durable consumer APIs; offline smoke ≠ live APPLY).
 
@@ -113,7 +119,7 @@ offset, err := kc.Produce(ctx, "mesh.finance.events", 0, []byte("key"), []byte(`
 | API | Path | Notes |
 |-----|------|--------|
 | `CreateStream` / `EnsureStream` | `POST /v1/streams` | Returns `*StreamInfo`; 409 conflict → success + best-effort GET (nil info OK) |
-| `ListStreams` | `GET /v1/streams` | Explicit discovery; non-2xx → `*APIError` (not fail-open empty) |
+| `ListStreams` | `GET /v1/streams` | Explicit discovery; non-2xx → `*APIError` (not fail-open empty). When `X-IOMesh-Org` is set, hosted brokers return that org's streams plus shared persist (empty `org_id`); without the header they may reject. Local/dev brokers may still list everything |
 | `GetStream` | `GET /v1/streams/{name}` | Single `StreamInfo`; 404 → `*APIError` |
 | `DeleteStream` | `DELETE /v1/streams/{name}` | 204 success; 404 → `*APIError`; destructive — not used in dogfood by default |
 | `ListStreamMessages` | `GET /v1/streams/{name}/messages` | Stream replay/read-range; `from_seq`/`to_seq`/`limit`; payload base64→`[]byte`; non-2xx → `*APIError`. GitHub-ingested streams: [`examples/github-stream-read`](examples/github-stream-read/) — **not** an org-health or heart-rate API; Slack/PagerDuty are not pulses in that example |
@@ -125,12 +131,13 @@ offset, err := kc.Produce(ctx, "mesh.finance.events", 0, []byte("key"), []byte(`
 | `Pub` | `POST /v1/pub` | Ephemeral fire-and-forget |
 
 ```go
-// List all streams (callers handle errors — not fail-open)
+// List streams (callers handle errors — not fail-open).
+// With X-IOMesh-Org, hosted brokers return that org's streams plus shared persist.
 streams, err := nc.ListStreams(ctx)
 if err != nil {
 	log.Fatal(err) // *iomeshclient.APIError on non-2xx
 }
-// streams[i].Name, Subjects, Messages, FirstSeq, LastSeq, CreatedAt, …
+// streams[i].Name, OrgID, Subjects, Messages, FirstSeq, LastSeq, CreatedAt, …
 fmt.Print(iomeshclient.FormatStreams(streams)) // compact operator table
 
 info, err := nc.GetStream(ctx, "EVENTS")
