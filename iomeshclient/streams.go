@@ -44,6 +44,10 @@ type StreamInfo struct {
 	FirstSeq    uint64    `json:"first_seq"`
 	LastSeq     uint64    `json:"last_seq"`
 	CreatedAt   time.Time `json:"created_at"`
+	// OrgID is the owning organization from the broker JSON (org_id).
+	// Empty means shared/unowned persist — names such as github, GITHUB_EVENTS,
+	// and OPERATIONAL_EVENTS stay visible to every organization.
+	OrgID string `json:"org_id,omitempty"`
 }
 
 // CreateStream registers a stream via POST /v1/streams.
@@ -86,10 +90,16 @@ func (c *Client) EnsureStream(ctx context.Context, cfg StreamConfig) (*StreamInf
 	return c.CreateStream(ctx, cfg)
 }
 
-// ListStreams returns all streams via GET /v1/streams.
+// ListStreams returns streams via GET /v1/streams.
 // Unlike fail-open helpers (catalog/context/policy), this is explicit discovery:
 // non-2xx returns *APIError and callers must handle errors (not an empty list).
 // Accepts a JSON array body, or optionally an envelope {"streams":[...]}.
+//
+// When X-IOMesh-Org is set (WithOrg / ConnectFromEnv IOMESH_ORG), hosted brokers
+// isolate the catalog: the response is that organization's streams plus shared
+// persist (empty org_id; names such as github, GITHUB_EVENTS, OPERATIONAL_EVENTS
+// stay visible to every org). Without the header, hosted brokers may reject the
+// request. Local/dev brokers may still list everything.
 func (c *Client) ListStreams(ctx context.Context) ([]StreamInfo, error) {
 	if c == nil {
 		return nil, errors.New("iomeshclient: nil client")
