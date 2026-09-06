@@ -10,7 +10,10 @@
 //
 //	IOMESH_URL            mesh broker base (required)
 //	IOMESH_TENANT         tenant (default demo.tenant)
-//	IOMESH_ORG            optional X-IOMesh-Org
+//	IOMESH_ORG            X-IOMesh-Org (set for hosted isolation / N=2 shared streams;
+//	                      omit only on local fail-open brokers — mix risk)
+//	IOMESH_REQUIRE_ORG    1/true/yes/on — client fail-closes catalog/consume when
+//	                      IOMESH_ORG is empty (default off; local/dev DX)
 //	IOMESH_WORKSPACE      optional X-IOMesh-Workspace
 //	IOMESH_API_KEY        optional Bearer
 //	IOMESH_STREAM         stream name (default EVENTS)
@@ -43,6 +46,8 @@
 // Usage:
 //
 //	export IOMESH_URL=http://127.0.0.1:8422
+//	export IOMESH_ORG=org_example   # X-IOMesh-Org on fetch/ack; prefer with IOMESH_REQUIRE_ORG=1 on shared streams
+//	export IOMESH_REQUIRE_ORG=1     # optional fail-closed when IOMESH_ORG is empty
 //	export IOMESH_ENSURE_STREAM=1   # optional; defaults filter stream.> and pub under stream.>
 //	export IOMESH_PUBLISH=1         # optional one-shot publish before the fetch loop
 //	export IOMESH_PUBLISH_EACH=1    # optional publish at start of each cycle (self-contained multi-fetch)
@@ -132,10 +137,13 @@ func main() {
 		log.Fatal("IOMESH_URL required")
 	}
 	tenant := env("IOMESH_TENANT", "demo.tenant")
-	// org/workspace are optional connect headers; empty string honest when unset
+	// org/workspace are connect headers; empty string honest when unset
 	// (always emitted on SUMMARY identity knobs regardless of whether opts were set).
+	// Omit-org can mix shared-stream reads on fail-open brokers; prefer
+	// IOMESH_ORG + IOMESH_REQUIRE_ORG=1 for N=2 shared streams.
 	org := os.Getenv("IOMESH_ORG")
 	workspace := os.Getenv("IOMESH_WORKSPACE")
+	requireOrg := envRequireOrg(os.Getenv("IOMESH_REQUIRE_ORG"))
 	stream := env("IOMESH_STREAM", "EVENTS")
 	consumer := env("IOMESH_CONSUMER", "sdk-pull-loop")
 	subjectEnv := strings.TrimSpace(os.Getenv("IOMESH_SUBJECT"))
@@ -166,6 +174,9 @@ func main() {
 	}
 	if org != "" {
 		opts = append(opts, iomeshclient.WithOrg(org))
+	}
+	if requireOrg {
+		opts = append(opts, iomeshclient.WithRequireOrg())
 	}
 	if workspace != "" {
 		opts = append(opts, iomeshclient.WithWorkspace(workspace))
@@ -428,6 +439,17 @@ func envStrict(v string) bool {
 // Only applies when IOMESH_WAIT_READY_MS > 0 (default false).
 func envWaitRequireHealth(v string) bool {
 	return strings.TrimSpace(v) == "1"
+}
+
+// envRequireOrg reports whether IOMESH_REQUIRE_ORG enables fail-closed catalog/consume
+// when IOMESH_ORG is empty. Truthy: 1/true/yes/on (case-insensitive; peers ConnectFromEnv).
+func envRequireOrg(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 // statusResultFailed reports whether ConnectionStatus.Result is the aggregate fail

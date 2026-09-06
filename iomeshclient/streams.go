@@ -58,6 +58,9 @@ func (c *Client) CreateStream(ctx context.Context, cfg StreamConfig) (*StreamInf
 	if c == nil {
 		return nil, errors.New("iomeshclient: nil client")
 	}
+	if err := c.ensureOrgForIsolation(); err != nil {
+		return nil, err
+	}
 	if cfg.Name == "" {
 		return nil, errors.New("iomeshclient: stream name required")
 	}
@@ -99,10 +102,15 @@ func (c *Client) EnsureStream(ctx context.Context, cfg StreamConfig) (*StreamInf
 // isolate the catalog: the response is that organization's streams plus shared
 // persist (empty org_id; names such as github, GITHUB_EVENTS, OPERATIONAL_EVENTS
 // stay visible to every org). Without the header, hosted brokers may reject the
-// request. Local/dev brokers may still list everything.
+// request or fail-open and mix shared-stream reads. Local/dev brokers may still
+// list everything. WithRequireOrg / IOMESH_REQUIRE_ORG errors before the request
+// when org is empty.
 func (c *Client) ListStreams(ctx context.Context) ([]StreamInfo, error) {
 	if c == nil {
 		return nil, errors.New("iomeshclient: nil client")
+	}
+	if err := c.ensureOrgForIsolation(); err != nil {
+		return nil, err
 	}
 
 	var raw json.RawMessage
@@ -139,6 +147,9 @@ func (c *Client) GetStream(ctx context.Context, name string) (*StreamInfo, error
 	if c == nil {
 		return nil, errors.New("iomeshclient: nil client")
 	}
+	if err := c.ensureOrgForIsolation(); err != nil {
+		return nil, err
+	}
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return nil, errors.New("iomeshclient: stream name required")
@@ -158,6 +169,9 @@ func (c *Client) GetStream(ctx context.Context, name string) (*StreamInfo, error
 func (c *Client) DeleteStream(ctx context.Context, name string) error {
 	if c == nil {
 		return errors.New("iomeshclient: nil client")
+	}
+	if err := c.ensureOrgForIsolation(); err != nil {
+		return err
 	}
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -211,6 +225,9 @@ type streamMessageWire struct {
 func (c *Client) ListStreamMessages(ctx context.Context, stream string, opts ListStreamMessagesOptions) ([]StreamMessage, error) {
 	if c == nil {
 		return nil, errors.New("iomeshclient: nil client")
+	}
+	if err := c.ensureOrgForIsolation(); err != nil {
+		return nil, err
 	}
 	stream = strings.TrimSpace(stream)
 	if stream == "" {

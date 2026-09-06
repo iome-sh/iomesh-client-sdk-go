@@ -13,6 +13,13 @@ import (
 	"github.com/iome-sh/iomesh-client-sdk-go/iomeshclient"
 )
 
+func TestEnvRequireOrg(t *testing.T) {
+	t.Parallel()
+	if !envRequireOrg("1") || !envRequireOrg("TRUE") || envRequireOrg("") || envRequireOrg("0") {
+		t.Fatal("envRequireOrg truthy set must be 1/true/yes/on")
+	}
+}
+
 func TestFormatGitHubReplay_EmptyIsHonest(t *testing.T) {
 	t.Parallel()
 	out := formatGitHubReplay("OPERATIONAL_EVENTS", nil)

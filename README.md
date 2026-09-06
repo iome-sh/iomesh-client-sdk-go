@@ -83,14 +83,16 @@ func main() {
 }
 ```
 
-Or from environment — `IOMESH_URL` required; optional `IOMESH_TENANT`, `IOMESH_ORG`, `IOMESH_WORKSPACE`, `IOMESH_BEARER_TOKEN` or `IOMESH_TOKEN`, `IOMESH_TIMEOUT` (seconds). Pass `nil` to read the process environment. `IOMESH_ORG` sets `X-IOMesh-Org` so hosted brokers can isolate catalog and consume per organization.
+Or from environment — `IOMESH_URL` required; optional `IOMESH_TENANT`, `IOMESH_ORG`, `IOMESH_WORKSPACE`, `IOMESH_BEARER_TOKEN` or `IOMESH_TOKEN`, `IOMESH_TIMEOUT` (seconds), `IOMESH_REQUIRE_ORG=1` (fail-closed catalog/consume when `IOMESH_ORG` is empty). Pass `nil` to read the process environment. `IOMESH_ORG` sets `X-IOMesh-Org` so hosted brokers can isolate catalog and consume per organization. Omitting org can mix shared-stream reads on fail-open brokers. The library does **not** invent a default org.
 
 ```go
 nc, err := iomeshclient.ConnectFromEnv(nil)
 ```
 
+`WithOrg` / `IOMESH_ORG` maps to `X-IOMesh-Org`. Hosted brokers isolate catalog and durable pull by that header; omitting it can mix shared-stream reads (or the broker may reject the request). Local/dev brokers still fail-open when org is empty. Set `IOMESH_REQUIRE_ORG=1` (or `WithRequireOrg()`) so the client errors before fetch/ack/catalog instead of sending an unscoped request.
+
 Runnable framing (publish + optional pull): [`examples/org-heartbeat-publish/`](examples/org-heartbeat-publish/).  
-Stage smoke pull loop: [`examples/pull-loop/`](examples/pull-loop/) (same durable consumer APIs; offline smoke ≠ live APPLY).
+Stage smoke pull loop: [`examples/pull-loop/`](examples/pull-loop/) (same durable consumer APIs; offline smoke ≠ live APPLY). Prefer `IOMESH_ORG` + `IOMESH_REQUIRE_ORG=1` for N=2 shared streams.
 
 ## Connector SDK (HMAC + envelope)
 
@@ -119,13 +121,13 @@ offset, err := kc.Produce(ctx, "mesh.finance.events", 0, []byte("key"), []byte(`
 | API | Path | Notes |
 |-----|------|--------|
 | `CreateStream` / `EnsureStream` | `POST /v1/streams` | Returns `*StreamInfo`; 409 conflict → success + best-effort GET (nil info OK) |
-| `ListStreams` | `GET /v1/streams` | Explicit discovery; non-2xx → `*APIError` (not fail-open empty). When `X-IOMesh-Org` is set, hosted brokers return that org's streams plus shared persist (empty `org_id`); without the header they may reject. Local/dev brokers may still list everything |
+| `ListStreams` | `GET /v1/streams` | Explicit discovery; non-2xx → `*APIError` (not fail-open empty). When `X-IOMesh-Org` is set, hosted brokers return that org's streams plus shared persist (empty `org_id`); without the header they may reject or mix shared-stream reads. Local/dev brokers may still list everything. `WithRequireOrg` / `IOMESH_REQUIRE_ORG` errors before the request when org is empty |
 | `GetStream` | `GET /v1/streams/{name}` | Single `StreamInfo`; 404 → `*APIError` |
 | `DeleteStream` | `DELETE /v1/streams/{name}` | 204 success; 404 → `*APIError`; destructive — not used in dogfood by default |
 | `ListStreamMessages` | `GET /v1/streams/{name}/messages` | Stream replay/read-range; `from_seq`/`to_seq`/`limit`; payload base64→`[]byte`; non-2xx → `*APIError`. GitHub-ingested streams: [`examples/github-stream-read`](examples/github-stream-read/) — **not** an org-health or heart-rate API; Slack/PagerDuty are not pulses in that example |
 | `CreateConsumer` / `EnsureConsumer` | `POST /v1/streams/{stream}/consumers` | Returns `*ConsumerInfo`; 409 conflict → success with Stream/Name only. EnsureConsumer is an idempotent alias |
 | `DeleteConsumer` | `DELETE /v1/streams/{stream}/consumers/{name}` | Client wrapper; 204 success when served; 404 → `*APIError`. Current broker durable-pull set is create/fetch/ack — delete may 404. Destructive — opt-in cleanup (e.g. pull-loop `IOMESH_DELETE_CONSUMER=1`) |
-| `ConsumerFetch` / `ConsumerAck` / `ConsumerNack` | `POST …/fetch\|ack\|nack` | One-shot ops without holding a `Subscription`; path-escape stream/consumer; Fetch wires `Msg.Ack`/`Msg.Nack` via ephemeral sub. **Ack is served**; **Nack may 404** until the broker registers it |
+| `ConsumerFetch` / `ConsumerAck` / `ConsumerNack` | `POST …/fetch\|ack\|nack` | One-shot ops without holding a `Subscription`; path-escape stream/consumer; Fetch wires `Msg.Ack`/`Msg.Nack` via ephemeral sub. Sends `X-IOMesh-Org` when org is set; omit-org can mix shared streams unless `WithRequireOrg`. **Ack is served**; **Nack may 404** until the broker registers it |
 | `Publish` / `PullSubscribe` | stream publish / consumer | `PullSubscribe` uses `CreateConsumer` then returns `*Subscription` with `ConsumerInfo()`; `FetchContext`/`AckContext`/`NackContext` (or `Fetch`/`Ack`/`Nack` → `context.Background()`); `Delete(ctx)` removes the durable consumer via `DeleteConsumer`; default long-poll `DefaultFetchMaxWait` (5s) / `MaxWait`; path segments escaped |
 | `FormatMsg` / `FormatMsgs` / `FormatConsumerInfo` / `FormatSubscription` / `FormatStreamDetail` | — | Pure operator helpers for one message / batch / consumer detail / subscription handle / stream detail (no network I/O); `FormatConsumerInfo` / `FormatSubscription` always emit `filter_subject` (empty when unset); `FormatStreamDetail` always emits description/retention/partitions/max_msgs/max_age_sec/created_at/subjects (blank/0/`(none)` when unset) |
 | `Pub` | `POST /v1/pub` | Ephemeral fire-and-forget |
@@ -212,7 +214,7 @@ if err := sub.Delete(ctx); err != nil {
 //     for i, m := range batch { seqs[i] = m.Seq() }
 //     if err := sub.AckContext(ctx, seqs...); err != nil { log.Fatal(err) }
 // }
-// Runnable stage smoke: examples/pull-loop (IOMESH_URL, optional IOMESH_ENSURE_STREAM / IOMESH_PUBLISH / IOMESH_PUBLISH_EACH / IOMESH_LOOPS / IOMESH_ACK / IOMESH_DELETE_CONSUMER / IOMESH_WAIT_READY_MS / IOMESH_WAIT_INTERVAL_MS / IOMESH_WAIT_REQUIRE_HEALTH / IOMESH_STRICT;
+// Runnable stage smoke: examples/pull-loop (IOMESH_URL, IOMESH_ORG / IOMESH_REQUIRE_ORG for shared-stream isolation, optional IOMESH_ENSURE_STREAM / IOMESH_PUBLISH / IOMESH_PUBLISH_EACH / IOMESH_LOOPS / IOMESH_ACK / IOMESH_DELETE_CONSUMER / IOMESH_WAIT_READY_MS / IOMESH_WAIT_INTERVAL_MS / IOMESH_WAIT_REQUIRE_HEALTH / IOMESH_STRICT;
 // with ENSURE_STREAM=1, default filter is stream.> and pub subject is stream.sdk-pull-loop)
 
 // One-shot consumer ops (no long-lived Subscription)
@@ -347,6 +349,8 @@ Pull consumer stage smoke (one or more fetch cycles; optional ensure/publish/ack
 
 ```bash
 export IOMESH_URL=http://127.0.0.1:8422
+export IOMESH_ORG=org_example     # X-IOMesh-Org on fetch/ack; omit can mix shared streams
+export IOMESH_REQUIRE_ORG=1       # optional fail-closed when IOMESH_ORG is empty
 export IOMESH_STREAM=EVENTS
 export IOMESH_CONSUMER=sdk-pull-loop
 # export IOMESH_ENSURE_STREAM=1  # create stream with subject stream.>
@@ -367,7 +371,7 @@ go run ./examples/pull-loop
 
 With `IOMESH_ENSURE_STREAM=1`, the consumer filter defaults to `stream.>` (matching EnsureStream subjects) and with `IOMESH_PUBLISH=1` / `IOMESH_PUBLISH_EACH=1` the default publish subject is `stream.sdk-pull-loop` so Publish is accepted without setting `IOMESH_PUB_SUBJECT`. Override filter/pub with `IOMESH_SUBJECT` / `IOMESH_PUB_SUBJECT`. `IOMESH_PUBLISH=1` alone publishes once before the loop; `IOMESH_PUBLISH_EACH=1` publishes at the start of each cycle (and skips the pre-loop publish when both are set, so the first cycle is not double-published). Set `IOMESH_DELETE_CONSUMER=1` for best-effort `sub.Delete` after fetch loops (`PASS` / warn-only). Set `IOMESH_WAIT_READY_MS=N` (N>0) for an optional `WaitReadyAttempts` preflight after ConnectionStatus (budget N ms; poll interval from `IOMESH_WAIT_INTERVAL_MS`, default 500ms when empty/invalid/≤0, clamp max 60000; prints `PASS WaitReady elapsed_ms=… interval_ms=… require_health=… attempts=…` or `WARN WaitReady: … elapsed_ms=… interval_ms=… require_health=… attempts=…`; banner shows `wait_ready_ms=N`, `wait_interval_ms=N`, and `wait_require_health=%v`, `wait_ready_ms=0` when off). Set `IOMESH_WAIT_REQUIRE_HEALTH=1` so that preflight uses `WaitReadyOptions{RequireHealth: true}` (only applies when `IOMESH_WAIT_READY_MS>0`; default false). Always prints `SUMMARY` (leading `version=V` from package `Version` + always-emitted `user_agent=UA` package default `iomesh-client-sdk-go/<Version>` after `version=` before `base_url=` (same string ConnectionStatus uses when `WithUserAgent` is unset; empty string still emits `user_agent=` if truly unset) + always-emitted `base_url=B` from connect mesh URL / `IOMESH_URL` after `user_agent=` before `tenant=` (same string ConnectionStatus uses as `base_url`; empty string still emits `base_url=` if truly unset) + always-emitted connect identity `tenant=T` / `org=O` / `workspace=W` from `IOMESH_TENANT` / `IOMESH_ORG` / `IOMESH_WORKSPACE` (empty string honest when unset) + always-emitted `stream=S` / `consumer=C` from `IOMESH_STREAM` / `IOMESH_CONSUMER` (defaults `EVENTS` / `sdk-pull-loop`; empty string honest if truly unset) after `workspace=` before `cycles_completed=` + cycle/fetch counts + wall-clock `duration_ms` + WaitReady knobs `wait_ready_ms` / `wait_interval_ms` / `wait_require_health` / `wait_ready_attempts` + hard-fail flag `failed=true|false` + `strict=true|false` for `IOMESH_STRICT` mode + always-emitted `result=ok|err` derived from `failed` (`ok` when `failed==false`; `err` when `failed==true`; peers ConnectionStatus.Result) + `exit_code=0|1` matching process exit after SUMMARY; when WaitReady is off the knobs are `0` / `0` / `false` / `0`) then `RESULT=done version=V user_agent=UA base_url=B tenant=T org=O workspace=W stream=S consumer=C result=R exit_code=E` (same `version`, `user_agent`, `base_url`, identity, `stream`, `consumer`, `result`, and `exit_code` semantics as SUMMARY for scrapers that key off the RESULT line; empty identity/base_url/stream/consumer strings honest when unset). Set `IOMESH_STRICT=1` so hard stage failures (`ConnectionStatus.result=err` for Health/Ready probe aggregate, WaitReady when requested, EnsureStream, PullSubscribe, Publish when requested, FetchContext, DeleteConsumer when requested) exit non-zero (1) after `SUMMARY` / `RESULT`; default remains warn-only + exit 0 (`failed` still reflects hard stage failures for scrapers; `result` mirrors `failed` as `ok|err`; `strict` reflects whether hard-fail exit mode was enabled; `exit_code=1` only when `strict && failed`, otherwise `0`).
 
-See [`examples/pull-loop/`](examples/pull-loop/) for env flags (`IOMESH_BATCH`, `IOMESH_MAX_WAIT_MS`, `IOMESH_LOOPS`, `IOMESH_SUBJECT`, `IOMESH_PUBLISH`, `IOMESH_PUBLISH_EACH`, `IOMESH_DELETE_CONSUMER`, `IOMESH_WAIT_READY_MS`, `IOMESH_WAIT_INTERVAL_MS`, `IOMESH_WAIT_REQUIRE_HEALTH`, `IOMESH_STRICT`, …).
+See [`examples/pull-loop/`](examples/pull-loop/) for env flags (`IOMESH_ORG`, `IOMESH_REQUIRE_ORG`, `IOMESH_BATCH`, `IOMESH_MAX_WAIT_MS`, `IOMESH_LOOPS`, `IOMESH_SUBJECT`, `IOMESH_PUBLISH`, `IOMESH_PUBLISH_EACH`, `IOMESH_DELETE_CONSUMER`, `IOMESH_WAIT_READY_MS`, `IOMESH_WAIT_INTERVAL_MS`, `IOMESH_WAIT_REQUIRE_HEALTH`, `IOMESH_STRICT`, …).
 
 ## Diagnostics
 
@@ -451,7 +455,7 @@ _ = meta // Source mesh|portal|fail-open; Detail is path or error note
 - Prefer short-lived bearer tokens (`WithBearerToken`) and tenant-scoped headers (`WithTenant` / `WithOrg` / `WithWorkspace`).
 - Broker URLs must be absolute **`http`/`https`** (no `file://`, no embedded userinfo).
 - Connector HMAC secrets must stay server-side; never embed partner secrets in mobile or browser clients.
-- Treat `X-IOMesh-Tenant` / `X-IOMesh-Org` as an authorization boundary — **enforce server-side**.
+- Treat `X-IOMesh-Tenant` / `X-IOMesh-Org` as an authorization boundary — **enforce server-side**. Omitting `X-IOMesh-Org` can mix shared-stream reads on fail-open brokers. Set `WithRequireOrg()` / `IOMESH_REQUIRE_ORG=1` so the client errors before pull/fetch/ack/catalog when org is empty. The library does not invent a default org.
 
 ## Versioning & support
 
