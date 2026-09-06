@@ -22,7 +22,7 @@ Official open-source tooling from [IOMesh](https://iome.sh) (**IOMesh Technology
 > **Module path:** `github.com/iome-sh/iomesh-client-sdk-go`  
 > **Package:** `iomeshclient`  
 > **Env prefix:** `IOMESH_*`  
-> **Wire headers:** `X-IOMesh-Tenant`, `X-IOMesh-Org`, `X-IOMesh-Workspace`, …  
+> **Wire headers:** `X-IOMesh-Tenant`, `X-IOMesh-Org`, `X-IOMesh-Workspace`, `X-IOMesh-Department`, …  
 > **Status:** public OSS **v0.69.x** (pre-1.0, **Beta**). Memory M2/M3 + multi-tenant headers + dual-write/metering + Health/Ready/WaitReady + catalog plane + EvaluatePolicy + QueryContext + ConnectionStatus + ListStreams/GetStream/DeleteStream/ListStreamMessages + CreateStream/EnsureStream `*StreamInfo` + FormatStreams/FormatStreamDetail + CreateConsumer/EnsureConsumer `*ConsumerInfo` + ConsumerFetch/ConsumerAck/ConsumerNack + PullSubscribe `FetchContext`/`AckContext`/`NackContext` + `DefaultFetchMaxWait` + FormatMsg/FormatMsgs/FormatConsumerInfo + KV CreateBucket/EnsureBucket `*BucketInfo` + Put `*PutResult` + FormatBucketInfo/FormatKVEntry/FormatKVKeys/FormatPutResult aligned with [iomesh-tui](https://github.com/iome-sh/iomesh-tui). Always-emit format helpers are operator diagnostics — not new product APIs / not invent GA. `ConsumerNack` / `DeleteConsumer` are client wrappers; the serving broker may 404 until those routes exist (create/fetch/ack are the served durable-pull set). Catalog list is discovery — **not Connected**, Knowledge stays **Beta**.  
 > **User-Agent:** `iomesh-client-sdk-go/<Version>` (override with `WithUserAgent`).
 
@@ -57,6 +57,7 @@ func main() {
 		iomeshclient.WithTenant("dept.engineering"),
 		iomeshclient.WithOrg("acme-org"),
 		iomeshclient.WithWorkspace("ws_default"), // multi-tenant metering / entitlements
+		iomeshclient.WithDepartment("engineering"), // omit when empty
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -83,7 +84,7 @@ func main() {
 }
 ```
 
-Or from environment — `IOMESH_URL` required; optional `IOMESH_TENANT`, `IOMESH_ORG`, `IOMESH_WORKSPACE`, `IOMESH_BEARER_TOKEN` or `IOMESH_TOKEN`, `IOMESH_TIMEOUT` (seconds), `IOMESH_REQUIRE_ORG=1` (fail-closed catalog/consume when `IOMESH_ORG` is empty). Pass `nil` to read the process environment. `IOMESH_ORG` sets `X-IOMesh-Org` so hosted brokers can isolate catalog and consume per organization. Omitting org can mix shared-stream reads on fail-open brokers. The library does **not** invent a default org.
+Or from environment — `IOMESH_URL` required; optional `IOMESH_TENANT`, `IOMESH_ORG`, `IOMESH_WORKSPACE`, `IOMESH_DEPARTMENT`, `IOMESH_BEARER_TOKEN` or `IOMESH_TOKEN`, `IOMESH_TIMEOUT` (seconds), `IOMESH_REQUIRE_ORG=1` (fail-closed catalog/consume when `IOMESH_ORG` is empty). Pass `nil` to read the process environment. `IOMESH_ORG` sets `X-IOMesh-Org` so hosted brokers can isolate catalog and consume per organization. Omitting org can mix shared-stream reads on fail-open brokers. The library does **not** invent a default org. `IOMESH_DEPARTMENT` sets `X-IOMesh-Department` when non-empty; empty omits the header.
 
 ```go
 nc, err := iomeshclient.ConnectFromEnv(nil)
@@ -452,10 +453,10 @@ _ = meta // Source mesh|portal|fail-open; Detail is path or error note
 - Report vulnerabilities **privately**: [SECURITY.md](SECURITY.md) (GitHub Security Advisory or security@iome.sh).  
   Do **not** open public issues for exploits.
 - Do **not** commit API tokens, broker URLs with credentials, or customer payloads into issues/PRs.
-- Prefer short-lived bearer tokens (`WithBearerToken`) and tenant-scoped headers (`WithTenant` / `WithOrg` / `WithWorkspace`).
+- Prefer short-lived bearer tokens (`WithBearerToken`) and tenant-scoped headers (`WithTenant` / `WithOrg` / `WithWorkspace` / `WithDepartment`).
 - Broker URLs must be absolute **`http`/`https`** (no `file://`, no embedded userinfo).
 - Connector HMAC secrets must stay server-side; never embed partner secrets in mobile or browser clients.
-- Treat `X-IOMesh-Tenant` / `X-IOMesh-Org` as an authorization boundary — **enforce server-side**. Omitting `X-IOMesh-Org` can mix shared-stream reads on fail-open brokers. Set `WithRequireOrg()` / `IOMESH_REQUIRE_ORG=1` so the client errors before pull/fetch/ack/catalog when org is empty. The library does not invent a default org.
+- Treat `X-IOMesh-Tenant` / `X-IOMesh-Org` / `X-IOMesh-Department` as an authorization boundary — **enforce server-side**. Omitting `X-IOMesh-Org` can mix shared-stream reads on fail-open brokers. Set `WithRequireOrg()` / `IOMESH_REQUIRE_ORG=1` so the client errors before pull/fetch/ack/catalog when org is empty. The library does not invent a default org.
 
 ## Versioning & support
 

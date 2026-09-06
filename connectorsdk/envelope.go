@@ -72,11 +72,17 @@ func NormalizeEnvelope(connectorID, department, source, externalID, eventType st
 }
 
 // PublishHeaders returns broker metadata for connector ingress (v10 pattern).
+// Department is emitted as X-IOMesh-Department (identity contract wire name)
+// when non-empty after trim; omitted when empty. The legacy bare "department"
+// key is not dual-written.
 func PublishHeaders(connectorID, department, externalID, source string) map[string]string {
-	return map[string]string{
+	h := map[string]string{
 		"connector_id": strings.TrimSpace(connectorID),
-		"department":   strings.TrimSpace(department),
 		"external_id":  strings.TrimSpace(externalID),
 		"source":       strings.TrimSpace(source),
 	}
+	if dept := strings.TrimSpace(department); dept != "" {
+		h["X-IOMesh-Department"] = dept
+	}
+	return h
 }

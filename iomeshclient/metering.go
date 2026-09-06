@@ -87,7 +87,7 @@ func (c *Client) EmitDeptEvent(ctx context.Context, ev DeptEvent) (*PubAck, erro
 }
 
 // EmitLLMCall publishes dept.agent.llm_call for platform remote metering dashboards.
-// Uses the same multi-tenant headers as other client methods (WithOrg / WithWorkspace).
+// Uses the same multi-tenant headers as other client methods (WithOrg / WithWorkspace / WithDepartment).
 func (c *Client) EmitLLMCall(ctx context.Context, call LLMCallEvent) (*PubAck, error) {
 	if c == nil {
 		return nil, errors.New("iomeshclient: nil client")

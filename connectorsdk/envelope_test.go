@@ -156,10 +156,10 @@ func TestPublishHeaders(t *testing.T) {
 			externalID:  "delivery-002",
 			source:      "github",
 			want: map[string]string{
-				"connector_id": "github",
-				"department":   "ops",
-				"external_id":  "delivery-002",
-				"source":       "github",
+				"connector_id":        "github",
+				"X-IOMesh-Department": "ops",
+				"external_id":         "delivery-002",
+				"source":              "github",
 			},
 		},
 		{
@@ -169,10 +169,22 @@ func TestPublishHeaders(t *testing.T) {
 			externalID:  " Ev003 ",
 			source:      " slack ",
 			want: map[string]string{
-				"connector_id": "slack",
-				"department":   "engineering",
-				"external_id":  "Ev003",
-				"source":       "slack",
+				"connector_id":        "slack",
+				"X-IOMesh-Department": "engineering",
+				"external_id":         "Ev003",
+				"source":              "slack",
+			},
+		},
+		{
+			name:        "empty department omits wire header",
+			connectorID: "github",
+			department:  "  ",
+			externalID:  "delivery-003",
+			source:      "github",
+			want: map[string]string{
+				"connector_id": "github",
+				"external_id":  "delivery-003",
+				"source":       "github",
 			},
 		},
 	}
@@ -180,10 +192,16 @@ func TestPublishHeaders(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := PublishHeaders(tt.connectorID, tt.department, tt.externalID, tt.source)
+			if len(got) != len(tt.want) {
+				t.Fatalf("headers = %#v, want %#v", got, tt.want)
+			}
 			for k, want := range tt.want {
 				if got[k] != want {
 					t.Fatalf("headers[%q] = %q, want %q (full = %#v)", k, got[k], want, got)
 				}
+			}
+			if _, ok := got["department"]; ok {
+				t.Fatalf("legacy bare department key present: %#v", got)
 			}
 		})
 	}

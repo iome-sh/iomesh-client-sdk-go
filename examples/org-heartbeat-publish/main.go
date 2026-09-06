@@ -11,6 +11,7 @@
 //	IOMESH_ORG        X-IOMesh-Org (set for hosted isolation; omit only on local fail-open brokers)
 //	IOMESH_REQUIRE_ORG 1/true/yes/on — client fail-closes catalog/consume when IOMESH_ORG is empty
 //	IOMESH_WORKSPACE  optional X-IOMesh-Workspace
+//	IOMESH_DEPARTMENT optional X-IOMesh-Department (omit when empty)
 //	IOMESH_API_KEY    optional Bearer
 //	IOMESH_STREAM     stream name (default EVENTS)
 //	IOMESH_SUBJECT    publish subject (default <tenant>.events.org-heartbeat)
@@ -57,6 +58,9 @@ func main() {
 	}
 	if ws := strings.TrimSpace(os.Getenv("IOMESH_WORKSPACE")); ws != "" {
 		opts = append(opts, iomeshclient.WithWorkspace(ws))
+	}
+	if dept := strings.TrimSpace(os.Getenv("IOMESH_DEPARTMENT")); dept != "" {
+		opts = append(opts, iomeshclient.WithDepartment(dept))
 	}
 	if key := strings.TrimSpace(os.Getenv("IOMESH_API_KEY")); key != "" {
 		opts = append(opts, iomeshclient.WithBearerToken(key))

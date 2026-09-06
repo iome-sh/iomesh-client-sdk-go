@@ -462,7 +462,7 @@ func TestRetrieveMemoryRelatedSuccess(t *testing.T) {
 	if gotBody["as_of"] != "2026-08-01T00:00:00Z" {
 		t.Fatalf("as_of = %v", gotBody["as_of"])
 	}
-	// nil PreferShorterHops: omit key so kernel default true applies (s1286 / aion s1277).
+	// nil PreferShorterHops: omit key so kernel default true applies.
 	if _, ok := gotBody["prefer_shorter_hops"]; ok {
 		t.Fatalf("prefer_shorter_hops present when nil: %v", gotBody["prefer_shorter_hops"])
 	}

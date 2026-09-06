@@ -66,12 +66,13 @@ func TestConnectFromEnv_NilUsesProcessEnv(t *testing.T) {
 
 func TestConnectFromEnv_SetsOrgHeaderAndDecodesCatalog(t *testing.T) {
 	var mu sync.Mutex
-	var gotOrg, gotTenant, gotWS, gotAuth string
+	var gotOrg, gotTenant, gotWS, gotDept, gotAuth string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		gotOrg = r.Header.Get("X-IOMesh-Org")
 		gotTenant = r.Header.Get("X-IOMesh-Tenant")
 		gotWS = r.Header.Get("X-IOMesh-Workspace")
+		gotDept = r.Header.Get("X-IOMesh-Department")
 		gotAuth = r.Header.Get("Authorization")
 		mu.Unlock()
 		if r.Method != http.MethodGet || r.URL.Path != "/v1/streams" {
@@ -99,6 +100,7 @@ func TestConnectFromEnv_SetsOrgHeaderAndDecodesCatalog(t *testing.T) {
 		"IOMESH_TENANT":       "dept.engineering",
 		"IOMESH_ORG":          "acme-org",
 		"IOMESH_WORKSPACE":    "ws_default",
+		"IOMESH_DEPARTMENT":   "engineering",
 		"IOMESH_BEARER_TOKEN": "secret-token",
 		"IOMESH_TIMEOUT":      "12.5",
 	})
@@ -121,6 +123,9 @@ func TestConnectFromEnv_SetsOrgHeaderAndDecodesCatalog(t *testing.T) {
 	}
 	if gotWS != "ws_default" {
 		t.Fatalf("X-IOMesh-Workspace=%q", gotWS)
+	}
+	if gotDept != "engineering" {
+		t.Fatalf("X-IOMesh-Department=%q", gotDept)
 	}
 	if gotAuth != "Bearer secret-token" {
 		t.Fatalf("Authorization=%q", gotAuth)
@@ -171,6 +176,31 @@ func TestConnectFromEnv_TokenAliasAndBearerWins(t *testing.T) {
 	}
 	if gotAuth != "Bearer primary" {
 		t.Fatalf("primary Authorization=%q", gotAuth)
+	}
+}
+
+func TestConnectFromEnv_EmptyDepartmentOmitsHeader(t *testing.T) {
+	var gotDept string
+	var deptPresent bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotDept = r.Header.Get("X-IOMesh-Department")
+		_, deptPresent = r.Header["X-Iomesh-Department"]
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(srv.Close)
+
+	nc, err := iomeshclient.ConnectFromEnv(map[string]string{
+		"IOMESH_URL":        srv.URL,
+		"IOMESH_DEPARTMENT": "   ",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := nc.Pub(context.Background(), "events.demo", []byte("x"), nil); err != nil {
+		t.Fatal(err)
+	}
+	if gotDept != "" || deptPresent {
+		t.Fatalf("X-IOMesh-Department present=%v value=%q, want omitted", deptPresent, gotDept)
 	}
 }
 
