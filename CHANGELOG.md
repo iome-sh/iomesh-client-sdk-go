@@ -10,10 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **`WithRequireOrg` / `IOMESH_REQUIRE_ORG`** — optional fail-closed catalog/consume/publish when org is empty (error instead of omitting `X-IOMesh-Org`). Default off for local/dev. Closes [#171](https://github.com/iome-sh/iomesh-client-sdk-go/issues/171).
+- **`WithDepartment`** — sets `X-IOMesh-Department` on all HTTP requests when non-empty after trim; empty / whitespace omits the header (identity contract; no invent)
+- **`ConnectFromEnv`** — optional `IOMESH_DEPARTMENT` maps to `WithDepartment` / `X-IOMesh-Department`
 
 ### Changed
 
 - **Docs** — README and durable pull examples (`pull-loop`, `github-stream-read`, `org-heartbeat-publish`) document `IOMESH_ORG` → `X-IOMesh-Org` on fetch/ack/catalog. Omitting org can mix shared-stream reads on fail-open brokers. Prefer `IOMESH_REQUIRE_ORG=1` for N=2 shared streams. No library default org.
+- **`connectorsdk.PublishHeaders`** — department maps to wire name `X-IOMesh-Department` (omit when empty). Legacy bare `department` key is not dual-written
+- **Docs** — memory helper godoc/comments use mesh / sidecar / MCP vocabulary (no product `aion` / continuum serials in those comments)
 
 ## [0.69.0] — 2026-09-04
 

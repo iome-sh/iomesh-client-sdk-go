@@ -6,7 +6,7 @@
 // defaults to async-only (dual_write OFF) — optional sidecar audit, not freemium palace.
 // Surfaces are Beta / pre-1.0; offline stage smoke ≠ live APPLY; MIT edge client only.
 //
-// Wire headers: X-IOMesh-Tenant, X-IOMesh-Org, X-IOMesh-Workspace (and related X-IOMesh-* ingress headers).
+// Wire headers: X-IOMesh-Tenant, X-IOMesh-Org, X-IOMesh-Workspace, X-IOMesh-Department (and related X-IOMesh-* ingress headers).
 // Default User-Agent: iomesh-client-sdk-go/<Version> for operator supportability.
 package iomeshclient
 
@@ -45,9 +45,10 @@ type Options struct {
 }
 
 const (
-	tenantHeader    = "X-IOMesh-Tenant"
-	orgHeader       = "X-IOMesh-Org"
-	workspaceHeader = "X-IOMesh-Workspace"
+	tenantHeader     = "X-IOMesh-Tenant"
+	orgHeader        = "X-IOMesh-Org"
+	workspaceHeader  = "X-IOMesh-Workspace"
+	departmentHeader = "X-IOMesh-Department"
 )
 
 // Client talks to an I/O Mesh broker over HTTP.
@@ -58,6 +59,7 @@ type Client struct {
 	tenant      string
 	org         string
 	workspace   string
+	department  string
 	bearerToken string
 	userAgent   string
 	requireOrg  bool
@@ -67,6 +69,7 @@ type connectOpts struct {
 	tenant      string
 	org         string
 	workspace   string
+	department  string
 	bearerToken string
 	userAgent   string
 	requireOrg  bool
@@ -112,6 +115,14 @@ func WithRequireOrg() ConnectOpt {
 func WithWorkspace(workspaceID string) ConnectOpt {
 	return func(o *connectOpts) {
 		o.workspace = strings.TrimSpace(workspaceID)
+	}
+}
+
+// WithDepartment sets X-IOMesh-Department on all HTTP requests when non-empty
+// after trim. Empty / whitespace-only values omit the header (no invent).
+func WithDepartment(department string) ConnectOpt {
+	return func(o *connectOpts) {
+		o.department = strings.TrimSpace(department)
 	}
 }
 
@@ -166,6 +177,7 @@ func Connect(base Options, opts ...ConnectOpt) (*Client, error) {
 		tenant:      co.tenant,
 		org:         co.org,
 		workspace:   co.workspace,
+		department:  co.department,
 		bearerToken: co.bearerToken,
 		userAgent:   ua,
 		requireOrg:  co.requireOrg,
@@ -180,7 +192,7 @@ func Connect(base Options, opts ...ConnectOpt) (*Client, error) {
 //
 // Optional:
 //
-//	IOMESH_TENANT, IOMESH_ORG, IOMESH_WORKSPACE
+//	IOMESH_TENANT, IOMESH_ORG, IOMESH_WORKSPACE, IOMESH_DEPARTMENT
 //	IOMESH_BEARER_TOKEN or IOMESH_TOKEN (bearer; BEARER_TOKEN wins if both set)
 //	IOMESH_TIMEOUT — request timeout in seconds (float; default 30)
 //	IOMESH_REQUIRE_ORG — 1/true/yes/on fail-closes catalog/consume when
@@ -191,6 +203,7 @@ func Connect(base Options, opts ...ConnectOpt) (*Client, error) {
 //
 // IOMESH_ORG sets X-IOMesh-Org so hosted brokers can isolate catalog and consume
 // per organization. Omitting org can mix shared-stream reads on fail-open brokers.
+// IOMESH_DEPARTMENT sets X-IOMesh-Department when non-empty; empty omits the header.
 func ConnectFromEnv(environ map[string]string) (*Client, error) {
 	env := environ
 	if env == nil {
@@ -220,6 +233,7 @@ func ConnectFromEnv(environ map[string]string) (*Client, error) {
 		WithTenant(env["IOMESH_TENANT"]),
 		WithOrg(env["IOMESH_ORG"]),
 		WithWorkspace(env["IOMESH_WORKSPACE"]),
+		WithDepartment(env["IOMESH_DEPARTMENT"]),
 		WithBearerToken(token),
 	}
 	if envFlag(env["IOMESH_REQUIRE_ORG"]) {
@@ -831,7 +845,7 @@ func (c *Client) doJSON(ctx context.Context, method, path string, reqBody any, r
 	return json.Unmarshal(raw, respBody)
 }
 
-// applyAuthHeaders sets User-Agent, tenant / org / workspace / bearer on the request.
+// applyAuthHeaders sets User-Agent, tenant / org / workspace / department / bearer on the request.
 func (c *Client) applyAuthHeaders(req *http.Request) {
 	if c == nil || req == nil {
 		return
@@ -849,6 +863,9 @@ func (c *Client) applyAuthHeaders(req *http.Request) {
 	}
 	if c.workspace != "" {
 		req.Header.Set(workspaceHeader, c.workspace)
+	}
+	if c.department != "" {
+		req.Header.Set(departmentHeader, c.department)
 	}
 	if c.bearerToken != "" {
 		req.Header.Set("Authorization", "Bearer "+c.bearerToken)

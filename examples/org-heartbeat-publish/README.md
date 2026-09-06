@@ -36,6 +36,7 @@ IOMESH_PULL=1 go run ./examples/org-heartbeat-publish
 | `IOMESH_ORG` | empty | `X-IOMesh-Org`; set for hosted isolation |
 | `IOMESH_REQUIRE_ORG` | off | `1`/`true`/`yes`/`on` fail-closes catalog/consume when org is empty |
 | `IOMESH_WORKSPACE` | empty | `X-IOMesh-Workspace` |
+| `IOMESH_DEPARTMENT` | empty | optional `X-IOMesh-Department` (omit when empty) |
 | `IOMESH_STREAM` | `EVENTS` | durable stream name |
 | `IOMESH_SUBJECT` | `<tenant>.events.org-heartbeat` | publish subject |
 | `IOMESH_PULL` | off | set `1` for one fetch cycle |

@@ -34,6 +34,8 @@ go run ./examples/github-stream-read
 | `IOMESH_TENANT` | `dept.engineering` | `X-IOMesh-Tenant` |
 | `IOMESH_ORG` | empty | `X-IOMesh-Org`; set for hosted isolation / N=2 shared streams |
 | `IOMESH_REQUIRE_ORG` | off | `1`/`true`/`yes`/`on` fail-closes catalog/consume when org is empty |
+| `IOMESH_WORKSPACE` | empty | optional `X-IOMesh-Workspace` |
+| `IOMESH_DEPARTMENT` | empty | optional `X-IOMesh-Department` (omit when empty) |
 | `IOMESH_STREAM` | `OPERATIONAL_EVENTS` | GitHub-ingested durable stream |
 | `IOMESH_LIMIT` | `50` | replay page size (cap 1000) |
 

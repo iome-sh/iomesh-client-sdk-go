@@ -12,7 +12,7 @@ import (
 
 func TestConnectSetsTenantAndBearerHeaders(t *testing.T) {
 	var mu sync.Mutex
-	var gotTenant, gotAuth, gotOrg, gotWS, gotUA string
+	var gotTenant, gotAuth, gotOrg, gotWS, gotDept, gotUA string
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
@@ -20,6 +20,7 @@ func TestConnectSetsTenantAndBearerHeaders(t *testing.T) {
 		gotAuth = r.Header.Get("Authorization")
 		gotOrg = r.Header.Get("X-IOMesh-Org")
 		gotWS = r.Header.Get("X-IOMesh-Workspace")
+		gotDept = r.Header.Get("X-IOMesh-Department")
 		gotUA = r.Header.Get("User-Agent")
 		mu.Unlock()
 		w.WriteHeader(http.StatusNoContent)
@@ -32,6 +33,7 @@ func TestConnectSetsTenantAndBearerHeaders(t *testing.T) {
 		iomeshclient.WithBearerToken("test-token"),
 		iomeshclient.WithOrg("org_a"),
 		iomeshclient.WithWorkspace("ws_1"),
+		iomeshclient.WithDepartment("engineering"),
 	)
 	if err != nil {
 		t.Fatalf("Connect() error: %v", err)
@@ -54,6 +56,9 @@ func TestConnectSetsTenantAndBearerHeaders(t *testing.T) {
 	}
 	if gotWS != "ws_1" {
 		t.Fatalf("X-IOMesh-Workspace = %q, want ws_1", gotWS)
+	}
+	if gotDept != "engineering" {
+		t.Fatalf("X-IOMesh-Department = %q, want engineering", gotDept)
 	}
 	wantUA := "iomesh-client-sdk-go/" + iomeshclient.Version
 	if gotUA != wantUA {
@@ -109,12 +114,15 @@ func TestConnectRejectsUnsafeURLs(t *testing.T) {
 
 func TestConnectOmitsHeadersWhenUnset(t *testing.T) {
 	var mu sync.Mutex
-	var gotTenant, gotAuth string
+	var gotTenant, gotAuth, gotDept string
+	var deptPresent bool
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		gotTenant = r.Header.Get("X-IOMesh-Tenant")
 		gotAuth = r.Header.Get("Authorization")
+		gotDept = r.Header.Get("X-IOMesh-Department")
+		_, deptPresent = r.Header["X-Iomesh-Department"]
 		mu.Unlock()
 		w.WriteHeader(http.StatusNoContent)
 	}))
@@ -136,5 +144,42 @@ func TestConnectOmitsHeadersWhenUnset(t *testing.T) {
 	}
 	if gotAuth != "" {
 		t.Fatalf("Authorization = %q, want empty", gotAuth)
+	}
+	if gotDept != "" || deptPresent {
+		t.Fatalf("X-IOMesh-Department present=%v value=%q, want omitted", deptPresent, gotDept)
+	}
+}
+
+func TestWithDepartmentEmptyOmitsHeader(t *testing.T) {
+	var mu sync.Mutex
+	var gotDept string
+	var deptPresent bool
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		gotDept = r.Header.Get("X-IOMesh-Department")
+		_, deptPresent = r.Header["X-Iomesh-Department"]
+		mu.Unlock()
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(srv.Close)
+
+	nc, err := iomeshclient.Connect(
+		iomeshclient.Options{URL: srv.URL},
+		iomeshclient.WithDepartment(""),
+		iomeshclient.WithDepartment("   "),
+	)
+	if err != nil {
+		t.Fatalf("Connect() error: %v", err)
+	}
+
+	if err := nc.Pub(context.Background(), "events.demo", []byte("x"), nil); err != nil {
+		t.Fatalf("Pub() error: %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if gotDept != "" || deptPresent {
+		t.Fatalf("X-IOMesh-Department present=%v value=%q, want omitted", deptPresent, gotDept)
 	}
 }

@@ -87,8 +87,8 @@ type MemoryHit struct {
 	HopDistance int `json:"hop_distance,omitempty"`
 }
 
-// MemoryRelatedRequest is the sync HTTP body for POST /v1|/v5/memory/related (s1134).
-// Parity with MCP memory_related / aion s1133 (tenant_id HTTP naming) · s1277 PreferShorterHops.
+// MemoryRelatedRequest is the sync HTTP body for POST /v1|/v5/memory/related.
+// Parity with MCP memory_related (tenant_id HTTP naming) and PreferShorterHops.
 // At least one of SeedEntity or Query is required.
 // Honesty: multi-hop lite · not full graph RAG · not full KG · not Memory GA · dual_write OFF.
 // PreferShorterHops: omit/nil = kernel default true (shorter BFS hops then event time).
@@ -100,14 +100,14 @@ type MemoryRelatedRequest struct {
 	Limit      int    `json:"limit,omitempty"`
 	SessionID  string `json:"session_id,omitempty"`
 	AsOf       string `json:"as_of,omitempty"` // RFC3339 optional validity instant
-	// PreferShorterHops: omit/nil = kernel default true (shorter BFS hops then event time; s1067/s1277).
+	// PreferShorterHops: omit/nil = kernel default true (shorter BFS hops then event time).
 	// false = legacy seed-first sort. Multi-hop lite · not full graph RAG · not Memory GA.
-	// Dogfood: examples/memory-metering-dogfood (IOMESH_PREFER_SHORTER_HOPS; s1293 residual-honest).
+	// Dogfood: examples/memory-metering-dogfood (IOMESH_PREFER_SHORTER_HOPS).
 	PreferShorterHops *bool `json:"prefer_shorter_hops,omitempty"`
 }
 
-// MemoryOpsDigestRequest is the sync HTTP body for POST /v1|/v5/memory/ops_digest (s1199).
-// Parity with aion s1198 HTTP / MCP ops_digest_export (s1197).
+// MemoryOpsDigestRequest is the sync HTTP body for POST /v1|/v5/memory/ops_digest.
+// Parity with mesh HTTP / MCP ops_digest_export.
 // Window defaults to day; Horizon defaults to ops when empty.
 // Honesty: ops GA-path framing · knowledge/analytical Beta · never invent GA ·
 // dual_write OFF · book-demo OFF · not product Memory GA.
@@ -132,7 +132,7 @@ type MemoryOpsDigestHonesty struct {
 	Note             string `json:"note,omitempty"`
 }
 
-// MemoryOpsDigestPattern is one pattern signal in an ops digest (aion PatternSignal wire shape).
+// MemoryOpsDigestPattern is one pattern signal in an ops digest (mesh PatternSignal wire shape).
 type MemoryOpsDigestPattern struct {
 	ID        string  `json:"id,omitempty"`
 	Kind      string  `json:"kind,omitempty"`
@@ -446,9 +446,9 @@ func (c *Client) RetrieveMemory(ctx context.Context, req MemoryRetrieveRequest) 
 }
 
 // RetrieveMemoryRelated performs synchronous multi-hop associative recall against the
-// memory sidecar HTTP API (POST /v1|/v5/memory/related — aion s1133 / MCP memory_related).
+// memory sidecar HTTP API (POST /v1|/v5/memory/related — MCP memory_related).
 // Tries /v1/memory/related then /v5/memory/related (parity with RetrieveMemory path cascade).
-// PreferShorterHops (s1286 / aion s1277): omit/nil = kernel default true; false = legacy seed-first.
+// PreferShorterHops: omit/nil = kernel default true; false = legacy seed-first.
 //
 // Honesty: multi-hop lite (EntityGraph BFS + entry entity tags) · not full Zep/Graphiti KG
 // or graph-RAG · not product Memory GA · dual_write remains OFF by default elsewhere.
@@ -520,7 +520,7 @@ func (c *Client) RetrieveMemoryRelated(ctx context.Context, req MemoryRelatedReq
 }
 
 // ExportOpsDigest performs synchronous ops heartbeat digest export against the
-// memory sidecar HTTP API (POST /v1|/v5/memory/ops_digest — aion s1198 / MCP ops_digest_export).
+// memory sidecar HTTP API (POST /v1|/v5/memory/ops_digest — MCP ops_digest_export).
 // Tries /v1/memory/ops_digest then /v5/memory/ops_digest (parity with RetrieveMemory path cascade).
 //
 // Honesty: ops GA-path framing · knowledge/analytical Beta · never invent GA ·

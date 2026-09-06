@@ -38,6 +38,7 @@
 //	IOMESH_TENANT         tenant (default demo.tenant)
 //	IOMESH_ORG            optional X-IOMesh-Org
 //	IOMESH_WORKSPACE      optional X-IOMesh-Workspace
+//	IOMESH_DEPARTMENT     optional X-IOMesh-Department (omit when empty)
 //	IOMESH_API_KEY        optional Bearer
 //	IOMESH_MEMORY_ENDPOINT optional memory sidecar base for sync retrieve
 //	                       (when unset, uses IOMESH_URL — broker-only often 404s retrieve)
@@ -88,6 +89,9 @@ func main() {
 	}
 	if ws := os.Getenv("IOMESH_WORKSPACE"); ws != "" {
 		opts = append(opts, iomeshclient.WithWorkspace(ws))
+	}
+	if dept := strings.TrimSpace(os.Getenv("IOMESH_DEPARTMENT")); dept != "" {
+		opts = append(opts, iomeshclient.WithDepartment(dept))
 	}
 	if key := os.Getenv("IOMESH_API_KEY"); key != "" {
 		opts = append(opts, iomeshclient.WithBearerToken(key))
