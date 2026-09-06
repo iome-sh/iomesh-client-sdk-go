@@ -87,7 +87,7 @@ type MemoryHit struct {
 	HopDistance int `json:"hop_distance,omitempty"`
 }
 
-// MemoryRelatedRequest is the sync HTTP body for POST /v1|/v5/memory/related (s1134).
+// MemoryRelatedRequest is the sync HTTP body for POST /v1|/v5/memory/related.
 // Parity with MCP memory_related (tenant_id HTTP naming) and PreferShorterHops.
 // At least one of SeedEntity or Query is required.
 // Honesty: multi-hop lite · not full graph RAG · not full KG · not Memory GA · dual_write OFF.
@@ -100,13 +100,13 @@ type MemoryRelatedRequest struct {
 	Limit      int    `json:"limit,omitempty"`
 	SessionID  string `json:"session_id,omitempty"`
 	AsOf       string `json:"as_of,omitempty"` // RFC3339 optional validity instant
-	// PreferShorterHops: omit/nil = kernel default true (shorter BFS hops then event time; s1067/s1277).
+	// PreferShorterHops: omit/nil = kernel default true (shorter BFS hops then event time).
 	// false = legacy seed-first sort. Multi-hop lite · not full graph RAG · not Memory GA.
-	// Dogfood: examples/memory-metering-dogfood (IOMESH_PREFER_SHORTER_HOPS; s1293 residual-honest).
+	// Dogfood: examples/memory-metering-dogfood (IOMESH_PREFER_SHORTER_HOPS).
 	PreferShorterHops *bool `json:"prefer_shorter_hops,omitempty"`
 }
 
-// MemoryOpsDigestRequest is the sync HTTP body for POST /v1|/v5/memory/ops_digest (s1199).
+// MemoryOpsDigestRequest is the sync HTTP body for POST /v1|/v5/memory/ops_digest.
 // Parity with mesh HTTP / MCP ops_digest_export.
 // Window defaults to day; Horizon defaults to ops when empty.
 // Honesty: ops GA-path framing · knowledge/analytical Beta · never invent GA ·

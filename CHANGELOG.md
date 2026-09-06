@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Docs** — README and durable pull examples (`pull-loop`, `github-stream-read`, `org-heartbeat-publish`) document `IOMESH_ORG` → `X-IOMesh-Org` on fetch/ack/catalog. Omitting org can mix shared-stream reads on fail-open brokers. Prefer `IOMESH_REQUIRE_ORG=1` for N=2 shared streams. No library default org.
 - **`connectorsdk.PublishHeaders`** — department maps to wire name `X-IOMesh-Department` (omit when empty). Legacy bare `department` key is not dual-written
+- **Docs** — memory helper godoc/comments use mesh / sidecar / MCP vocabulary (no product `aion` / continuum serials in those comments)
 
 ## [0.69.0] — 2026-09-04
 

@@ -468,7 +468,7 @@ func TestRetrieveMemoryRelatedSuccess(t *testing.T) {
 	}
 }
 
-// TestRetrieveMemoryRelatedPreferShorterHops covers s1286 body wiring:
+// TestRetrieveMemoryRelatedPreferShorterHops covers PreferShorterHops body wiring:
 // false and true appear in the request body; nil omits the key (kernel default true).
 // Honesty: multi-hop lite · not full graph RAG · not Memory GA · dual_write OFF.
 func TestRetrieveMemoryRelatedPreferShorterHops(t *testing.T) {
