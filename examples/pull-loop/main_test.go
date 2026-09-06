@@ -33,6 +33,35 @@ func TestEnvStrict(t *testing.T) {
 	}
 }
 
+func TestEnvRequireOrg(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		env  string
+		want bool
+	}{
+		{name: "exact 1", env: "1", want: true},
+		{name: "empty", env: "", want: false},
+		{name: "zero", env: "0", want: false},
+		{name: "true string", env: "true", want: true},
+		{name: "yes", env: "yes", want: true},
+		{name: "on", env: "on", want: true},
+		{name: "whitespace 1", env: " 1 ", want: true},
+		{name: "TRUE", env: "TRUE", want: true},
+		{name: "false string", env: "false", want: false},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := envRequireOrg(tc.env)
+			if got != tc.want {
+				t.Fatalf("envRequireOrg(%q) = %v, want %v", tc.env, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestEnvWaitRequireHealth(t *testing.T) {
 	t.Parallel()
 	cases := []struct {

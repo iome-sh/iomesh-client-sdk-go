@@ -10,7 +10,10 @@
 //
 //	IOMESH_URL        mesh broker base (default http://127.0.0.1:8422)
 //	IOMESH_TENANT     tenant (default dept.engineering)
-//	IOMESH_ORG        optional X-IOMesh-Org
+//	IOMESH_ORG        X-IOMesh-Org (set for hosted isolation / N=2 shared streams;
+//	                  omit only on local fail-open brokers — mix risk)
+//	IOMESH_REQUIRE_ORG 1/true/yes/on — client fail-closes catalog/consume when
+//	                  IOMESH_ORG is empty (prefer on for shared github streams)
 //	IOMESH_WORKSPACE  optional X-IOMesh-Workspace
 //	IOMESH_API_KEY    optional Bearer
 //	IOMESH_STREAM     stream name (default OPERATIONAL_EVENTS)
@@ -19,6 +22,8 @@
 // Usage:
 //
 //	export IOMESH_URL=http://127.0.0.1:8422
+//	export IOMESH_ORG=org_example        # X-IOMesh-Org on ListStreamMessages
+//	export IOMESH_REQUIRE_ORG=1          # prefer fail-closed on shared github streams
 //	go run ./examples/github-stream-read
 package main
 
@@ -43,6 +48,9 @@ func main() {
 	opts := []iomeshclient.ConnectOpt{iomeshclient.WithTenant(tenant)}
 	if org := strings.TrimSpace(os.Getenv("IOMESH_ORG")); org != "" {
 		opts = append(opts, iomeshclient.WithOrg(org))
+	}
+	if envRequireOrg(os.Getenv("IOMESH_REQUIRE_ORG")) {
+		opts = append(opts, iomeshclient.WithRequireOrg())
 	}
 	if ws := strings.TrimSpace(os.Getenv("IOMESH_WORKSPACE")); ws != "" {
 		opts = append(opts, iomeshclient.WithWorkspace(ws))
@@ -80,6 +88,15 @@ func formatGitHubReplay(stream string, msgs []iomeshclient.StreamMessage) string
 		fmt.Fprintf(&b, "seq=%d subject=%s bytes=%d\n", m.Seq, m.Subject, len(m.Payload))
 	}
 	return b.String()
+}
+
+func envRequireOrg(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 func env(key, fallback string) string {

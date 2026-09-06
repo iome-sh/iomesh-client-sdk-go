@@ -8,7 +8,8 @@
 //
 //	IOMESH_URL        mesh broker base (default http://127.0.0.1:8422)
 //	IOMESH_TENANT     tenant (default dept.engineering)
-//	IOMESH_ORG        optional X-IOMesh-Org
+//	IOMESH_ORG        X-IOMesh-Org (set for hosted isolation; omit only on local fail-open brokers)
+//	IOMESH_REQUIRE_ORG 1/true/yes/on — client fail-closes catalog/consume when IOMESH_ORG is empty
 //	IOMESH_WORKSPACE  optional X-IOMesh-Workspace
 //	IOMESH_API_KEY    optional Bearer
 //	IOMESH_STREAM     stream name (default EVENTS)
@@ -19,6 +20,7 @@
 // Usage:
 //
 //	export IOMESH_URL=http://127.0.0.1:8422
+//	export IOMESH_ORG=org_example
 //	go run ./examples/org-heartbeat-publish
 //	# optional pull of the same org heartbeat subjects:
 //	IOMESH_PULL=1 go run ./examples/org-heartbeat-publish
@@ -49,6 +51,9 @@ func main() {
 	}
 	if org := strings.TrimSpace(os.Getenv("IOMESH_ORG")); org != "" {
 		opts = append(opts, iomeshclient.WithOrg(org))
+	}
+	if envRequireOrg(os.Getenv("IOMESH_REQUIRE_ORG")) {
+		opts = append(opts, iomeshclient.WithRequireOrg())
 	}
 	if ws := strings.TrimSpace(os.Getenv("IOMESH_WORKSPACE")); ws != "" {
 		opts = append(opts, iomeshclient.WithWorkspace(ws))
@@ -130,6 +135,15 @@ func main() {
 
 	fmt.Println("RESULT=done")
 	fmt.Println("note: offline stage smoke ≠ live APPLY · dual_write default OFF · local-primary memory")
+}
+
+func envRequireOrg(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 func env(k, def string) string {

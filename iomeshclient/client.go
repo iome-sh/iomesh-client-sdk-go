@@ -60,6 +60,7 @@ type Client struct {
 	workspace   string
 	bearerToken string
 	userAgent   string
+	requireOrg  bool
 }
 
 type connectOpts struct {
@@ -68,6 +69,7 @@ type connectOpts struct {
 	workspace   string
 	bearerToken string
 	userAgent   string
+	requireOrg  bool
 }
 
 // ConnectOpt configures optional client connection settings.
@@ -88,10 +90,20 @@ func WithBearerToken(token string) ConnectOpt {
 }
 
 // WithOrg sets X-IOMesh-Org on all HTTP requests so the broker can isolate
-// catalog and consume per organization.
+// catalog and consume per organization. The library does not invent a default
+// org; omitting the header can mix shared-stream reads on fail-open brokers.
 func WithOrg(orgID string) ConnectOpt {
 	return func(o *connectOpts) {
 		o.org = strings.TrimSpace(orgID)
+	}
+}
+
+// WithRequireOrg fail-closes catalog, consume, and publish when org is empty
+// (error before the request instead of omitting X-IOMesh-Org). Default off
+// keeps local/dev DX. Use with WithOrg / IOMESH_ORG on shared streams.
+func WithRequireOrg() ConnectOpt {
+	return func(o *connectOpts) {
+		o.requireOrg = true
 	}
 }
 
@@ -156,6 +168,7 @@ func Connect(base Options, opts ...ConnectOpt) (*Client, error) {
 		workspace:   co.workspace,
 		bearerToken: co.bearerToken,
 		userAgent:   ua,
+		requireOrg:  co.requireOrg,
 	}, nil
 }
 
@@ -170,12 +183,14 @@ func Connect(base Options, opts ...ConnectOpt) (*Client, error) {
 //	IOMESH_TENANT, IOMESH_ORG, IOMESH_WORKSPACE
 //	IOMESH_BEARER_TOKEN or IOMESH_TOKEN (bearer; BEARER_TOKEN wins if both set)
 //	IOMESH_TIMEOUT — request timeout in seconds (float; default 30)
+//	IOMESH_REQUIRE_ORG — 1/true/yes/on fail-closes catalog/consume when
+//	IOMESH_ORG is empty (default off; local/dev DX)
 //
 // If environ is nil, the process environment (os.Environ) is used. A non-nil map
 // (including empty) is the sole source — process env is ignored.
 //
 // IOMESH_ORG sets X-IOMesh-Org so hosted brokers can isolate catalog and consume
-// per organization.
+// per organization. Omitting org can mix shared-stream reads on fail-open brokers.
 func ConnectFromEnv(environ map[string]string) (*Client, error) {
 	env := environ
 	if env == nil {
@@ -201,15 +216,30 @@ func ConnectFromEnv(environ map[string]string) (*Client, error) {
 		token = strings.TrimSpace(env["IOMESH_TOKEN"])
 	}
 
-	return Connect(Options{
-		URL:            url,
-		RequestTimeout: timeout,
-	},
+	opts := []ConnectOpt{
 		WithTenant(env["IOMESH_TENANT"]),
 		WithOrg(env["IOMESH_ORG"]),
 		WithWorkspace(env["IOMESH_WORKSPACE"]),
 		WithBearerToken(token),
-	)
+	}
+	if envFlag(env["IOMESH_REQUIRE_ORG"]) {
+		opts = append(opts, WithRequireOrg())
+	}
+
+	return Connect(Options{
+		URL:            url,
+		RequestTimeout: timeout,
+	}, opts...)
+}
+
+// envFlag reports whether a 1/true/yes/on env value is set (case-insensitive).
+func envFlag(raw string) bool {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 func environFromOS() map[string]string {
@@ -254,8 +284,31 @@ type PubAck struct {
 	Timestamp time.Time
 }
 
+// RequireOrg reports whether catalog/consume/publish fail closed when org is empty.
+func (c *Client) RequireOrg() bool {
+	return c != nil && c.requireOrg
+}
+
+// ensureOrgForIsolation fail-closes when RequireOrg is set and org is empty.
+//
+// Default (RequireOrg false) still omits X-IOMesh-Org so local/dev brokers work.
+// Hosted brokers isolate catalog/consume by that header; omitting it can mix
+// shared-stream reads. Set WithOrg / IOMESH_ORG, or WithRequireOrg / IOMESH_REQUIRE_ORG=1.
+func (c *Client) ensureOrgForIsolation() error {
+	if c == nil || !c.requireOrg {
+		return nil
+	}
+	if strings.TrimSpace(c.org) != "" {
+		return nil
+	}
+	return errors.New("iomeshclient: X-IOMesh-Org required for org-scoped catalog/consume (set WithOrg or IOMESH_ORG)")
+}
+
 // Publish appends a message to stream.
 func (c *Client) Publish(ctx context.Context, stream, subject string, payload []byte, opts ...PublishOpt) (*PubAck, error) {
+	if err := c.ensureOrgForIsolation(); err != nil {
+		return nil, err
+	}
 	po := applyPublishOpts(opts)
 
 	body := publishRequest{
@@ -317,6 +370,9 @@ type ConsumerInfo struct {
 func (c *Client) CreateConsumer(ctx context.Context, cfg CreateConsumerConfig) (*ConsumerInfo, error) {
 	if c == nil {
 		return nil, errors.New("iomeshclient: nil client")
+	}
+	if err := c.ensureOrgForIsolation(); err != nil {
+		return nil, err
 	}
 	if cfg.Stream == "" || cfg.Name == "" {
 		return nil, errors.New("iomeshclient: stream and name required")
@@ -430,6 +486,9 @@ func (c *Client) ConsumerFetch(ctx context.Context, stream, consumer string, bat
 	if c == nil {
 		return nil, errors.New("iomeshclient: nil client")
 	}
+	if err := c.ensureOrgForIsolation(); err != nil {
+		return nil, err
+	}
 	if stream == "" || consumer == "" {
 		return nil, errors.New("iomeshclient: stream and consumer required")
 	}
@@ -480,6 +539,9 @@ func (c *Client) ConsumerAck(ctx context.Context, stream, consumer string, seqs 
 	if c == nil {
 		return errors.New("iomeshclient: nil client")
 	}
+	if err := c.ensureOrgForIsolation(); err != nil {
+		return err
+	}
 	if stream == "" || consumer == "" {
 		return errors.New("iomeshclient: stream and consumer required")
 	}
@@ -501,6 +563,9 @@ func (c *Client) ConsumerAck(ctx context.Context, stream, consumer string, seqs 
 func (c *Client) ConsumerNack(ctx context.Context, stream, consumer string, seqs ...uint64) error {
 	if c == nil {
 		return errors.New("iomeshclient: nil client")
+	}
+	if err := c.ensureOrgForIsolation(); err != nil {
+		return err
 	}
 	if stream == "" || consumer == "" {
 		return errors.New("iomeshclient: stream and consumer required")

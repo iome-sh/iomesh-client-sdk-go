@@ -20,17 +20,22 @@ Lightweight framing for **organizational heartbeats** (ops **pulse**) on `dept.*
 
 ```bash
 export IOMESH_URL=http://127.0.0.1:8422
+export IOMESH_ORG=org_example
 go run ./examples/org-heartbeat-publish
 
 # optional durable pull of the same subject tree
 IOMESH_PULL=1 go run ./examples/org-heartbeat-publish
 ```
 
+`IOMESH_ORG` maps to `X-IOMesh-Org` on publish/fetch/ack. Omitting it can mix shared-stream reads on fail-open brokers. Set `IOMESH_REQUIRE_ORG=1` so the client errors before catalog/consume when org is empty.
+
 | Env | Default | Notes |
 |-----|---------|--------|
 | `IOMESH_URL` | `http://127.0.0.1:8422` | broker base |
 | `IOMESH_TENANT` | `dept.engineering` | `X-IOMesh-Tenant` |
-| `IOMESH_ORG` / `IOMESH_WORKSPACE` | empty | multi-tenant headers |
+| `IOMESH_ORG` | empty | `X-IOMesh-Org`; set for hosted isolation |
+| `IOMESH_REQUIRE_ORG` | off | `1`/`true`/`yes`/`on` fail-closes catalog/consume when org is empty |
+| `IOMESH_WORKSPACE` | empty | `X-IOMesh-Workspace` |
 | `IOMESH_STREAM` | `EVENTS` | durable stream name |
 | `IOMESH_SUBJECT` | `<tenant>.events.org-heartbeat` | publish subject |
 | `IOMESH_PULL` | off | set `1` for one fetch cycle |
