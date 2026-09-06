@@ -456,7 +456,7 @@ _ = meta // Source mesh|portal|fail-open; Detail is path or error note
 - Prefer short-lived bearer tokens (`WithBearerToken`) and tenant-scoped headers (`WithTenant` / `WithOrg` / `WithWorkspace` / `WithDepartment`).
 - Broker URLs must be absolute **`http`/`https`** (no `file://`, no embedded userinfo).
 - Connector HMAC secrets must stay server-side; never embed partner secrets in mobile or browser clients.
-- Treat `X-IOMesh-Tenant` / `X-IOMesh-Org` / `X-IOMesh-Department` as an authorization boundary — **enforce server-side**. Omitting `X-IOMesh-Org` can mix shared-stream reads on fail-open brokers. Set `WithRequireOrg()` / `IOMESH_REQUIRE_ORG=1` so the client errors before pull/fetch/ack/catalog when org is empty. The library does not invent a default org.
+- Treat `X-IOMesh-Tenant` / `X-IOMesh-Org` / `X-IOMesh-Department` as an authorization boundary — **enforce server-side**. Omitting `X-IOMesh-Org` can mix shared-stream reads on fail-open brokers. Set `WithRequireOrg()` / `IOMESH_REQUIRE_ORG=1` so the client errors before pull/fetch/ack/catalog when org is empty. The library does not invent a default org. `X-IOMesh-Department` is omitted when unset (no invent).
 
 ## Versioning & support
 
