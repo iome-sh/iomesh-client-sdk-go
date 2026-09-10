@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.71.0] — 2026-09-10
+
+Minor: `cuid.NewOrgID` / `NewWorkspaceID` / `IsOpaque*` + omit-blank workspace = root-default. Catalog ≠ Connected · dual_write OFF · never invent `workspaces[0]`.
+
 ### Added
 
 - **`cuid.NewOrgID` / `cuid.NewWorkspaceID`** — thin wrappers on prefixed cuid2 mint (`org_` / `ws_` + cuid2), matching control-plane public-id shapes for `X-IOMesh-Org` / `X-IOMesh-Workspace`. Helpers mint the **shape** only; they do not register an org or workspace. Closes [#180](https://github.com/iome-sh/iomesh-client-sdk-go/issues/180).
