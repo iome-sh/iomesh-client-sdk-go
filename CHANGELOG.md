@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`cuid.NewOrgID` / `cuid.NewWorkspaceID`** — thin wrappers on prefixed cuid2 mint (`org_` / `ws_` + cuid2), matching control-plane public-id shapes for `X-IOMesh-Org` / `X-IOMesh-Workspace`. Helpers mint the **shape** only; they do not register an org or workspace. Closes [#180](https://github.com/iome-sh/iomesh-client-sdk-go/issues/180).
+- **`cuid.IsOpaqueOrgID` / `cuid.IsOpaqueWorkspaceID`** — validate opaque `org_`/`ws_` + default-length cuid2 (name slugs and placeholders such as `org_example` / `ws_default` are not opaque)
+
+### Changed
+
+- **Docs** — omit-blank `WithWorkspace` / `IOMESH_WORKSPACE` uses the broker **root-default** workspace; the library never invents `workspaces[0]`. Examples no longer present `ws_default` / `org_example` as control-plane minted ids.
+
+### Honesty
+
+- Catalog list ≠ Connected · Beta / pre-1.0 · not Memory GA
+- `dual_write` OFF (`DualWriteMemoryTurn` Sync default false)
+- Workspace: omit blank = broker root-default; never invent `workspaces[0]`
+- Org/workspace placeholders in examples are local/dev stand-ins, not CP-minted ids
+
 ## [0.70.0] — 2026-09-06
 
 Minor release: `WithRequireOrg` + `WithDepartment`.

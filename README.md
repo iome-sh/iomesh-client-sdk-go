@@ -55,8 +55,8 @@ func main() {
 	nc, err := iomeshclient.Connect(
 		iomeshclient.Options{URL: "http://127.0.0.1:8422"},
 		iomeshclient.WithTenant("dept.engineering"),
-		iomeshclient.WithOrg("acme-org"),
-		iomeshclient.WithWorkspace("ws_default"), // multi-tenant metering / entitlements
+		iomeshclient.WithOrg("org_example"), // local/dev placeholder — hosted: CP-minted org_+cuid2
+		// Omit WithWorkspace: broker root-default. Never invent workspaces[0] or treat ws_default as minted.
 		iomeshclient.WithDepartment("engineering"), // omit when empty
 	)
 	if err != nil {
@@ -84,13 +84,27 @@ func main() {
 }
 ```
 
-Or from environment — `IOMESH_URL` required; optional `IOMESH_TENANT`, `IOMESH_ORG`, `IOMESH_WORKSPACE`, `IOMESH_DEPARTMENT`, `IOMESH_BEARER_TOKEN` or `IOMESH_TOKEN`, `IOMESH_TIMEOUT` (seconds), `IOMESH_REQUIRE_ORG=1` (fail-closed catalog/consume when `IOMESH_ORG` is empty). Pass `nil` to read the process environment. `IOMESH_ORG` sets `X-IOMesh-Org` so hosted brokers can isolate catalog and consume per organization. Omitting org can mix shared-stream reads on fail-open brokers. The library does **not** invent a default org. `IOMESH_DEPARTMENT` sets `X-IOMesh-Department` when non-empty; empty omits the header.
+Or from environment — `IOMESH_URL` required; optional `IOMESH_TENANT`, `IOMESH_ORG`, `IOMESH_WORKSPACE`, `IOMESH_DEPARTMENT`, `IOMESH_BEARER_TOKEN` or `IOMESH_TOKEN`, `IOMESH_TIMEOUT` (seconds), `IOMESH_REQUIRE_ORG=1` (fail-closed catalog/consume when `IOMESH_ORG` is empty). Pass `nil` to read the process environment. `IOMESH_ORG` sets `X-IOMesh-Org` so hosted brokers can isolate catalog and consume per organization. Omitting org can mix shared-stream reads on fail-open brokers. The library does **not** invent a default org. Hosted org ids are control-plane minted `org_`+cuid2 (`cuid.NewOrgID` / `cuid.IsOpaqueOrgID`); example values such as `org_example` are **local/dev placeholders**, not minted ids. Omit blank `IOMESH_WORKSPACE` / `WithWorkspace` so the broker uses its **root-default** workspace — the client never invents `workspaces[0]` or treats `ws_default` as a minted id. Hosted workspace ids are `ws_`+cuid2 (`cuid.NewWorkspaceID` / `cuid.IsOpaqueWorkspaceID`). `IOMESH_DEPARTMENT` sets `X-IOMesh-Department` when non-empty; empty omits the header.
 
 ```go
 nc, err := iomeshclient.ConnectFromEnv(nil)
 ```
 
 `WithOrg` / `IOMESH_ORG` maps to `X-IOMesh-Org`. Hosted brokers isolate catalog and durable pull by that header; omitting it can mix shared-stream reads (or the broker may reject the request). Local/dev brokers still fail-open when org is empty. Set `IOMESH_REQUIRE_ORG=1` (or `WithRequireOrg()`) so the client errors before fetch/ack/catalog instead of sending an unscoped request.
+
+### Org and workspace public ids
+
+Hosted isolation uses **opaque** control-plane public ids (not name slugs):
+
+| Header | Shape | Helpers |
+|--------|-------|---------|
+| `X-IOMesh-Org` | `org_` + cuid2 | [`cuid.NewOrgID`](./cuid) / `cuid.IsOpaqueOrgID` |
+| `X-IOMesh-Workspace` | `ws_` + cuid2 | [`cuid.NewWorkspaceID`](./cuid) / `cuid.IsOpaqueWorkspaceID` |
+
+`NewOrgID` / `NewWorkspaceID` mint the same **shape** as the control plane. They do **not** register an organization or workspace — hosted tenants still use the id the control plane issued.
+
+- **Omit** `WithWorkspace` / `IOMESH_WORKSPACE` (blank after trim) so the broker uses its **root-default** workspace. The client never invents `workspaces[0]` or a slug such as `ws_default`.
+- Example values such as `org_example` are **local/dev placeholders**, not CP-minted ids (`IsOpaqueOrgID("org_example")` is false).
 
 Runnable framing (publish + optional pull): [`examples/org-heartbeat-publish/`](examples/org-heartbeat-publish/).  
 Stage smoke pull loop: [`examples/pull-loop/`](examples/pull-loop/) (same durable consumer APIs; offline smoke ≠ live APPLY). Prefer `IOMESH_ORG` + `IOMESH_REQUIRE_ORG=1` for N=2 shared streams.
@@ -350,7 +364,8 @@ Pull consumer stage smoke (one or more fetch cycles; optional ensure/publish/ack
 
 ```bash
 export IOMESH_URL=http://127.0.0.1:8422
-export IOMESH_ORG=org_example     # X-IOMesh-Org on fetch/ack; omit can mix shared streams
+export IOMESH_ORG=org_example     # local/dev placeholder — hosted: CP-minted org_+cuid2; omit can mix shared streams
+# omit IOMESH_WORKSPACE — broker root-default; never invent workspaces[0] / ws_default
 export IOMESH_REQUIRE_ORG=1       # optional fail-closed when IOMESH_ORG is empty
 export IOMESH_STREAM=EVENTS
 export IOMESH_CONSUMER=sdk-pull-loop

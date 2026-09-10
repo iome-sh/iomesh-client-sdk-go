@@ -10,11 +10,11 @@
 //
 //	IOMESH_URL        mesh broker base (default http://127.0.0.1:8422)
 //	IOMESH_TENANT     tenant (default dept.engineering)
-//	IOMESH_ORG        X-IOMesh-Org (set for hosted isolation / N=2 shared streams;
-//	                  omit only on local fail-open brokers — mix risk)
+//	IOMESH_ORG        X-IOMesh-Org (hosted: CP-minted org_+cuid2; org_example is a
+//	                  local/dev placeholder; omit only on local fail-open brokers — mix risk)
 //	IOMESH_REQUIRE_ORG 1/true/yes/on — client fail-closes catalog/consume when
 //	                  IOMESH_ORG is empty (prefer on for shared github streams)
-//	IOMESH_WORKSPACE  optional X-IOMesh-Workspace
+//	IOMESH_WORKSPACE  optional X-IOMesh-Workspace (omit = broker root-default; never invent workspaces[0])
 //	IOMESH_DEPARTMENT optional X-IOMesh-Department (omit when empty)
 //	IOMESH_API_KEY    optional Bearer
 //	IOMESH_STREAM     stream name (default OPERATIONAL_EVENTS)
@@ -23,7 +23,7 @@
 // Usage:
 //
 //	export IOMESH_URL=http://127.0.0.1:8422
-//	export IOMESH_ORG=org_example        # X-IOMesh-Org on ListStreamMessages
+//	export IOMESH_ORG=org_example        # local/dev placeholder — hosted: CP-minted org_+cuid2
 //	export IOMESH_REQUIRE_ORG=1          # prefer fail-closed on shared github streams
 //	go run ./examples/github-stream-read
 package main

@@ -21,20 +21,21 @@ Replay messages from a **GitHub-ingested** stream the caller is allowed to see, 
 
 ```bash
 export IOMESH_URL=http://127.0.0.1:8422
-export IOMESH_ORG=org_example          # X-IOMesh-Org on ListStreamMessages
+export IOMESH_ORG=org_example          # local/dev placeholder — hosted: CP-minted org_+cuid2
+# omit IOMESH_WORKSPACE — broker root-default; never invent workspaces[0] / ws_default
 export IOMESH_REQUIRE_ORG=1            # prefer fail-closed on shared github streams
 go run ./examples/github-stream-read
 ```
 
-`IOMESH_ORG` maps to `X-IOMesh-Org`. Omitting it on a shared stream (`github`, `OPERATIONAL_EVENTS`) can mix orgs on fail-open brokers. Prefer `IOMESH_REQUIRE_ORG=1` so the client errors before replay when org is empty. The library does not invent a default org.
+`IOMESH_ORG` maps to `X-IOMesh-Org`. Hosted brokers expect a control-plane minted `org_`+cuid2; `org_example` is a local/dev placeholder, not a minted id. Omitting org on a shared stream (`github`, `OPERATIONAL_EVENTS`) can mix orgs on fail-open brokers. Prefer `IOMESH_REQUIRE_ORG=1` so the client errors before replay when org is empty. The library does not invent a default org. Omit blank `IOMESH_WORKSPACE` so the broker uses its root-default workspace (never invent `workspaces[0]`).
 
 | Env | Default | Notes |
 |-----|---------|--------|
 | `IOMESH_URL` | `http://127.0.0.1:8422` | broker base |
 | `IOMESH_TENANT` | `dept.engineering` | `X-IOMesh-Tenant` |
-| `IOMESH_ORG` | empty | `X-IOMesh-Org`; set for hosted isolation / N=2 shared streams |
+| `IOMESH_ORG` | empty | `X-IOMesh-Org`; hosted: CP-minted `org_`+cuid2; `org_example` is a local/dev placeholder |
 | `IOMESH_REQUIRE_ORG` | off | `1`/`true`/`yes`/`on` fail-closes catalog/consume when org is empty |
-| `IOMESH_WORKSPACE` | empty | optional `X-IOMesh-Workspace` |
+| `IOMESH_WORKSPACE` | empty | omit = broker root-default; never invent `workspaces[0]`; hosted: `ws_`+cuid2 |
 | `IOMESH_DEPARTMENT` | empty | optional `X-IOMesh-Department` (omit when empty) |
 | `IOMESH_STREAM` | `OPERATIONAL_EVENTS` | GitHub-ingested durable stream |
 | `IOMESH_LIMIT` | `50` | replay page size (cap 1000) |

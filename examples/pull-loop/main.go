@@ -10,11 +10,11 @@
 //
 //	IOMESH_URL            mesh broker base (required)
 //	IOMESH_TENANT         tenant (default demo.tenant)
-//	IOMESH_ORG            X-IOMesh-Org (set for hosted isolation / N=2 shared streams;
-//	                      omit only on local fail-open brokers — mix risk)
+//	IOMESH_ORG            X-IOMesh-Org (hosted: CP-minted org_+cuid2; org_example is a
+//	                      local/dev placeholder; omit only on local fail-open brokers — mix risk)
 //	IOMESH_REQUIRE_ORG    1/true/yes/on — client fail-closes catalog/consume when
 //	                      IOMESH_ORG is empty (default off; local/dev DX)
-//	IOMESH_WORKSPACE      optional X-IOMesh-Workspace
+//	IOMESH_WORKSPACE      optional X-IOMesh-Workspace (omit = broker root-default; never invent workspaces[0])
 //	IOMESH_API_KEY        optional Bearer
 //	IOMESH_STREAM         stream name (default EVENTS)
 //	IOMESH_CONSUMER       durable consumer name (default sdk-pull-loop)
@@ -46,7 +46,7 @@
 // Usage:
 //
 //	export IOMESH_URL=http://127.0.0.1:8422
-//	export IOMESH_ORG=org_example   # X-IOMesh-Org on fetch/ack; prefer with IOMESH_REQUIRE_ORG=1 on shared streams
+//	export IOMESH_ORG=org_example   # local/dev placeholder — hosted: CP-minted org_+cuid2; prefer with IOMESH_REQUIRE_ORG=1 on shared streams
 //	export IOMESH_REQUIRE_ORG=1     # optional fail-closed when IOMESH_ORG is empty
 //	export IOMESH_ENSURE_STREAM=1   # optional; defaults filter stream.> and pub under stream.>
 //	export IOMESH_PUBLISH=1         # optional one-shot publish before the fetch loop
