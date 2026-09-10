@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **`cuid.NewOrgID` / `cuid.NewWorkspaceID`** — thin wrappers on prefixed cuid2 mint (`org_` / `ws_` + cuid2), matching control-plane public-id shapes for `X-IOMesh-Org` / `X-IOMesh-Workspace`. Helpers mint the **shape** only; they do not register an org or workspace. Closes [#180](https://github.com/iome-sh/iomesh-client-sdk-go/issues/180).
-- **`cuid.IsOpaqueOrgID` / `cuid.IsOpaqueWorkspaceID`** — validate opaque `org_`/`ws_`+cuid2 (name slugs and placeholders such as `org_example` / `ws_default` are not opaque)
+- **`cuid.IsOpaqueOrgID` / `cuid.IsOpaqueWorkspaceID`** — validate opaque `org_`/`ws_` + default-length cuid2 (name slugs and placeholders such as `org_example` / `ws_default` are not opaque)
 
 ### Changed
 
