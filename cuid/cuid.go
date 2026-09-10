@@ -100,12 +100,16 @@ func NewWorkspaceID() string {
 	return MustNewPrefixed(WorkspaceIDPrefix)
 }
 
-// IsOpaqueOrgID reports whether id is org_ + cuid2 (not a name slug or placeholder).
+// IsOpaqueOrgID reports whether id is org_ + default-length cuid2
+// (the shape NewOrgID / control-plane mint produce). Name slugs and
+// placeholders such as org_example are not opaque.
 func IsOpaqueOrgID(id string) bool {
 	return isOpaquePrefixedID(id, OrgIDPrefix)
 }
 
-// IsOpaqueWorkspaceID reports whether id is ws_ + cuid2 (not a name slug or placeholder).
+// IsOpaqueWorkspaceID reports whether id is ws_ + default-length cuid2
+// (the shape NewWorkspaceID / control-plane mint produce). Name slugs and
+// placeholders such as ws_default are not opaque.
 func IsOpaqueWorkspaceID(id string) bool {
 	return isOpaquePrefixedID(id, WorkspaceIDPrefix)
 }
@@ -115,5 +119,8 @@ func isOpaquePrefixedID(id, prefix string) bool {
 	if !strings.HasPrefix(id, prefix) {
 		return false
 	}
-	return IsCuid(strings.TrimPrefix(id, prefix))
+	suffix := strings.TrimPrefix(id, prefix)
+	// Generate() / NewPrefixed mint DefaultLength (24). cuid2.IsCuid alone
+	// accepts 2..32, which would treat org_example / ws_default as opaque.
+	return len(suffix) == DefaultLength && IsCuid(suffix)
 }
