@@ -95,6 +95,9 @@ func WithBearerToken(token string) ConnectOpt {
 // WithOrg sets X-IOMesh-Org on all HTTP requests so the broker can isolate
 // catalog and consume per organization. The library does not invent a default
 // org; omitting the header can mix shared-stream reads on fail-open brokers.
+// Hosted isolation uses a control-plane minted opaque id (org_ + cuid2);
+// see cuid.NewOrgID / cuid.IsOpaqueOrgID. Name slugs and placeholders such as
+// org_example are not minted control-plane ids.
 func WithOrg(orgID string) ConnectOpt {
 	return func(o *connectOpts) {
 		o.org = strings.TrimSpace(orgID)
@@ -110,8 +113,12 @@ func WithRequireOrg() ConnectOpt {
 	}
 }
 
-// WithWorkspace sets X-IOMesh-Workspace on all HTTP requests (multi-tenant metering / entitlements).
-// Parity with iomesh-tui mesh client and I/O Mesh workspace header.
+// WithWorkspace sets X-IOMesh-Workspace on all HTTP requests when non-empty
+// after trim (multi-tenant metering / entitlements). Empty / omitted workspace
+// lets the broker use its root-default workspace; the library never invents
+// workspaces[0] or a slug such as ws_default. Hosted brokers expect a
+// control-plane minted opaque id (ws_ + cuid2); see cuid.NewWorkspaceID /
+// cuid.IsOpaqueWorkspaceID. Placeholders are not minted control-plane ids.
 func WithWorkspace(workspaceID string) ConnectOpt {
 	return func(o *connectOpts) {
 		o.workspace = strings.TrimSpace(workspaceID)
@@ -203,6 +210,12 @@ func Connect(base Options, opts ...ConnectOpt) (*Client, error) {
 //
 // IOMESH_ORG sets X-IOMesh-Org so hosted brokers can isolate catalog and consume
 // per organization. Omitting org can mix shared-stream reads on fail-open brokers.
+// Hosted brokers expect a control-plane minted org_+cuid2 (cuid.IsOpaqueOrgID);
+// local/dev placeholders such as org_example are not minted ids.
+// IOMESH_WORKSPACE sets X-IOMesh-Workspace when non-empty; blank after trim
+// omits the header so the broker uses its root-default workspace. The library
+// never invents workspaces[0]. Hosted workspace ids are ws_+cuid2
+// (cuid.IsOpaqueWorkspaceID); ws_default is not a minted id.
 // IOMESH_DEPARTMENT sets X-IOMesh-Department when non-empty; empty omits the header.
 func ConnectFromEnv(environ map[string]string) (*Client, error) {
 	env := environ

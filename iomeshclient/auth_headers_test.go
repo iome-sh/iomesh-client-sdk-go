@@ -114,15 +114,17 @@ func TestConnectRejectsUnsafeURLs(t *testing.T) {
 
 func TestConnectOmitsHeadersWhenUnset(t *testing.T) {
 	var mu sync.Mutex
-	var gotTenant, gotAuth, gotDept string
-	var deptPresent bool
+	var gotTenant, gotAuth, gotDept, gotWS string
+	var deptPresent, wsPresent bool
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		gotTenant = r.Header.Get("X-IOMesh-Tenant")
 		gotAuth = r.Header.Get("Authorization")
 		gotDept = r.Header.Get("X-IOMesh-Department")
+		gotWS = r.Header.Get("X-IOMesh-Workspace")
 		_, deptPresent = r.Header["X-Iomesh-Department"]
+		_, wsPresent = r.Header["X-Iomesh-Workspace"]
 		mu.Unlock()
 		w.WriteHeader(http.StatusNoContent)
 	}))
@@ -147,6 +149,43 @@ func TestConnectOmitsHeadersWhenUnset(t *testing.T) {
 	}
 	if gotDept != "" || deptPresent {
 		t.Fatalf("X-IOMesh-Department present=%v value=%q, want omitted", deptPresent, gotDept)
+	}
+	if gotWS != "" || wsPresent {
+		t.Fatalf("X-IOMesh-Workspace present=%v value=%q, want omitted (broker root-default; never invent workspaces[0])", wsPresent, gotWS)
+	}
+}
+
+func TestWithWorkspaceEmptyOmitsHeader(t *testing.T) {
+	var mu sync.Mutex
+	var gotWS string
+	var wsPresent bool
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		gotWS = r.Header.Get("X-IOMesh-Workspace")
+		_, wsPresent = r.Header["X-Iomesh-Workspace"]
+		mu.Unlock()
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(srv.Close)
+
+	nc, err := iomeshclient.Connect(
+		iomeshclient.Options{URL: srv.URL},
+		iomeshclient.WithWorkspace(""),
+		iomeshclient.WithWorkspace("   "),
+	)
+	if err != nil {
+		t.Fatalf("Connect() error: %v", err)
+	}
+
+	if err := nc.Pub(context.Background(), "events.demo", []byte("x"), nil); err != nil {
+		t.Fatalf("Pub() error: %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if gotWS != "" || wsPresent {
+		t.Fatalf("X-IOMesh-Workspace present=%v value=%q, want omitted (broker root-default; never invent workspaces[0])", wsPresent, gotWS)
 	}
 }
 

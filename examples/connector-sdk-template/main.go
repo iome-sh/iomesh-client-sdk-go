@@ -20,7 +20,7 @@
 //
 //	CONNECTOR_SDK_SECRET=dev-connector-sdk-secret \
 //	IOMESH_URL=http://127.0.0.1:8422 \
-//	IOMESH_ORG=acme-org \
+//	IOMESH_ORG=org_example \  # local/dev placeholder — hosted: CP-minted org_+cuid2
 //	IOMESH_TENANT=dept.engineering \
 //	IOMESH_DEPARTMENT=engineering \
 //	CONNECTOR_ID=acme-crm \
@@ -66,7 +66,7 @@ func run() error {
 	baseURL := strings.TrimRight(envOr("IOMESH_URL", "http://127.0.0.1:8422"), "/")
 	department := envOr("IOMESH_DEPARTMENT", "engineering")
 	connectorID := envOr("CONNECTOR_ID", "acme-crm")
-	org := envOr("IOMESH_ORG", "acme-org")
+	org := envOr("IOMESH_ORG", "org_example") // local/dev placeholder — hosted: CP-minted org_+cuid2
 	tenant := envOr("IOMESH_TENANT", "dept."+department)
 
 	eventBody := []byte(`{

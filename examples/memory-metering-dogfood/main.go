@@ -36,8 +36,8 @@
 //
 //	IOMESH_URL            mesh broker base (required)
 //	IOMESH_TENANT         tenant (default demo.tenant)
-//	IOMESH_ORG            optional X-IOMesh-Org
-//	IOMESH_WORKSPACE      optional X-IOMesh-Workspace
+//	IOMESH_ORG            optional X-IOMesh-Org (hosted: CP-minted org_+cuid2; placeholders are not minted)
+//	IOMESH_WORKSPACE      optional X-IOMesh-Workspace (omit = broker root-default; never invent workspaces[0])
 //	IOMESH_DEPARTMENT     optional X-IOMesh-Department (omit when empty)
 //	IOMESH_API_KEY        optional Bearer
 //	IOMESH_MEMORY_ENDPOINT optional memory sidecar base for sync retrieve

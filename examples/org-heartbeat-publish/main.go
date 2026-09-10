@@ -8,9 +8,9 @@
 //
 //	IOMESH_URL        mesh broker base (default http://127.0.0.1:8422)
 //	IOMESH_TENANT     tenant (default dept.engineering)
-//	IOMESH_ORG        X-IOMesh-Org (set for hosted isolation; omit only on local fail-open brokers)
+//	IOMESH_ORG        X-IOMesh-Org (hosted: CP-minted org_+cuid2; org_example is a local/dev placeholder)
 //	IOMESH_REQUIRE_ORG 1/true/yes/on — client fail-closes catalog/consume when IOMESH_ORG is empty
-//	IOMESH_WORKSPACE  optional X-IOMesh-Workspace
+//	IOMESH_WORKSPACE  optional X-IOMesh-Workspace (omit = broker root-default; never invent workspaces[0])
 //	IOMESH_DEPARTMENT optional X-IOMesh-Department (omit when empty)
 //	IOMESH_API_KEY    optional Bearer
 //	IOMESH_STREAM     stream name (default EVENTS)
@@ -21,7 +21,7 @@
 // Usage:
 //
 //	export IOMESH_URL=http://127.0.0.1:8422
-//	export IOMESH_ORG=org_example
+//	export IOMESH_ORG=org_example   # local/dev placeholder — hosted: CP-minted org_+cuid2
 //	go run ./examples/org-heartbeat-publish
 //	# optional pull of the same org heartbeat subjects:
 //	IOMESH_PULL=1 go run ./examples/org-heartbeat-publish

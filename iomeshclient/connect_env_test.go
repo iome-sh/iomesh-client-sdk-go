@@ -99,7 +99,7 @@ func TestConnectFromEnv_SetsOrgHeaderAndDecodesCatalog(t *testing.T) {
 		"IOMESH_URL":          srv.URL,
 		"IOMESH_TENANT":       "dept.engineering",
 		"IOMESH_ORG":          "acme-org",
-		"IOMESH_WORKSPACE":    "ws_default",
+		"IOMESH_WORKSPACE":    "ws_fixture",
 		"IOMESH_DEPARTMENT":   "engineering",
 		"IOMESH_BEARER_TOKEN": "secret-token",
 		"IOMESH_TIMEOUT":      "12.5",
@@ -121,7 +121,7 @@ func TestConnectFromEnv_SetsOrgHeaderAndDecodesCatalog(t *testing.T) {
 	if gotTenant != "dept.engineering" {
 		t.Fatalf("X-IOMesh-Tenant=%q", gotTenant)
 	}
-	if gotWS != "ws_default" {
+	if gotWS != "ws_fixture" {
 		t.Fatalf("X-IOMesh-Workspace=%q", gotWS)
 	}
 	if gotDept != "engineering" {
