@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Docs** — polish README and example operator copy: memory helpers are local sidecar retrieve/ingest; a mesh-broker URL may 404 those paths. `DualWriteMemoryTurn` stays async-only unless `Sync` is true.
+- **Docs** — README for OSS newcomers: short hero and TOC, Status (link CHANGELOG), heartbeat publish example, env table, pkg.go.dev.
 
 ## [0.71.0] — 2026-09-10
 
