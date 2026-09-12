@@ -8,12 +8,12 @@ Lightweight framing for **organizational heartbeats** (ops **pulse**) on `dept.*
 2. **Structured pulse** — optional `EmitDeptEvent` (`dept.agent.org_heartbeat`) for metering-style org-tool events
 3. **Pull** (opt-in) — `IOMESH_PULL=1` runs `PullSubscribe` + one `FetchContext` so agents can consume the same subjects
 
-## Honesty
+## Notes
 
 - Public lexicon: **heartbeat / pulse** only
-- Offline stage smoke **≠** live APPLY
-- Surfaces are **Beta** / pre-1.0 — no invent GA
-- Memory dual_write defaults **OFF** (local-primary async); this example does not enable sync palace
+- Offline stage smoke is not a live apply
+- Surfaces are **Beta** / pre-1.0
+- This example does not enable sidecar sync ingest (`DualWriteMemoryTurn` stays async-only)
 - MIT edge client only — not free mesh control-plane access
 
 ## Run
@@ -46,5 +46,5 @@ IOMESH_PULL=1 go run ./examples/org-heartbeat-publish
 ## Related
 
 - Multi-cycle stage smoke with `SUMMARY` / `RESULT` scrapers: [`../pull-loop/`](../pull-loop/)
-- Memory + metering dogfood (dual_write sync only when sidecar URL differs; optional `IOMESH_PREFER_SHORTER_HOPS` for related hop ranking — omit = kernel default true · multi-hop lite ≠ full graph RAG): [`../memory-metering-dogfood/`](../memory-metering-dogfood/)
+- Memory + metering dogfood (sidecar sync only when the sidecar URL differs; optional `IOMESH_PREFER_SHORTER_HOPS` for related hop ranking — omit = kernel default true · multi-hop lite, not full graph RAG): [`../memory-metering-dogfood/`](../memory-metering-dogfood/)
 - Main SDK README quick start: publish/pull org heartbeats framing

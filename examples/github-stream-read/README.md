@@ -8,13 +8,13 @@ Replay messages from a **GitHub-ingested** stream the caller is allowed to see, 
 2. `GET /v1/streams/{name}/messages` via `ListStreamMessages`
 3. Print seq / subject / payload size for GitHub-ingested rows
 
-## Honesty
+## Notes
 
 - Stream replay is **not** an org-health or heart-rate API
 - Slack and PagerDuty are **not** live pulses in this example
 - Chat is **not** the record
-- Empty list is honest: no signed GitHub event yet · catalog ≠ Connected
-- Offline tests ≠ live APPLY · Beta / pre-1.0 · dual_write OFF
+- An empty list means no signed GitHub event yet; catalog list is not a Connected install
+- Offline tests are not a live apply; surfaces are Beta / pre-1.0
 - Omit-org on a shared stream can mix orgs (broker fail-open). Prefer `IOMESH_ORG` + `IOMESH_REQUIRE_ORG=1`
 
 ## Run

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Docs** — polish README and example operator copy: memory helpers are local sidecar retrieve/ingest; a mesh-broker URL may 404 those paths. `DualWriteMemoryTurn` stays async-only unless `Sync` is true.
+
 ## [0.71.0] — 2026-09-10
 
 Minor: `cuid.NewOrgID` / `NewWorkspaceID` / `IsOpaque*` + omit-blank workspace = root-default. Catalog ≠ Connected · dual_write OFF · never invent `workspaces[0]`.
