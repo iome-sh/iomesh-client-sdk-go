@@ -8,7 +8,7 @@ Official **Go client SDK** for the [I/O Mesh](https://iome.sh) broker and connec
 
 Publish and pull **organizational heartbeats** (ops **pulse**) on `dept.*` streams: connectors and services emit org-tool events; agents and workers consume them via durable pull. Public lexicon is **heartbeat / pulse** only.
 
-Memory helpers stay **local-primary** honest: durable stream paths first; `DualWriteMemoryTurn` defaults to **async-only** (`Sync: false` / dual_write **OFF**) — optional sidecar audit, not a freemium hosted palace. Offline stage smoke ≠ live APPLY. Surfaces are **Beta** / pre-1.0 — do not invent GA.
+Memory helpers call **local sidecar** retrieve/ingest HTTP paths. Durable stream ingest runs first; `DualWriteMemoryTurn` defaults to async-only (`Sync: false`) with an optional sidecar write when `Sync: true`. Pointing those helpers at a mesh-broker URL may 404 retrieve/ingest. Offline stage smoke is not a live apply. Surfaces are **Beta** / pre-1.0.
 
 Official open-source tooling from [IOMesh](https://iome.sh) (**IOMesh Technology Ltd.**). This repository is **MIT edge client code** only — not free mesh control-plane access.
 
@@ -23,7 +23,7 @@ Official open-source tooling from [IOMesh](https://iome.sh) (**IOMesh Technology
 > **Package:** `iomeshclient`  
 > **Env prefix:** `IOMESH_*`  
 > **Wire headers:** `X-IOMesh-Tenant`, `X-IOMesh-Org`, `X-IOMesh-Workspace`, `X-IOMesh-Department`, …  
-> **Status:** public OSS **v0.71.x** (pre-1.0, **Beta**). Memory M2/M3 + multi-tenant headers + dual-write/metering + Health/Ready/WaitReady + catalog plane + EvaluatePolicy + QueryContext + ConnectionStatus + ListStreams/GetStream/DeleteStream/ListStreamMessages + CreateStream/EnsureStream `*StreamInfo` + FormatStreams/FormatStreamDetail + CreateConsumer/EnsureConsumer `*ConsumerInfo` + ConsumerFetch/ConsumerAck/ConsumerNack + PullSubscribe `FetchContext`/`AckContext`/`NackContext` + `DefaultFetchMaxWait` + FormatMsg/FormatMsgs/FormatConsumerInfo + KV CreateBucket/EnsureBucket `*BucketInfo` + Put `*PutResult` + FormatBucketInfo/FormatKVEntry/FormatKVKeys/FormatPutResult aligned with [iomesh-tui](https://github.com/iome-sh/iomesh-tui). Always-emit format helpers are operator diagnostics — not new product APIs / not invent GA. `ConsumerNack` / `DeleteConsumer` are client wrappers; the serving broker may 404 until those routes exist (create/fetch/ack are the served durable-pull set). Catalog list is discovery — **not Connected**, Knowledge stays **Beta**.  
+> **Status:** public OSS **v0.71.x** (pre-1.0, **Beta**). Memory M2/M3 + multi-tenant headers + dual-write/metering + Health/Ready/WaitReady + catalog plane + EvaluatePolicy + QueryContext + ConnectionStatus + ListStreams/GetStream/DeleteStream/ListStreamMessages + CreateStream/EnsureStream `*StreamInfo` + FormatStreams/FormatStreamDetail + CreateConsumer/EnsureConsumer `*ConsumerInfo` + ConsumerFetch/ConsumerAck/ConsumerNack + PullSubscribe `FetchContext`/`AckContext`/`NackContext` + `DefaultFetchMaxWait` + FormatMsg/FormatMsgs/FormatConsumerInfo + KV CreateBucket/EnsureBucket `*BucketInfo` + Put `*PutResult` + FormatBucketInfo/FormatKVEntry/FormatKVKeys/FormatPutResult aligned with [iomesh-tui](https://github.com/iome-sh/iomesh-tui). Always-emit format helpers are operator diagnostics — not new product APIs. `ConsumerNack` / `DeleteConsumer` are client wrappers; the serving broker may 404 until those routes exist (create/fetch/ack are the served durable-pull set). Catalog list is discovery — **not Connected**, Knowledge stays **Beta**.  
 > **User-Agent:** `iomesh-client-sdk-go/<Version>` (override with `WithUserAgent`).
 
 ## Requirements
@@ -107,7 +107,7 @@ Hosted isolation uses **opaque** control-plane public ids (not name slugs):
 - Example values such as `org_example` are **local/dev placeholders**, not CP-minted ids (`IsOpaqueOrgID("org_example")` is false).
 
 Runnable framing (publish + optional pull): [`examples/org-heartbeat-publish/`](examples/org-heartbeat-publish/).  
-Stage smoke pull loop: [`examples/pull-loop/`](examples/pull-loop/) (same durable consumer APIs; offline smoke ≠ live APPLY). Prefer `IOMESH_ORG` + `IOMESH_REQUIRE_ORG=1` for N=2 shared streams.
+Stage smoke pull loop: [`examples/pull-loop/`](examples/pull-loop/) (same durable consumer APIs; offline smoke is not a live apply). Prefer `IOMESH_ORG` + `IOMESH_REQUIRE_ORG=1` for N=2 shared streams.
 
 ## Connector SDK (HMAC + envelope)
 
@@ -276,15 +276,15 @@ fmt.Print(iomeshclient.FormatKVKeys("agent-state", keys)) // compact key listing
 
 ## Memory (async streams + optional sync sidecar)
 
-**Honesty:** local-primary · `DualWriteMemoryTurn` defaults to **async-only** (`Sync: false` = dual_write **OFF**) · optional sidecar audit · not primary freemium hosted palace · local AI ≠ platform GPU product · offline stage smoke ≠ live APPLY · Beta surfaces — no invent GA.
+Retrieve and ingest helpers talk to a **memory sidecar** (or a gateway that routes those paths). A mesh-broker `IOMESH_URL` may 404 `/v1` and `/v5/memory/*`. Durable stream ingest is the default path; `DualWriteMemoryTurn` is async-only unless you set `Sync: true`.
 
 | API | Path | Notes |
 |-----|------|--------|
 | `PublishMemoryIngest` | `MEMORY_INGEST` publish | Async durable stream; temporal fields on `MemoryEnvelope` |
-| `DualWriteMemoryTurn` | async + optional sync | Stream first; **default OFF** (no sync). Optional fail-open `IngestMemoryTurn` when `Sync: true` |
+| `DualWriteMemoryTurn` | async + optional sync | Stream first; default is async-only (`Sync: false`). Optional fail-open `IngestMemoryTurn` when `Sync: true` |
 | `RequestMemoryRecall` / `RequestMemoryRecallFull` | `MEMORY_RPC` publish | Async; Full adds `session_id` correlation |
-| `RetrieveMemory` | `POST /v1` then `/v5/memory/retrieve` | Sync hits against a **memory sidecar** (or gateway that routes those paths). Empty query OK if `session_id` set. Broker-only `IOMESH_URL` typically 404s retrieve — not Memory GA |
-| `IngestMemoryTurn` | `POST /v1` then `/v5/memory/ingest` | Optional sync turn write on the **sidecar**. A broker 202 `status=accepted` with `note` (no palace write) is **not** live APPLY. dual_write **OFF** default |
+| `RetrieveMemory` | `POST /v1` then `/v5/memory/retrieve` | Sync hits against a **memory sidecar** (or gateway that routes those paths). Empty query OK if `session_id` set. A mesh-broker URL typically 404s retrieve |
+| `IngestMemoryTurn` | `POST /v1` then `/v5/memory/ingest` | Optional sync turn write on the **sidecar**. A broker 202 `status=accepted` with `note` (no palace write) is not a live apply. Default path is async stream ingest |
 
 ```go
 // Sync retrieve (sidecar URL or gateway that routes /v1|/v5/memory/*)
@@ -296,8 +296,8 @@ hits, err := nc.RetrieveMemory(ctx, iomeshclient.MemoryRetrieveRequest{
 })
 // hits.Path is "/v1/memory/retrieve" or "/v5/memory/retrieve"
 
-// Dual-write: durable stream first; Sync defaults OFF (local-primary / dual_write OFF).
-// Optional Sync: true = best-effort sidecar audit (fail-open) — not primary freemium palace.
+// Dual-write: durable stream first; Sync defaults to false (async-only).
+// Optional Sync: true = best-effort sidecar write (fail-open).
 mesh, _ := iomeshclient.Connect(iomeshclient.Options{URL: os.Getenv("IOMESH_URL")}, /* tenant/org… */)
 // Default path — async only (recommended):
 res, err := mesh.DualWriteMemoryTurn(ctx, "dept.research", iomeshclient.MemoryEnvelope{
@@ -317,7 +317,7 @@ Three planes. This SDK is the **mesh/platform HTTP** client only. It does **not*
 
 | Plane | Package / surface | Role |
 |-------|-------------------|------|
-| Local edge palace | [`iomesh-memory-mcp`](https://github.com/iome-sh/iomesh-memory-mcp) + [`github.com/iome-sh/memory`](https://github.com/iome-sh/memory) | Customer-local MCP host + palace kernel · **dual_write OFF** · **not Memory GA** · local-primary FS palace |
+| Local edge palace | [`iomesh-memory-mcp`](https://github.com/iome-sh/iomesh-memory-mcp) + [`github.com/iome-sh/memory`](https://github.com/iome-sh/memory) | Customer-local MCP host + palace kernel (local FS palace) |
 | Mesh / platform HTTP | this SDK — `RetrieveMemory` / `IngestMemoryTurn` / streams | Broker/gateway (and optional memory **sidecar HTTP**) paths · **not** local FS palace |
 | Private control plane | unpublished | Mesh control plane and residual private hosts — **not a public dependency** of this SDK |
 
@@ -328,13 +328,11 @@ go install github.com/iome-sh/iomesh-memory-mcp/cmd/iomesh-memory-mcp@main
 go get github.com/iome-sh/memory@main
 ```
 
-**Honesty**
-
-- **dual_write OFF** by default on SDK helpers (`DualWriteMemoryTurn` → async-only unless `Sync: true`).
-- **not Memory GA** — edge OSS + SDK memory helpers are Beta; do not invent product GA.
-- **local-primary ≠ freemium palace** — customer-local MCP is not a hosted freemium Memory product.
-- **SDK HTTP ≠ invent local MCP attach** — `IOMESH_URL` / `IOMESH_MEMORY_ENDPOINT` target mesh or sidecar **HTTP**; they do not open MCP stdio or bind a local palace process for you.
-- **Control plane stays private** — this SDK does not depend on unpublished broker or control-plane modules.
+- `DualWriteMemoryTurn` is async-only unless `Sync: true`.
+- Edge OSS and SDK memory helpers are Beta / pre-1.0.
+- Customer-local MCP is not a hosted Memory product.
+- `IOMESH_URL` / `IOMESH_MEMORY_ENDPOINT` target mesh or sidecar **HTTP**; they do not open MCP stdio or bind a local palace process for you.
+- Control plane stays private — this SDK does not depend on unpublished broker or control-plane modules.
 - Cross-links: [iomesh-tui](https://github.com/iome-sh/iomesh-tui) (agent edge) · [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) (public edge host) · [memory](https://github.com/iome-sh/memory) (public kernel).
 
 ## Metering (dept streams / org-tool heartbeats)
@@ -350,13 +348,13 @@ ack, err := nc.EmitLLMCall(ctx, iomeshclient.LLMCallEvent{
 // Wire: POST /v1/streams/dept/publish subject=dept.agent.llm_call
 ```
 
-Stage smoke (mesh + optional memory sidecar; dual_write sync only when `IOMESH_MEMORY_ENDPOINT` differs):
+Stage smoke (mesh + optional memory sidecar; sidecar sync only when `IOMESH_MEMORY_ENDPOINT` differs):
 
 ```bash
 export IOMESH_URL=http://127.0.0.1:8422
 export IOMESH_MEMORY_ENDPOINT=http://127.0.0.1:8765  # warm plane
 # optional: IOMESH_PREFER_SHORTER_HOPS=0|false for legacy related sort; omit/1|true = PreferShorterHops
-# (omit = nil → kernel default true). Multi-hop lite · not full graph RAG · not Memory GA · dual_write OFF.
+# (omit = nil → kernel default true). Multi-hop lite, not full graph RAG.
 go run ./examples/memory-metering-dogfood
 ```
 
@@ -449,7 +447,7 @@ _ = snip
 
 Fail-open discovery of governed data products. Tries mesh `/v1/catalog/*` then portal
 `/v17|/v16` federation paths (404 → next; all fail → `Source=fail-open`).
-Listings are **Beta** discovery — **not Connected**, not Knowledge GA, not live APPLY.
+Listings are **Beta** discovery — catalog list is not a Connected install.
 Knowledge-layer rows stay Beta. This is the data-product catalog, not connector
 install / webhook / OAuth control-plane.
 
@@ -500,14 +498,14 @@ Process docs: [CONTRIBUTING](CONTRIBUTING.md) · [SUPPORT](SUPPORT.md) · [RELEA
 |------|------|
 | [iome.sh](https://iome.sh) | Product / marketing site & documentation |
 | [iomesh-tui](https://github.com/iome-sh/iomesh-tui) | Agent edge TUI (`/memory`, integrations, pull) |
-| [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) | Public edge Memory MCP host (local palace; dual_write OFF; not Memory GA) |
+| [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) | Public edge Memory MCP host (local palace) |
 | [memory](https://github.com/iome-sh/memory) | Public palace kernel (Go module; not imported by this SDK) |
 | [iomesh-client-sdk-python](https://github.com/iome-sh/iomesh-client-sdk-python) | Official Python client (see below) |
 | *Upcoming* | `iomesh-client-sdk-ts`, … |
 
 ### Also available (other languages)
 
-**[Python SDK](https://github.com/iome-sh/iomesh-client-sdk-python)** — official MIT peer. Both this Go client and the Python client are **Beta** / pre-1.0 — **not GA**. dual_write **OFF** by default. Not Memory GA. The Python client is a subset of this Go surface; do not invent language parity or 1.0. PyPI publication is not live yet.
+**[Python SDK](https://github.com/iome-sh/iomesh-client-sdk-python)** — official MIT peer. Both this Go client and the Python client are **Beta** / pre-1.0. The Python client is a subset of this Go surface; language parity and 1.0 are not claimed. PyPI publication is not live yet.
 
 ## License
 
