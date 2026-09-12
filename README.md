@@ -2,29 +2,37 @@
 
 [![CI](https://github.com/iome-sh/iomesh-client-sdk-go/actions/workflows/ci.yml/badge.svg)](https://github.com/iome-sh/iomesh-client-sdk-go/actions/workflows/ci.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/iome-sh/iomesh-client-sdk-go.svg)](https://pkg.go.dev/github.com/iome-sh/iomesh-client-sdk-go)
+[![GitHub release](https://img.shields.io/github/v/release/iome-sh/iomesh-client-sdk-go)](https://github.com/iome-sh/iomesh-client-sdk-go/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Status](https://img.shields.io/badge/status-Beta%20pre--1.0-yellow.svg)](#status)
 
-Official **Go client SDK** for the [I/O Mesh](https://iome.sh) broker and connector platform.
+Official **Go client** for the [I/O Mesh](https://iome.sh) broker: HTTP publish/pull, streams, KV, and a Kafka Produce subset. **MIT**. **Beta / pre-1.0**. From [IOMesh](https://iome.sh) (**IOMesh Technology Ltd.**).
 
-Publish and pull **organizational heartbeats** (ops **pulse**) on `dept.*` streams: connectors and services emit org-tool events; agents and workers consume them via durable pull. Public lexicon is **heartbeat / pulse** only.
+Connectors and services publish **organizational heartbeats** (ops **pulse**) on `dept.*` streams; agents and workers consume them with durable pull.
 
-Memory helpers call **local sidecar** retrieve/ingest HTTP paths. Durable stream ingest runs first; `DualWriteMemoryTurn` defaults to async-only (`Sync: false`) with an optional sidecar write when `Sync: true`. Pointing those helpers at a mesh-broker URL may 404 retrieve/ingest. Offline stage smoke is not a live apply. Surfaces are **Beta** / pre-1.0.
+This repository is **edge client code** only — not hosted control-plane access.
 
-Official open-source tooling from [IOMesh](https://iome.sh) (**IOMesh Technology Ltd.**). This repository is **MIT edge client code** only — not free mesh control-plane access.
+## Contents
 
-| Capability | Package |
-|------------|---------|
-| HTTP publish / pull subscribe / streams / KV / memory (org heartbeats on `dept.*`) | [`iomeshclient`](./iomeshclient) |
-| Partner webhook HMAC + observation envelopes | [`connectorsdk`](./connectorsdk) |
-| Kafka protocol (Produce subset) | [`kafka`](./kafka) · via `iomeshclient.KafkaClient` |
-| Shared envelope + CUID helpers | [`envelope`](./envelope) · [`cuid`](./cuid) |
+- [Status](#status)
+- [Install](#install)
+- [Quick start](#quick-start)
+- [Environment](#environment)
+- [Capabilities](#capabilities)
+- [API](#api)
+- [Examples](#examples)
+- [License](#license)
 
-> **Module path:** `github.com/iome-sh/iomesh-client-sdk-go`  
-> **Package:** `iomeshclient`  
-> **Env prefix:** `IOMESH_*`  
-> **Wire headers:** `X-IOMesh-Tenant`, `X-IOMesh-Org`, `X-IOMesh-Workspace`, `X-IOMesh-Department`, …  
-> **Status:** public OSS **v0.71.x** (pre-1.0, **Beta**). Memory M2/M3 + multi-tenant headers + dual-write/metering + Health/Ready/WaitReady + catalog plane + EvaluatePolicy + QueryContext + ConnectionStatus + ListStreams/GetStream/DeleteStream/ListStreamMessages + CreateStream/EnsureStream `*StreamInfo` + FormatStreams/FormatStreamDetail + CreateConsumer/EnsureConsumer `*ConsumerInfo` + ConsumerFetch/ConsumerAck/ConsumerNack + PullSubscribe `FetchContext`/`AckContext`/`NackContext` + `DefaultFetchMaxWait` + FormatMsg/FormatMsgs/FormatConsumerInfo + KV CreateBucket/EnsureBucket `*BucketInfo` + Put `*PutResult` + FormatBucketInfo/FormatKVEntry/FormatKVKeys/FormatPutResult aligned with [iomesh-tui](https://github.com/iome-sh/iomesh-tui). Always-emit format helpers are operator diagnostics — not new product APIs. `ConsumerNack` / `DeleteConsumer` are client wrappers; the serving broker may 404 until those routes exist (create/fetch/ack are the served durable-pull set). Catalog list is discovery — **not Connected**, Knowledge stays **Beta**.  
-> **User-Agent:** `iomesh-client-sdk-go/<Version>` (override with `WithUserAgent`).
+## Status
+
+Public OSS **[v0.71.0](https://github.com/iome-sh/iomesh-client-sdk-go/releases/tag/v0.71.0)** — **Beta / pre-1.0**. APIs may change before 1.0. See [CHANGELOG.md](CHANGELOG.md).
+
+- **MIT edge client** — not free mesh control-plane access.
+- **Catalog list ≠ Connected.** `ListCatalog` is data-product discovery (Knowledge stays Beta), not a connector install or OAuth wrap.
+- **Memory helpers** talk to a **local sidecar**. `DualWriteMemoryTurn` is async-only unless you set `Sync: true`. A mesh-broker URL may 404 retrieve/ingest.
+- `ConsumerNack` / `DeleteConsumer` are client wrappers; the serving broker may 404 until those routes exist (create/fetch/ack are the served durable-pull set).
+
+Module `github.com/iome-sh/iomesh-client-sdk-go` · package `iomeshclient` · User-Agent `iomesh-client-sdk-go/<Version>` (override with `WithUserAgent`).
 
 ## Requirements
 
@@ -37,9 +45,9 @@ Official open-source tooling from [IOMesh](https://iome.sh) (**IOMesh Technology
 go get github.com/iome-sh/iomesh-client-sdk-go@latest
 ```
 
-## Quick start — publish an org heartbeat
+## Quick start
 
-Connect, ensure a stream under `dept.*`, and publish a single organizational heartbeat (ops pulse). Agents and workers pull the same subjects as durable consumers.
+Connect, ensure a `dept.*` stream, and publish one organizational heartbeat. Needs a reachable broker.
 
 ```go
 package main
@@ -55,28 +63,24 @@ func main() {
 	nc, err := iomeshclient.Connect(
 		iomeshclient.Options{URL: "http://127.0.0.1:8422"},
 		iomeshclient.WithTenant("dept.engineering"),
-		iomeshclient.WithOrg("org_example"), // local/dev placeholder — hosted: CP-minted org_+cuid2
-		// Omit WithWorkspace: broker root-default. Never invent workspaces[0] or treat ws_default as minted.
-		iomeshclient.WithDepartment("engineering"), // omit when empty
+		iomeshclient.WithOrg("org_example"), // local/dev placeholder; hosted: CP-minted org_+cuid2
+		iomeshclient.WithDepartment("engineering"),
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	ctx := context.Background()
-	info, err := nc.CreateStream(ctx, iomeshclient.StreamConfig{
+	_, err = nc.CreateStream(ctx, iomeshclient.StreamConfig{
 		Name:     "EVENTS",
 		Subjects: []string{"dept.engineering.events.>"},
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
-	if info != nil {
-		log.Printf("stream=%s subjects=%v", info.Name, info.Subjects)
-	}
 
-	// Organizational heartbeat (ops pulse) — public lexicon: heartbeat / pulse only.
-	ack, err := nc.Publish(ctx, "EVENTS", "dept.engineering.events.demo", []byte(`{"hello":"mesh","kind":"org_heartbeat"}`))
+	ack, err := nc.Publish(ctx, "EVENTS", "dept.engineering.events.demo",
+		[]byte(`{"hello":"mesh","kind":"org_heartbeat"}`))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -84,32 +88,45 @@ func main() {
 }
 ```
 
-Or from environment — `IOMESH_URL` required; optional `IOMESH_TENANT`, `IOMESH_ORG`, `IOMESH_WORKSPACE`, `IOMESH_DEPARTMENT`, `IOMESH_BEARER_TOKEN` or `IOMESH_TOKEN`, `IOMESH_TIMEOUT` (seconds), `IOMESH_REQUIRE_ORG=1` (fail-closed catalog/consume when `IOMESH_ORG` is empty). Pass `nil` to read the process environment. `IOMESH_ORG` sets `X-IOMesh-Org` so hosted brokers can isolate catalog and consume per organization. Omitting org can mix shared-stream reads on fail-open brokers. The library does **not** invent a default org. Hosted org ids are control-plane minted `org_`+cuid2 (`cuid.NewOrgID` / `cuid.IsOpaqueOrgID`); example values such as `org_example` are **local/dev placeholders**, not minted ids. Omit blank `IOMESH_WORKSPACE` / `WithWorkspace` so the broker uses its **root-default** workspace — the client never invents `workspaces[0]` or treats `ws_default` as a minted id. Hosted workspace ids are `ws_`+cuid2 (`cuid.NewWorkspaceID` / `cuid.IsOpaqueWorkspaceID`). `IOMESH_DEPARTMENT` sets `X-IOMesh-Department` when non-empty; empty omits the header.
+Omit `WithWorkspace` / `IOMESH_WORKSPACE` so the broker binds the org **root-default**. This client never invents `workspaces[0]` (creation-order first row is not the root bind). Hosted workspace ids are `ws_`+cuid2; `ws_default` is not a minted id.
+
+Runnable framing (publish + optional pull): [`examples/org-heartbeat-publish/`](examples/org-heartbeat-publish/). Durable pull loop: [`examples/pull-loop/`](examples/pull-loop/).
+
+## Environment
+
+`ConnectFromEnv(nil)` reads process env. `IOMESH_URL` is required; the rest are optional. No network I/O on connect.
+
+| Variable | Header / effect |
+|----------|-----------------|
+| `IOMESH_URL` | Broker base (`http`/`https`) |
+| `IOMESH_TENANT` | `X-IOMesh-Tenant` |
+| `IOMESH_ORG` | `X-IOMesh-Org` — hosted: CP-minted `org_`+cuid2; `org_example` is a local/dev placeholder |
+| `IOMESH_WORKSPACE` | `X-IOMesh-Workspace` — omit blank = broker root-default |
+| `IOMESH_DEPARTMENT` | `X-IOMesh-Department` (omit when empty) |
+| `IOMESH_BEARER_TOKEN` or `IOMESH_TOKEN` | `Authorization: Bearer` (`BEARER_TOKEN` wins if both set) |
+| `IOMESH_TIMEOUT` | Request timeout in seconds (float; default 30) |
+| `IOMESH_REQUIRE_ORG` | `1`/`true`/`yes`/`on` — fail-closed catalog/consume when org is empty |
 
 ```go
 nc, err := iomeshclient.ConnectFromEnv(nil)
 ```
 
-`WithOrg` / `IOMESH_ORG` maps to `X-IOMesh-Org`. Hosted brokers isolate catalog and durable pull by that header; omitting it can mix shared-stream reads (or the broker may reject the request). Local/dev brokers still fail-open when org is empty. Set `IOMESH_REQUIRE_ORG=1` (or `WithRequireOrg()`) so the client errors before fetch/ack/catalog instead of sending an unscoped request.
+Hosted brokers isolate catalog and durable pull by `X-IOMesh-Org`. Omitting it can mix shared-stream reads (or the broker may reject). Local/dev brokers still fail-open when org is empty. The library does **not** invent a default org. `cuid.NewOrgID` / `cuid.NewWorkspaceID` mint the **shape** only — they do not register an org or workspace.
 
-### Org and workspace public ids
+## Capabilities
 
-Hosted isolation uses **opaque** control-plane public ids (not name slugs):
+| Capability | Package | Notes |
+|------------|---------|--------|
+| HTTP publish / pull / streams / KV / memory | [`iomeshclient`](./iomeshclient) | Org heartbeats on `dept.*` |
+| Partner webhook HMAC + observation envelopes | [`connectorsdk`](./connectorsdk) | Local HMAC; not OAuth |
+| Kafka Produce subset | [`kafka`](./kafka) · `iomeshclient.KafkaClient` | Produce-only |
+| Shared envelope + CUID helpers | [`envelope`](./envelope) · [`cuid`](./cuid) | `org_` / `ws_` + cuid2 shapes |
 
-| Header | Shape | Helpers |
-|--------|-------|---------|
-| `X-IOMesh-Org` | `org_` + cuid2 | [`cuid.NewOrgID`](./cuid) / `cuid.IsOpaqueOrgID` |
-| `X-IOMesh-Workspace` | `ws_` + cuid2 | [`cuid.NewWorkspaceID`](./cuid) / `cuid.IsOpaqueWorkspaceID` |
+## API
 
-`NewOrgID` / `NewWorkspaceID` mint the same **shape** as the control plane. They do **not** register an organization or workspace — hosted tenants still use the id the control plane issued.
+Full godoc: [pkg.go.dev/github.com/iome-sh/iomesh-client-sdk-go](https://pkg.go.dev/github.com/iome-sh/iomesh-client-sdk-go).
 
-- **Omit** `WithWorkspace` / `IOMESH_WORKSPACE` (blank after trim) so the broker uses its **root-default** workspace. The client never invents `workspaces[0]` or a slug such as `ws_default`.
-- Example values such as `org_example` are **local/dev placeholders**, not CP-minted ids (`IsOpaqueOrgID("org_example")` is false).
-
-Runnable framing (publish + optional pull): [`examples/org-heartbeat-publish/`](examples/org-heartbeat-publish/).  
-Stage smoke pull loop: [`examples/pull-loop/`](examples/pull-loop/) (same durable consumer APIs; offline smoke is not a live apply). Prefer `IOMESH_ORG` + `IOMESH_REQUIRE_ORG=1` for N=2 shared streams.
-
-## Connector SDK (HMAC + envelope)
+### Connector SDK (HMAC + envelope)
 
 ```go
 import "github.com/iome-sh/iomesh-client-sdk-go/connectorsdk"
@@ -120,9 +137,9 @@ payload, err := connectorsdk.NormalizeEnvelope(
 )
 ```
 
-See [`examples/connector-sdk-template/`](examples/connector-sdk-template/) for a webhook adapter (`IOMESH_URL`, `IOMESH_ORG`, optional `IOMESH_INSTALL_ID`). HMAC verify + envelope normalize + POST to org-wide `EventsURL` or mesh-install `InstallEventsURL`. Webhook verify ≠ OAuth; catalog listing ≠ Connected; Knowledge stays Beta.
+See [`examples/connector-sdk-template/`](examples/connector-sdk-template/) (`IOMESH_URL`, `IOMESH_ORG`, optional `IOMESH_INSTALL_ID`). HMAC verify ≠ OAuth.
 
-## Kafka Produce
+### Kafka Produce
 
 ```go
 kc := iomeshclient.NewKafkaClient("127.0.0.1:9423")
@@ -131,352 +148,161 @@ defer kc.Close()
 offset, err := kc.Produce(ctx, "mesh.finance.events", 0, []byte("key"), []byte(`{"event_id":"evt-1"}`))
 ```
 
-## Streams
+### Streams
 
 | API | Path | Notes |
 |-----|------|--------|
-| `CreateStream` / `EnsureStream` | `POST /v1/streams` | Returns `*StreamInfo`; 409 conflict → success + best-effort GET (nil info OK) |
-| `ListStreams` | `GET /v1/streams` | Explicit discovery; non-2xx → `*APIError` (not fail-open empty). When `X-IOMesh-Org` is set, hosted brokers return that org's streams plus shared persist (empty `org_id`); without the header they may reject or mix shared-stream reads. Local/dev brokers may still list everything. `WithRequireOrg` / `IOMESH_REQUIRE_ORG` errors before the request when org is empty |
-| `GetStream` | `GET /v1/streams/{name}` | Single `StreamInfo`; 404 → `*APIError` |
-| `DeleteStream` | `DELETE /v1/streams/{name}` | 204 success; 404 → `*APIError`; destructive — not used in dogfood by default |
-| `ListStreamMessages` | `GET /v1/streams/{name}/messages` | Stream replay/read-range; `from_seq`/`to_seq`/`limit`; payload base64→`[]byte`; non-2xx → `*APIError`. GitHub-ingested streams: [`examples/github-stream-read`](examples/github-stream-read/) — **not** an org-health or heart-rate API; Slack/PagerDuty are not pulses in that example |
-| `CreateConsumer` / `EnsureConsumer` | `POST /v1/streams/{stream}/consumers` | Returns `*ConsumerInfo`; 409 conflict → success with Stream/Name only. EnsureConsumer is an idempotent alias |
-| `DeleteConsumer` | `DELETE /v1/streams/{stream}/consumers/{name}` | Client wrapper; 204 success when served; 404 → `*APIError`. Current broker durable-pull set is create/fetch/ack — delete may 404. Destructive — opt-in cleanup (e.g. pull-loop `IOMESH_DELETE_CONSUMER=1`) |
-| `ConsumerFetch` / `ConsumerAck` / `ConsumerNack` | `POST …/fetch\|ack\|nack` | One-shot ops without holding a `Subscription`; path-escape stream/consumer; Fetch wires `Msg.Ack`/`Msg.Nack` via ephemeral sub. Sends `X-IOMesh-Org` when org is set; omit-org can mix shared streams unless `WithRequireOrg`. **Ack is served**; **Nack may 404** until the broker registers it |
-| `Publish` / `PullSubscribe` | stream publish / consumer | `PullSubscribe` uses `CreateConsumer` then returns `*Subscription` with `ConsumerInfo()`; `FetchContext`/`AckContext`/`NackContext` (or `Fetch`/`Ack`/`Nack` → `context.Background()`); `Delete(ctx)` removes the durable consumer via `DeleteConsumer`; default long-poll `DefaultFetchMaxWait` (5s) / `MaxWait`; path segments escaped |
-| `FormatMsg` / `FormatMsgs` / `FormatConsumerInfo` / `FormatSubscription` / `FormatStreamDetail` | — | Pure operator helpers for one message / batch / consumer detail / subscription handle / stream detail (no network I/O); `FormatConsumerInfo` / `FormatSubscription` always emit `filter_subject` (empty when unset); `FormatStreamDetail` always emits description/retention/partitions/max_msgs/max_age_sec/created_at/subjects (blank/0/`(none)` when unset) |
+| `CreateStream` / `EnsureStream` | `POST /v1/streams` | `*StreamInfo`; 409 → success + best-effort GET |
+| `ListStreams` / `GetStream` | `GET /v1/streams…` | Explicit discovery; non-2xx → `*APIError`. Hosted list is org-scoped when `X-IOMesh-Org` is set |
+| `DeleteStream` | `DELETE /v1/streams/{name}` | Destructive; 404 → `*APIError` |
+| `ListStreamMessages` | `GET …/messages` | Replay range (`from_seq` / `to_seq` / `limit`) |
+| `CreateConsumer` / `EnsureConsumer` | `POST …/consumers` | 409 → Stream/Name only |
+| `DeleteConsumer` | `DELETE …/consumers/{name}` | Client wrapper; broker may 404 |
+| `ConsumerFetch` / `ConsumerAck` / `ConsumerNack` | `POST …/fetch\|ack\|nack` | **Ack is served**; nack may 404 |
+| `Publish` / `PullSubscribe` | stream / consumer | `FetchContext` / `AckContext`; default long-poll `DefaultFetchMaxWait` (5s) |
+| `FormatStreams` / `FormatMsg` / … | — | Operator string views (no network) |
 | `Pub` | `POST /v1/pub` | Ephemeral fire-and-forget |
 
 ```go
-// List streams (callers handle errors — not fail-open).
-// With X-IOMesh-Org, hosted brokers return that org's streams plus shared persist.
 streams, err := nc.ListStreams(ctx)
-if err != nil {
-	log.Fatal(err) // *iomeshclient.APIError on non-2xx
-}
-// streams[i].Name, OrgID, Subjects, Messages, FirstSeq, LastSeq, CreatedAt, …
-fmt.Print(iomeshclient.FormatStreams(streams)) // compact operator table
+fmt.Print(iomeshclient.FormatStreams(streams))
 
-info, err := nc.GetStream(ctx, "EVENTS")
-if err != nil {
-	log.Fatal(err)
-}
-fmt.Print(iomeshclient.FormatStreamDetail(*info)) // multi-line detail (always-emits optional knobs)
-
-// DeleteStream is destructive — opt-in only (e.g. IOMESH_DELETE_STREAM=name); not auto-run in dogfood
-if err := nc.DeleteStream(ctx, "TEMP_STREAM"); err != nil {
-	log.Fatal(err) // *iomeshclient.APIError on 404 / non-2xx
-}
-
-// Replay/read-range (defaults: from_seq=1, to_seq=0 last, limit=100 max 1000)
-msgs, err := nc.ListStreamMessages(ctx, "EVENTS", iomeshclient.ListStreamMessagesOptions{
-	FromSeq: 1,
-	Limit:   50,
-})
-if err != nil {
-	log.Fatal(err)
-}
-// msgs[i].Seq, Subject, Payload ([]byte), Headers, Timestamp, …
-
-// CreateConsumer / EnsureConsumer: durable pull consumer (201 → full info; 409 → Stream/Name only)
-info, err := nc.EnsureConsumer(ctx, iomeshclient.CreateConsumerConfig{
-	Stream: "EVENTS", Name: "worker-1", FilterSubject: "dept.events.>",
-})
-if err != nil {
-	log.Fatal(err)
-}
-fmt.Print(iomeshclient.FormatConsumerInfo(*info)) // operator detail
-
-// DeleteConsumer is destructive — opt-in only (e.g. IOMESH_DELETE_CONSUMER=1 in pull-loop)
-if err := nc.DeleteConsumer(ctx, "EVENTS", "worker-1"); err != nil {
-	log.Fatal(err) // *iomeshclient.APIError on 404 / non-2xx
-}
-
-// PullSubscribe: CreateConsumer + subscription handle for Fetch/Ack/Nack/Delete
 sub, err := nc.PullSubscribe(ctx, iomeshclient.PullSubscribeConfig{
 	Stream: "EVENTS", Consumer: "worker-1", Filter: "dept.events.>",
 })
-if err != nil {
-	log.Fatal(err)
-}
-fmt.Print(iomeshclient.FormatSubscription(sub)) // handle: stream/consumer + consumer info fields
-// Or: fmt.Print(iomeshclient.FormatConsumerInfo(sub.ConsumerInfo()))
-
-// Prefer FetchContext when you already have a request-scoped ctx (cancellation/deadlines).
-// MaxWait defaults to DefaultFetchMaxWait (5s); override with MaxWait(d).
 batch, err := sub.FetchContext(ctx, 10, iomeshclient.MaxWait(2*time.Second))
-if err != nil {
-	log.Fatal(err)
-}
-// batch[i].Ack() / Nack(), or: sub.AckContext(ctx, seqs...); sub.NackContext(ctx, seqs...)
-// Fetch/Ack/Nack remain as Background wrappers for simple call sites.
-fmt.Print(iomeshclient.FormatMsg(batch[0]))  // one message: seq / subject / bytes
-fmt.Print(iomeshclient.FormatMsgs(batch))    // batch: count header + one line per msg
-
-// Delete removes the durable consumer (same as DeleteConsumer with stream/name from sub).
-// Destructive — opt-in only (e.g. IOMESH_DELETE_CONSUMER=1 in pull-loop).
-if err := sub.Delete(ctx); err != nil {
-	log.Fatal(err)
-}
-
-// Pull loop (FetchContext → FormatMsgs → AckContext)
-// for {
-//     batch, err := sub.FetchContext(ctx, 10)
-//     if err != nil { log.Fatal(err) }
-//     if len(batch) == 0 { continue }
-//     fmt.Print(iomeshclient.FormatMsgs(batch))
-//     seqs := make([]uint64, len(batch))
-//     for i, m := range batch { seqs[i] = m.Seq() }
-//     if err := sub.AckContext(ctx, seqs...); err != nil { log.Fatal(err) }
-// }
-// Runnable stage smoke: examples/pull-loop (IOMESH_URL, IOMESH_ORG / IOMESH_REQUIRE_ORG for shared-stream isolation, optional IOMESH_ENSURE_STREAM / IOMESH_PUBLISH / IOMESH_PUBLISH_EACH / IOMESH_LOOPS / IOMESH_ACK / IOMESH_DELETE_CONSUMER / IOMESH_WAIT_READY_MS / IOMESH_WAIT_INTERVAL_MS / IOMESH_WAIT_REQUIRE_HEALTH / IOMESH_STRICT;
-// with ENSURE_STREAM=1, default filter is stream.> and pub subject is stream.sdk-pull-loop)
-
-// One-shot consumer ops (no long-lived Subscription)
-msgs, err := nc.ConsumerFetch(ctx, "EVENTS", "worker-1", 10)
-if err != nil {
-	log.Fatal(err)
-}
-// msgs[i].Ack() / Nack() work via ephemeral sub wiring
-// or: nc.ConsumerAck(ctx, "EVENTS", "worker-1", seqs...); nc.ConsumerNack(...)
+fmt.Print(iomeshclient.FormatMsgs(batch))
+_ = sub.AckContext(ctx /* seqs... */)
 ```
 
-## KV (buckets + keys)
+### KV
 
 | API | Path | Notes |
 |-----|------|--------|
-| `CreateBucket` / `EnsureBucket` | `POST /v1/kv/{name}` | Returns `*BucketInfo`; 409 conflict → success with name only. EnsureBucket is an idempotent alias of CreateBucket |
-| `Put` / `Get` / `Delete` | `/v1/kv/{bucket}/{key}` | Put returns `*PutResult` (revision metadata); value is base64 in JSON body; Get returns `*KVEntry` |
-| `ListKeys` | `GET /v1/kv/{bucket}?prefix=` | Optional prefix filter |
-| `FormatBucketInfo` / `FormatKVEntry` / `FormatKVKeys` / `FormatPutResult` | — | Pure operator format helpers (no network I/O); `FormatBucketInfo` always emits history/max_bytes/ttl_seconds (`0` / blank when unset) |
+| `CreateBucket` / `EnsureBucket` | `POST /v1/kv/{name}` | 409 → name-only `*BucketInfo` |
+| `Put` / `Get` / `Delete` | `/v1/kv/{bucket}/{key}` | Put returns `*PutResult`; Get returns `*KVEntry` |
+| `ListKeys` | `GET /v1/kv/{bucket}?prefix=` | Optional prefix |
+| `FormatBucketInfo` / `FormatKVEntry` / … | — | Operator string views |
 
 ```go
-info, err := nc.EnsureBucket(ctx, "agent-state", iomeshclient.CreateBucketConfig{
-	History: 5,
-})
-if err != nil {
-	log.Fatal(err)
-}
-if info != nil {
-	fmt.Print(iomeshclient.FormatBucketInfo(*info)) // multi-line bucket detail (always-emits optional knobs)
-}
-
-put, err := nc.Put(ctx, "agent-state", "worker-1.checkpoint", []byte("seq=42"))
-if err != nil {
-	log.Fatal(err)
-}
-fmt.Print(iomeshclient.FormatPutResult(*put)) // bucket/key/revision
-
-entry, err := nc.Get(ctx, "agent-state", "worker-1.checkpoint")
-fmt.Print(iomeshclient.FormatKVEntry(*entry)) // multi-line entry detail
-
-keys, err := nc.ListKeys(ctx, "agent-state", "worker-")
-fmt.Print(iomeshclient.FormatKVKeys("agent-state", keys)) // compact key listing
+_, _ = nc.EnsureBucket(ctx, "agent-state", iomeshclient.CreateBucketConfig{History: 5})
+put, _ := nc.Put(ctx, "agent-state", "worker-1.checkpoint", []byte("seq=42"))
+fmt.Print(iomeshclient.FormatPutResult(*put))
 ```
 
-## Memory (async streams + optional sync sidecar)
+### Memory
 
-Retrieve and ingest helpers talk to a **memory sidecar** (or a gateway that routes those paths). A mesh-broker `IOMESH_URL` may 404 `/v1` and `/v5/memory/*`. Durable stream ingest is the default path; `DualWriteMemoryTurn` is async-only unless you set `Sync: true`.
+Retrieve and ingest helpers talk to a **memory sidecar** (or a gateway that routes those paths). Durable stream ingest is the default; set `Sync: true` for an optional sidecar write.
 
 | API | Path | Notes |
 |-----|------|--------|
-| `PublishMemoryIngest` | `MEMORY_INGEST` publish | Async durable stream; temporal fields on `MemoryEnvelope` |
-| `DualWriteMemoryTurn` | async + optional sync | Stream first; default is async-only (`Sync: false`). Optional fail-open `IngestMemoryTurn` when `Sync: true` |
-| `RequestMemoryRecall` / `RequestMemoryRecallFull` | `MEMORY_RPC` publish | Async; Full adds `session_id` correlation |
-| `RetrieveMemory` | `POST /v1` then `/v5/memory/retrieve` | Sync hits against a **memory sidecar** (or gateway that routes those paths). Empty query OK if `session_id` set. A mesh-broker URL typically 404s retrieve |
-| `IngestMemoryTurn` | `POST /v1` then `/v5/memory/ingest` | Optional sync turn write on the **sidecar**. A broker 202 `status=accepted` with `note` (no palace write) is not a live apply. Default path is async stream ingest |
+| `PublishMemoryIngest` | `MEMORY_INGEST` publish | Async durable stream |
+| `DualWriteMemoryTurn` | async + optional sync | Stream first; `Sync: false` by default |
+| `RequestMemoryRecall` / `RequestMemoryRecallFull` | `MEMORY_RPC` publish | Async; Full adds `session_id` |
+| `RetrieveMemory` | `POST /v1` then `/v5/memory/retrieve` | Sidecar HTTP; mesh-broker URL typically 404s |
+| `IngestMemoryTurn` | `POST /v1` then `/v5/memory/ingest` | Optional sidecar write |
 
 ```go
-// Sync retrieve (sidecar URL or gateway that routes /v1|/v5/memory/*)
-hits, err := nc.RetrieveMemory(ctx, iomeshclient.MemoryRetrieveRequest{
-	TenantID:  "dept.research",
-	Query:     "lease rotation",
-	SessionID: "dept.research.mesh-dogfood",
-	Limit:     8,
-})
-// hits.Path is "/v1/memory/retrieve" or "/v5/memory/retrieve"
-
-// Dual-write: durable stream first; Sync defaults to false (async-only).
-// Optional Sync: true = best-effort sidecar write (fail-open).
-mesh, _ := iomeshclient.Connect(iomeshclient.Options{URL: os.Getenv("IOMESH_URL")}, /* tenant/org… */)
-// Default path — async only (recommended):
-res, err := mesh.DualWriteMemoryTurn(ctx, "dept.research", iomeshclient.MemoryEnvelope{
+res, err := nc.DualWriteMemoryTurn(ctx, "dept.research", iomeshclient.MemoryEnvelope{
 	Role: "user", Content: "decision notes", SessionID: "sess-1", SessionSeq: 1,
 }, iomeshclient.DualWriteMemoryOptions{}) // Sync: false
-// Optional audit path:
-// palace, _ := iomeshclient.Connect(iomeshclient.Options{URL: os.Getenv("IOMESH_MEMORY_ENDPOINT")})
-// res, err = mesh.DualWriteMemoryTurn(ctx, "dept.research", env, iomeshclient.DualWriteMemoryOptions{Sync: true, SyncClient: palace})
-// res.Async is PubAck; res.SyncErr is set when optional sync fail-opens
 ```
 
-The agent harness ([iomesh-tui](https://github.com/iome-sh/iomesh-tui)) mirrors these surfaces without depending on this module (lean public HTTP).
+This SDK is the **mesh/platform HTTP** client. It does not import `github.com/iome-sh/memory` and does not attach MCP stdio.
 
-## Edge Memory OSS vs mesh memory HTTP
-
-Three planes. This SDK is the **mesh/platform HTTP** client only. It does **not** import `github.com/iome-sh/memory` (palace kernel) and does **not** re-implement a local FS palace or attach MCP stdio.
-
-| Plane | Package / surface | Role |
-|-------|-------------------|------|
-| Local edge palace | [`iomesh-memory-mcp`](https://github.com/iome-sh/iomesh-memory-mcp) + [`github.com/iome-sh/memory`](https://github.com/iome-sh/memory) | Customer-local MCP host + palace kernel (local FS palace) |
-| Mesh / platform HTTP | this SDK — `RetrieveMemory` / `IngestMemoryTurn` / streams | Broker/gateway (and optional memory **sidecar HTTP**) paths · **not** local FS palace |
-| Private control plane | unpublished | Mesh control plane and residual private hosts — **not a public dependency** of this SDK |
-
-Public install:
+| Plane | Package | Role |
+|-------|---------|------|
+| Local edge palace | [`iomesh-memory-mcp`](https://github.com/iome-sh/iomesh-memory-mcp) + [`memory`](https://github.com/iome-sh/memory) | Customer-local MCP host + palace kernel |
+| Mesh / platform HTTP | this SDK | Broker/gateway and optional sidecar HTTP |
+| Private control plane | unpublished | Not a public dependency of this SDK |
 
 ```bash
 go install github.com/iome-sh/iomesh-memory-mcp/cmd/iomesh-memory-mcp@main
 go get github.com/iome-sh/memory@main
 ```
 
-- `DualWriteMemoryTurn` is async-only unless `Sync: true`.
-- Edge OSS and SDK memory helpers are Beta / pre-1.0.
-- Customer-local MCP is not a hosted Memory product.
-- `IOMESH_URL` / `IOMESH_MEMORY_ENDPOINT` target mesh or sidecar **HTTP**; they do not open MCP stdio or bind a local palace process for you.
-- Control plane stays private — this SDK does not depend on unpublished broker or control-plane modules.
-- Cross-links: [iomesh-tui](https://github.com/iome-sh/iomesh-tui) (agent edge) · [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) (public edge host) · [memory](https://github.com/iome-sh/memory) (public kernel).
+### Metering
 
-## Metering (dept streams / org-tool heartbeats)
-
-`EmitDeptEvent` / `EmitLLMCall` publish structured **organizational tool heartbeats** on the `dept` stream (`dept.*` subjects). Agents and ops dashboards consume these pulses; they are not wearable/medical brand claims.
+`EmitDeptEvent` / `EmitLLMCall` publish structured org-tool heartbeats on stream `dept`.
 
 ```go
-// Remote multi-tenant usage event (org-tool heartbeat) for platform dashboards
 ack, err := nc.EmitLLMCall(ctx, iomeshclient.LLMCallEvent{
 	Tenant: "dept.research", SessionID: "sess-1",
 	Model: "deepseek-v4-flash", TotalTokens: 120, EstUSD: 0.002,
 })
-// Wire: POST /v1/streams/dept/publish subject=dept.agent.llm_call
+// POST /v1/streams/dept/publish  subject=dept.agent.llm_call
 ```
 
-Stage smoke (mesh + optional memory sidecar; sidecar sync only when `IOMESH_MEMORY_ENDPOINT` differs):
+Stage smoke (mesh + optional sidecar): `go run ./examples/memory-metering-dogfood`.
 
-```bash
-export IOMESH_URL=http://127.0.0.1:8422
-export IOMESH_MEMORY_ENDPOINT=http://127.0.0.1:8765  # warm plane
-# optional: IOMESH_PREFER_SHORTER_HOPS=0|false for legacy related sort; omit/1|true = PreferShorterHops
-# (omit = nil → kernel default true). Multi-hop lite, not full graph RAG.
-go run ./examples/memory-metering-dogfood
-```
-
-Pull consumer stage smoke (one or more fetch cycles; optional ensure/publish/ack):
-
-```bash
-export IOMESH_URL=http://127.0.0.1:8422
-export IOMESH_ORG=org_example     # local/dev placeholder — hosted: CP-minted org_+cuid2; omit can mix shared streams
-# omit IOMESH_WORKSPACE — broker root-default; never invent workspaces[0] / ws_default
-export IOMESH_REQUIRE_ORG=1       # optional fail-closed when IOMESH_ORG is empty
-export IOMESH_STREAM=EVENTS
-export IOMESH_CONSUMER=sdk-pull-loop
-# export IOMESH_ENSURE_STREAM=1  # create stream with subject stream.>
-# export IOMESH_PUBLISH=1        # publish one demo message before the fetch loop
-# export IOMESH_PUBLISH_EACH=1   # publish one message at the start of each cycle
-# export IOMESH_LOOPS=3          # multi-fetch cycles (default 1, max 100)
-# export IOMESH_ACK=1            # ack fetched sequences each cycle
-# export IOMESH_DELETE_CONSUMER=1  # best-effort sub.Delete after fetch loops
-# export IOMESH_WAIT_READY_MS=5000  # optional WaitReady preflight budget (ms) after ConnectionStatus
-# export IOMESH_WAIT_INTERVAL_MS=250  # optional WaitReady poll interval (ms; default 500; only when wait_ready_ms>0)
-# export IOMESH_WAIT_REQUIRE_HEALTH=1  # optional; WaitReady also requires Health (only when wait_ready_ms>0)
-# export IOMESH_STRICT=1         # exit 1 after SUMMARY on hard stage failures (probe aggregate via ConnectionStatus.result)
-go run ./examples/pull-loop
-# ends with:
-# SUMMARY version=V user_agent=UA base_url=B tenant=T org=O workspace=W stream=S consumer=C cycles_completed=N fetch_total=M duration_ms=D wait_ready_ms=W wait_interval_ms=I wait_require_health=B wait_ready_attempts=A failed=F strict=S result=R exit_code=E
-# RESULT=done version=V user_agent=UA base_url=B tenant=T org=O workspace=W stream=S consumer=C result=R exit_code=E
-```
-
-With `IOMESH_ENSURE_STREAM=1`, the consumer filter defaults to `stream.>` (matching EnsureStream subjects) and with `IOMESH_PUBLISH=1` / `IOMESH_PUBLISH_EACH=1` the default publish subject is `stream.sdk-pull-loop` so Publish is accepted without setting `IOMESH_PUB_SUBJECT`. Override filter/pub with `IOMESH_SUBJECT` / `IOMESH_PUB_SUBJECT`. `IOMESH_PUBLISH=1` alone publishes once before the loop; `IOMESH_PUBLISH_EACH=1` publishes at the start of each cycle (and skips the pre-loop publish when both are set, so the first cycle is not double-published). Set `IOMESH_DELETE_CONSUMER=1` for best-effort `sub.Delete` after fetch loops (`PASS` / warn-only). Set `IOMESH_WAIT_READY_MS=N` (N>0) for an optional `WaitReadyAttempts` preflight after ConnectionStatus (budget N ms; poll interval from `IOMESH_WAIT_INTERVAL_MS`, default 500ms when empty/invalid/≤0, clamp max 60000; prints `PASS WaitReady elapsed_ms=… interval_ms=… require_health=… attempts=…` or `WARN WaitReady: … elapsed_ms=… interval_ms=… require_health=… attempts=…`; banner shows `wait_ready_ms=N`, `wait_interval_ms=N`, and `wait_require_health=%v`, `wait_ready_ms=0` when off). Set `IOMESH_WAIT_REQUIRE_HEALTH=1` so that preflight uses `WaitReadyOptions{RequireHealth: true}` (only applies when `IOMESH_WAIT_READY_MS>0`; default false). Always prints `SUMMARY` (leading `version=V` from package `Version` + always-emitted `user_agent=UA` package default `iomesh-client-sdk-go/<Version>` after `version=` before `base_url=` (same string ConnectionStatus uses when `WithUserAgent` is unset; empty string still emits `user_agent=` if truly unset) + always-emitted `base_url=B` from connect mesh URL / `IOMESH_URL` after `user_agent=` before `tenant=` (same string ConnectionStatus uses as `base_url`; empty string still emits `base_url=` if truly unset) + always-emitted connect identity `tenant=T` / `org=O` / `workspace=W` from `IOMESH_TENANT` / `IOMESH_ORG` / `IOMESH_WORKSPACE` (empty string honest when unset) + always-emitted `stream=S` / `consumer=C` from `IOMESH_STREAM` / `IOMESH_CONSUMER` (defaults `EVENTS` / `sdk-pull-loop`; empty string honest if truly unset) after `workspace=` before `cycles_completed=` + cycle/fetch counts + wall-clock `duration_ms` + WaitReady knobs `wait_ready_ms` / `wait_interval_ms` / `wait_require_health` / `wait_ready_attempts` + hard-fail flag `failed=true|false` + `strict=true|false` for `IOMESH_STRICT` mode + always-emitted `result=ok|err` derived from `failed` (`ok` when `failed==false`; `err` when `failed==true`; peers ConnectionStatus.Result) + `exit_code=0|1` matching process exit after SUMMARY; when WaitReady is off the knobs are `0` / `0` / `false` / `0`) then `RESULT=done version=V user_agent=UA base_url=B tenant=T org=O workspace=W stream=S consumer=C result=R exit_code=E` (same `version`, `user_agent`, `base_url`, identity, `stream`, `consumer`, `result`, and `exit_code` semantics as SUMMARY for scrapers that key off the RESULT line; empty identity/base_url/stream/consumer strings honest when unset). Set `IOMESH_STRICT=1` so hard stage failures (`ConnectionStatus.result=err` for Health/Ready probe aggregate, WaitReady when requested, EnsureStream, PullSubscribe, Publish when requested, FetchContext, DeleteConsumer when requested) exit non-zero (1) after `SUMMARY` / `RESULT`; default remains warn-only + exit 0 (`failed` still reflects hard stage failures for scrapers; `result` mirrors `failed` as `ok|err`; `strict` reflects whether hard-fail exit mode was enabled; `exit_code=1` only when `strict && failed`, otherwise `0`).
-
-See [`examples/pull-loop/`](examples/pull-loop/) for env flags (`IOMESH_ORG`, `IOMESH_REQUIRE_ORG`, `IOMESH_BATCH`, `IOMESH_MAX_WAIT_MS`, `IOMESH_LOOPS`, `IOMESH_SUBJECT`, `IOMESH_PUBLISH`, `IOMESH_PUBLISH_EACH`, `IOMESH_DELETE_CONSUMER`, `IOMESH_WAIT_READY_MS`, `IOMESH_WAIT_INTERVAL_MS`, `IOMESH_WAIT_REQUIRE_HEALTH`, `IOMESH_STRICT`, …).
-
-## Diagnostics
+### Diagnostics, policy, context
 
 ```go
-fmt.Println(iomeshclient.Version) // e.g. "0.26.0"
-// All requests send: User-Agent: iomesh-client-sdk-go/0.26.0
-// Override: iomeshclient.WithUserAgent("my-service/1.2.3")
-
-if err := nc.Health(ctx); err != nil { /* broker down */ }
-if err := nc.Ready(ctx); err != nil { /* optional readiness path missing */ }
-
-// One-shot identity + Health + Ready (fail-open; never panics). Both probes always run.
-// Always includes tenant / org / workspace (empty string when unset / nil client).
-// Always includes version (package Version const, including nil client).
-// Always includes health_err / ready_err (empty string when probes OK).
-// Always includes health_ms / ready_ms / duration_ms (probe wall time ms; 0 when nil client / not run).
-// duration_ms is wall clock for the full Health+Ready path.
-// result is always "ok" | "err" (both probes OK → ok; otherwise err, including nil client).
+fmt.Println(iomeshclient.Version)
+_ = nc.Health(ctx)
+_ = nc.Ready(ctx)
 st := nc.ConnectionStatus(ctx)
 fmt.Print(iomeshclient.FormatConnectionStatus(st))
-// or: fmt.Print(iomeshclient.FormatConnectionStatusJSON(st))
+_ = nc.WaitReady(ctx, iomeshclient.WaitReadyOptions{Interval: 500 * time.Millisecond})
 
-
-// Poll until Ready (optional Health) or ctx deadline.
-if err := nc.WaitReady(ctx, iomeshclient.WaitReadyOptions{
-	Interval: 500 * time.Millisecond, // default when zero
-	// RequireHealth: true,
-}); err != nil { /* still not ready */ }
-// Or capture wait latency (wall time until success or error):
-// elapsed, err := nc.WaitReadyElapsed(ctx, iomeshclient.WaitReadyOptions{Interval: 500 * time.Millisecond})
-// Or also capture probe attempt cycles (each Ready [+ Health] try):
-// elapsed, attempts, err := nc.WaitReadyAttempts(ctx, iomeshclient.WaitReadyOptions{Interval: 500 * time.Millisecond})
-
-// Optional remote policy (POST /v1/policy/evaluate). Mode is per-call.
-// Transport / 404 / non-OK are fail-open (Allow=true) so agent DX is not blocked
-// when the broker is down or the endpoint is not deployed yet.
-// Enforce only blocks via ShouldBlockTool when mesh explicitly denies (Source=mesh).
 dec := nc.EvaluatePolicy(ctx, iomeshclient.PolicyInput{
-	Tool: "run_shell",
-	Mode: iomeshclient.PolicyEnforce, // or PolicyAdvisory; empty/off skips network
+	Tool: "run_shell", Mode: iomeshclient.PolicyEnforce,
 })
-if dec.ShouldBlockTool() {
-	// mesh deny under enforce
-}
-_ = dec.Summary() // e.g. "allow source=mesh mode=enforce"
+if dec.ShouldBlockTool() { /* mesh deny under enforce */ }
 
-// Context plane (POST /v1/context/query). Fail-open: nil client / transport / non-OK → empty.
-// ContextSnippet always requests include_lineage for agent prompt injection.
 snip := nc.ContextSnippet(ctx, ".", "incidents last hour")
-// or:
-res := nc.QueryContext(ctx, iomeshclient.QueryContextRequest{
-	Workspace: ".", Query: "incidents", IncludeLineage: true,
-})
-_ = iomeshclient.FormatContextSnippet(res) // text + optional <iomesh-lineage> (max 12 refs)
 _ = snip
 ```
 
-## Catalog (data products)
+Policy and context are fail-open on transport / 404 so a missing plane does not block agent DX. Enforce only blocks when mesh explicitly denies.
 
-Fail-open discovery of governed data products. Tries mesh `/v1/catalog/*` then portal
-`/v17|/v16` federation paths (404 → next; all fail → `Source=fail-open`).
-Listings are **Beta** discovery — catalog list is not a Connected install.
-Knowledge-layer rows stay Beta. This is the data-product catalog, not connector
-install / webhook / OAuth control-plane.
+### Catalog
+
+Fail-open discovery of governed **data products**. Tries mesh `/v1/catalog/*` then portal `/v17|/v16` (404 → next).
 
 ```go
-res := nc.ListCatalog(ctx, "") // optional query; "operational"|"knowledge"|"analytical" also sets mesh_layer=
-fmt.Printf("source=%s products=%d\n", res.Source, len(res.Products))
+res := nc.ListCatalog(ctx, "")
 fmt.Print(iomeshclient.FormatCatalog(res))
-
-p, meta := nc.GetCatalogProduct(ctx, "engineering-github-events")
-_ = p
-_ = meta // Source mesh|portal|fail-open; Detail is path or error note
 ```
+
+## Examples
+
+```bash
+export IOMESH_URL=http://127.0.0.1:8422
+export IOMESH_ORG=org_example   # local/dev placeholder; hosted: CP-minted org_+cuid2
+go run ./examples/org-heartbeat-publish
+IOMESH_PULL=1 go run ./examples/org-heartbeat-publish
+
+export IOMESH_STREAM=EVENTS
+export IOMESH_CONSUMER=sdk-pull-loop
+go run ./examples/pull-loop
+```
+
+| Example | What it shows |
+|---------|----------------|
+| [`examples/org-heartbeat-publish/`](examples/org-heartbeat-publish/) | Publish + optional pull of an org heartbeat |
+| [`examples/pull-loop/`](examples/pull-loop/) | Multi-cycle durable fetch/ack (optional ensure/publish/strict) |
+| [`examples/github-stream-read/`](examples/github-stream-read/) | Replay a GitHub-ingested stream via `ListStreamMessages` |
+| [`examples/connector-sdk-template/`](examples/connector-sdk-template/) | Webhook HMAC + envelope + events URL |
+| [`examples/memory-metering-dogfood/`](examples/memory-metering-dogfood/) | Metering pulse + optional sidecar memory |
+
+Offline stage smoke is not a production rollout.
 
 ## Security
 
-- Report vulnerabilities **privately**: [SECURITY.md](SECURITY.md) (GitHub Security Advisory or security@iome.sh).  
-  Do **not** open public issues for exploits.
-- Do **not** commit API tokens, broker URLs with credentials, or customer payloads into issues/PRs.
-- Prefer short-lived bearer tokens (`WithBearerToken`) and tenant-scoped headers (`WithTenant` / `WithOrg` / `WithWorkspace` / `WithDepartment`).
+- Report vulnerabilities **privately**: [SECURITY.md](SECURITY.md). Do **not** open public issues for exploits.
+- Do **not** commit API tokens or customer payloads into issues/PRs.
+- Prefer short-lived bearer tokens (`WithBearerToken`) and tenant-scoped headers.
 - Broker URLs must be absolute **`http`/`https`** (no `file://`, no embedded userinfo).
-- Connector HMAC secrets must stay server-side; never embed partner secrets in mobile or browser clients.
-- Treat `X-IOMesh-Tenant` / `X-IOMesh-Org` / `X-IOMesh-Department` as an authorization boundary — **enforce server-side**. Omitting `X-IOMesh-Org` can mix shared-stream reads on fail-open brokers. Set `WithRequireOrg()` / `IOMESH_REQUIRE_ORG=1` so the client errors before pull/fetch/ack/catalog when org is empty. The library does not invent a default org. `X-IOMesh-Department` is omitted when unset (no invent).
+- Connector HMAC secrets stay server-side.
+- Treat `X-IOMesh-Tenant` / `X-IOMesh-Org` / `X-IOMesh-Department` as an authorization boundary — **enforce server-side**.
 
 ## Versioning & support
 
 - Semantic versioning (`vMAJOR.MINOR.PATCH`).
 - Breaking changes only in major versions; see [CHANGELOG.md](CHANGELOG.md) and [RELEASING.md](RELEASING.md).
 - Supported Go versions: last two stable releases (CI matrix).
-- Help channels: [SUPPORT.md](SUPPORT.md).
+- Help: [SUPPORT.md](SUPPORT.md).
 
 ## Development
 
@@ -486,9 +312,9 @@ go test -race ./...
 golangci-lint run ./...   # if installed
 ```
 
-This repository is **pure client code** — no private platform dependencies. Unit tests use `httptest` and local helpers. Live broker integration belongs in your environment or private test harnesses, not in this public tree.
+This repository is **pure client code** — no private platform dependencies. Unit tests use `httptest`. Live broker integration belongs in your environment.
 
-**Public naming:** packages, env vars, and wire headers use `iomesh` / `IOMESH_*` / `X-IOMesh-*`. Internal monorepo codenames are not part of this SDK.
+**Public naming:** packages, env vars, and wire headers use `iomesh` / `IOMESH_*` / `X-IOMesh-*`.
 
 Process docs: [CONTRIBUTING](CONTRIBUTING.md) · [SUPPORT](SUPPORT.md) · [RELEASING](RELEASING.md) · [docs/OPEN_SOURCE_AUDIT.md](docs/OPEN_SOURCE_AUDIT.md).
 
@@ -496,16 +322,12 @@ Process docs: [CONTRIBUTING](CONTRIBUTING.md) · [SUPPORT](SUPPORT.md) · [RELEA
 
 | Link | Role |
 |------|------|
-| [iome.sh](https://iome.sh) | Product / marketing site & documentation |
-| [iomesh-tui](https://github.com/iome-sh/iomesh-tui) | Agent edge TUI (`/memory`, integrations, pull) |
-| [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) | Public edge Memory MCP host (local palace) |
-| [memory](https://github.com/iome-sh/memory) | Public palace kernel (Go module; not imported by this SDK) |
-| [iomesh-client-sdk-python](https://github.com/iome-sh/iomesh-client-sdk-python) | Official Python client (see below) |
-| *Upcoming* | `iomesh-client-sdk-ts`, … |
-
-### Also available (other languages)
-
-**[Python SDK](https://github.com/iome-sh/iomesh-client-sdk-python)** — official MIT peer. Both this Go client and the Python client are **Beta** / pre-1.0. The Python client is a subset of this Go surface; language parity and 1.0 are not claimed. PyPI publication is not live yet.
+| [iome.sh](https://iome.sh) | Product home |
+| [pkg.go.dev](https://pkg.go.dev/github.com/iome-sh/iomesh-client-sdk-go) | API reference |
+| [iomesh-tui](https://github.com/iome-sh/iomesh-tui) | Agent edge TUI |
+| [iomesh-memory-mcp](https://github.com/iome-sh/iomesh-memory-mcp) | Public edge Memory MCP host |
+| [memory](https://github.com/iome-sh/memory) | Public palace kernel (not imported by this SDK) |
+| [iomesh-client-sdk-python](https://github.com/iome-sh/iomesh-client-sdk-python) | Official Python client (subset of this surface; also Beta / pre-1.0; not live PyPI) |
 
 ## License
 
