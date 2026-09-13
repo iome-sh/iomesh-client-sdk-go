@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Go 1.27.0** — align with TUI / memory / iomesh-memory-mcp; CI matrix 1.27; README 1.27+.
 - **Docs** — README for OSS newcomers: short hero and TOC, Status (link CHANGELOG), heartbeat publish example, env table, pkg.go.dev.
 
 ## [0.71.0] — 2026-09-10
