@@ -36,7 +36,7 @@ Module `github.com/iome-sh/iomesh-client-sdk-go` · package `iomeshclient` · Us
 
 ## Requirements
 
-- Go **1.22+** (module declares the toolchain used in CI)
+- Go **1.27+** (module declares the toolchain used in CI)
 - Network access to an I/O Mesh broker (or local foundation)
 
 ## Install

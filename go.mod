@@ -1,7 +1,7 @@
 module github.com/iome-sh/iomesh-client-sdk-go
 
-// Public SDK: support last two stable Go lines in CI (see .github/workflows/ci.yml).
-go 1.23.0
+// Public SDK uses the same Go line as TUI / memory / iomesh-memory-mcp (1.27.0).
+go 1.27.0
 
 require github.com/nrednav/cuid2 v1.1.0
 
