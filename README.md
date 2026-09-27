@@ -201,6 +201,7 @@ Retrieve and ingest helpers talk to a **memory sidecar** (or a gateway that rout
 | `RequestMemoryRecall` / `RequestMemoryRecallFull` | `MEMORY_RPC` publish | Async; Full adds `session_id` |
 | `RetrieveMemory` | `POST /v1` then `/v5/memory/retrieve` | Sidecar HTTP; mesh-broker URL typically 404s |
 | `IngestMemoryTurn` | `POST /v1` then `/v5/memory/ingest` | Optional sidecar write |
+| `SelectSessionPalace` | — (no network) | Workspace MemoryURL only; shared `cfg.MemoryURL` and `HostedPalaceEnabled` are not a bind; not bound is not Connected |
 
 ```go
 res, err := nc.DualWriteMemoryTurn(ctx, "dept.research", iomeshclient.MemoryEnvelope{

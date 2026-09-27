@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`SelectSessionPalace`** — session palace is a workspace MemoryURL only when it is an absolute http(s) URL. Empty input, a shared `cfg.MemoryURL`, and `HostedPalaceEnabled` are not a bind. The synthetic one-label `aion-mem-*.internal` placeholder, broker/rqlite hosts, and ports 4001/4002/4003 are refused. Not bound is not Connected. No network I/O. Not Memory GA. `dual_write` stays OFF. `leftover_is_bind` stays open.
+
 ### Changed
 
 - **Go 1.27.0** — align with TUI / memory / iomesh-memory-mcp; CI matrix 1.27; README 1.27+; golangci-lint v2.13.2 (Go 1.27 support).
